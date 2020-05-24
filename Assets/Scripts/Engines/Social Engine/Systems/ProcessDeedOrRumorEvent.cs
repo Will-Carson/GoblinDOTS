@@ -124,8 +124,6 @@ public class ProcessDeedOrRumorEvent : SystemBase
             memory.deedTarget = re.deedTarget;
             memory.timesCommitted = 1;
 
-            int memoryId = 0;
-
             #region affinity calculation
 
             // Process the memory into their relationship
@@ -171,6 +169,8 @@ public class ProcessDeedOrRumorEvent : SystemBase
             #endregion
 
             #region add memory
+            
+            int memoryId = 0;
 
             // Add memory to memories
             // Check if the memory is a duplicate
@@ -218,8 +218,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
             // Process memory into faction member mood
             float pleasureDelta = GetAffinity(witness, memory.deedDoer) + (GetAffinity(witness, memory.deedDoer) * GetTraitAlignment(witness, memory.type));
             float arousalDelta = abs(GetAffinity(witness, memory.deedDoer)) * .2f; // TODO magic number "arousal importance"
-            float dominanceDelta = sign(memory.impact) * sign(GetAffinity(witness, memory.deedTarget)) * abs(GetDeed(memory.type).Aggression) * abs(GetAffinity(witness, memory.deedDoer));
-
+            float dominanceDelta = sign(memory.impact) * sign(GetAffinity(witness, memory.deedTarget)) * abs(GetDeed(memory.type).Aggression) * abs(affinityDelta);
             dominanceDelta += abs(dominanceDelta) * GetPowerCurve(fm.power - factionMembers[memory.deedDoer].power);
 
             factionMembers[witness].mood[0] += pleasureDelta;
@@ -231,12 +230,10 @@ public class ProcessDeedOrRumorEvent : SystemBase
 
         private float GetPowerCurve(float diff)
         {
-            var result = diff * .1;
-            result = result * 8;
-            result = result - 9;
-            result = pow(2, result);
-            result = result / .5f;
-            return (float)result;
+            var a = 10;
+            var result = pow(a, diff) - 1;
+            result = result / (a - 1);
+            return result;
         }
 
         private bool CheckDuplicateMemory(Memory memory1, Memory memory2)
