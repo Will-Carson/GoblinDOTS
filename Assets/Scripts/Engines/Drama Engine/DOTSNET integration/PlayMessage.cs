@@ -1,18 +1,17 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using DOTSNET;
 
-public class PlayMessage : MonoBehaviour
+public struct PlayMessage : NetworkMessage
 {
-    // Start is called before the first frame update
-    void Start()
+    public int playId;
+    public ushort GetID() { return 0x1002; }
+
+    public bool Deserialize(ref SegmentReader reader)
     {
-        
+        return reader.ReadInt(out playId);
     }
 
-    // Update is called once per frame
-    void Update()
+    public bool Serialize(ref SegmentWriter writer)
     {
-        
+        return writer.WriteInt(playId);
     }
 }

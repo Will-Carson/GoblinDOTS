@@ -1,18 +1,17 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using DOTSNET;
 
-public class QuestMessage : MonoBehaviour
+public struct QuestMessage : NetworkMessage
 {
-    // Start is called before the first frame update
-    void Start()
+    public int questId;
+    public ushort GetID() { return 0x1003; }
+
+    public bool Deserialize(ref SegmentReader reader)
     {
-        
+        return reader.ReadInt(out questId);
     }
 
-    // Update is called once per frame
-    void Update()
+    public bool Serialize(ref SegmentWriter writer)
     {
-        
+        return writer.WriteInt(questId);
     }
 }

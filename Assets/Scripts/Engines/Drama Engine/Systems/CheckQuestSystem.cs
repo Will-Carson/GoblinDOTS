@@ -6,7 +6,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
 
-public class CheckQuestSystem : JobComponentSystem
+public class CheckQuestSystem : SystemBase
 {
     // This declares a new kind of job, which is a unit of work to do.
     // The job is declared as an IJobForEach<Translation, Rotation>,
@@ -40,7 +40,7 @@ public class CheckQuestSystem : JobComponentSystem
         }
     }
     
-    protected override JobHandle OnUpdate(JobHandle inputDependencies)
+    protected override void OnUpdate()
     {
         var job = new CheckQuestSystemJob();
         
@@ -52,6 +52,6 @@ public class CheckQuestSystem : JobComponentSystem
         
         
         // Now that the job is set up, schedule it to be run. 
-        return job.Schedule();
+        job.Schedule();
     }
 }

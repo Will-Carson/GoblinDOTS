@@ -1,18 +1,17 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using DOTSNET;
 
-public class TaskMessage : MonoBehaviour
+public struct TaskMessage : NetworkMessage
 {
-    // Start is called before the first frame update
-    void Start()
+    public int taskId;
+    public ushort GetID() { return 0x1004; }
+
+    public bool Deserialize(ref SegmentReader reader)
     {
-        
+        return reader.ReadInt(out taskId);
     }
 
-    // Update is called once per frame
-    void Update()
+    public bool Serialize(ref SegmentWriter writer)
     {
-        
+        return writer.WriteInt(taskId);
     }
 }

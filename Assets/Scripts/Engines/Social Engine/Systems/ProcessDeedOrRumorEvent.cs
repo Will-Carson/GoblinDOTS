@@ -3,17 +3,18 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
+[ServerWorld]
 public class ProcessDeedOrRumorEvent : SystemBase
 {
     public NativeHashMap<int, Deed> DeedLibrary = new NativeHashMap<int, Deed>();
 
     public NativeList<RumorEvent> RumorEvents = new NativeList<RumorEvent>();
     public NativeList<DeedEvent> DeedEvents = new NativeList<DeedEvent>();
+    
+    [AutoAssign] protected ManageFactionAndFactionMembers FactionSystem;
 
-    // TODO get faction / factionMembers from a seperate faction management system. // TODO Make the faction management system.
-    public NativeHashMap<int, FactionMemberStruct> FactionMembers = new NativeHashMap<int, FactionMemberStruct>();
-    public NativeHashMap<int, Faction> Factions = new NativeHashMap<int, Faction>();
     public NativeHashMap<int, Relationship> Relationships = new NativeHashMap<int, Relationship>();
     public NativeHashMap<int, Memory> Memories = new NativeHashMap<int, Memory>();
 
@@ -33,6 +34,8 @@ public class ProcessDeedOrRumorEvent : SystemBase
         {
             // Add deed
         });
+
+
     }
     
     [BurstCompile]
@@ -321,8 +324,8 @@ public class ProcessDeedOrRumorEvent : SystemBase
         var job = new ProcessDeedOrRumorEventJob()
         {
             deedLibrary = DeedLibrary,
-            factionMembers = FactionMembers,
-            factions = Factions,
+            factionMembers = FactionSystem.FactionMembers,
+            factions = FactionSystem.Factions,
             rumorEvents = RumorEvents,
             deedEvents = DeedEvents,
             relationships = Relationships,

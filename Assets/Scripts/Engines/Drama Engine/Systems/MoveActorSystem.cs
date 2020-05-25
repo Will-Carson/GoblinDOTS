@@ -1,12 +1,17 @@
-﻿using Unity.Burst;
+﻿// TODO need to make a MoveActorMessage to let this system broadcast to clients which actors have moved.
+
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
-public class MoveActorSystem : JobComponentSystem
+[ServerWorld]
+public class MoveActorSystem : SystemBase
 {
     // This declares a new kind of job, which is a unit of work to do.
     // The job is declared as an IJobForEach<Translation, Rotation>,
@@ -40,7 +45,7 @@ public class MoveActorSystem : JobComponentSystem
         }
     }
     
-    protected override JobHandle OnUpdate(JobHandle inputDependencies)
+    protected override void OnUpdate()
     {
         var job = new MoveActorSystemJob();
         
@@ -52,6 +57,6 @@ public class MoveActorSystem : JobComponentSystem
         
         
         // Now that the job is set up, schedule it to be run. 
-        return job.Schedule();
+        job.Schedule();
     }
 }
