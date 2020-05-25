@@ -228,10 +228,10 @@ public class ProcessDeedOrRumorEvent : SystemBase
             #endregion
         }
 
-        private float GetPowerCurve(float diff)
+        private float GetPowerCurve(float xpos)
         {
             var a = 10;
-            var result = pow(a, diff) - 1;
+            var result = pow(a, xpos) - 1;
             result = result / (a - 1);
             return result;
         }

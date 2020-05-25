@@ -1,0 +1,44 @@
+﻿// some server systems should only be updated while the server is active.
+//
+// for example:
+//   * Transport: update all the time so we can actually start/stop the server
+//   * MonsterMovement: update only while server is running
+//
+// usage:
+//   add the UpdateInGroup attribute to a system:
+//     [UpdateInGroup(typeof(ServerActiveSimulationSystemGroup))]
+//   OnStartRunning / OnUpdate will only be called when the server is active!
+//   OnStopRunning will be called when the server stops being active!
+using Unity.Entities;
+
+namespace DOTSNET
+{
+    // [ServerWorld] adds it to server world automatically. no bootstrap needed!
+    [ServerWorld]
+    [AlwaysUpdateSystem]
+    // Systems in group may need to apply physics, so update in the safe group
+    [UpdateInGroup(typeof(ApplyPhysicsGroup))]
+    public class ServerActiveSimulationSystemGroup : ComponentSystemGroup
+    {
+        protected override void OnUpdate()
+        {
+            // get server system only once every frame.
+            // if we would make this a property then we would get this ONCE PER
+            // SYSTEM in our foreach loop.
+            NetworkServerSystem server = World.GetExistingSystem<NetworkServerSystem>();
+
+            // enable/disable systems based on server state
+            // IMPORTANT: we need to set .Enabled to false after StopServer,
+            //            otherwise OnStopRunning is never called in the group's
+            //            systems. trying to call OnUpdate only while ACTIVE
+            //            would not call OnStopRunning after StopServer.
+            foreach (ComponentSystemBase system in m_systemsToUpdate)
+            {
+                system.Enabled = server.state == ServerState.ACTIVE;
+            }
+
+            // always call base OnUpdate, otherwise nothing is updated again
+            base.OnUpdate();
+        }
+    }
+}
