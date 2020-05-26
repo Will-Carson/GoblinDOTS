@@ -40,7 +40,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
     struct ProcessDeedOrRumorEventJob : IJob
     {
         public NativeHashMap<int, Deed> deedLibrary;
-        public NativeHashMap<int, FactionMemberStruct> factionMembers;
+        public NativeHashMap<int, FactionMember> factionMembers;
         public NativeHashMap<int, Faction> factions;
         public NativeList<RumorEvent> rumorEvents;
         public NativeList<DeedEvent> deedEvents;
@@ -112,7 +112,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
 
         private void ProcessRumor(int witness, RumorEvent re)
         {
-            FactionMemberStruct fm = factionMembers[witness];
+            FactionMember fm = factionMembers[witness];
             Memory memory = new Memory();
             if (witness != re.rumorSpreader)
             {

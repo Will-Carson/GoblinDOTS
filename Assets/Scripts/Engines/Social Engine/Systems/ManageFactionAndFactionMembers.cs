@@ -35,6 +35,7 @@ public class ManageFactionAndFactionMembers : SystemBase
         public NativeList<FactionCreationEvent> factionCreationEvents;
         public NativeList<FactionMemberCreationEvent> factionMemberCreationEvents;
         public NativeList<FactionAddParentEvent> factionAddParentEvents;
+        public NativeList<FactionRemoveParentEvent> factionRemoveParentEvents;
         public NativeList<ChangeFactionPowerEvent> changeFactionPowerEvents;
 
         public NativeHashMap<int, Faction> factions;
@@ -71,11 +72,11 @@ public class ManageFactionAndFactionMembers : SystemBase
                 factionMembers.Add(GetNextFactionMemberID(), newFactionMember);
             }
 
-            // Reparent factions
+            // Add parent to factions
             for (int i = 0; i < factionAddParentEvents.Capacity; i++)
             {
                 var e = factionAddParentEvents[i];
-                var f = factions[e.reparentedFactionId];
+                var f = factions[e.subjectFactionId];
                 var newParentIds = new int[f.parentIds.Length + 1];
 
                 for (int j = 0; j < newParentIds.Length; j++)
@@ -87,6 +88,28 @@ public class ManageFactionAndFactionMembers : SystemBase
                     else
                     {
                         newParentIds[j] = e.newFactionParentId;
+                    }
+                }
+
+                f.parentIds = newParentIds;
+            }
+
+            // Remove parent from faction
+            for (int i = 0; i < factionRemoveParentEvents.Capacity; i++)
+            {
+                var e = factionRemoveParentEvents[i];
+                var f = factions[e.subjectFactionId];
+                var newParentIds = new int[f.parentIds.Length + 1];
+
+                for (int j = 0; j < newParentIds.Length; j++)
+                {
+                    if (j < f.parentIds.Length)
+                    {
+                        newParentIds[j] = f.parentIds[j];
+                    }
+                    else
+                    {
+                        newParentIds[j] = e.removeFactionParentId;
                     }
                 }
 
@@ -121,6 +144,7 @@ public class ManageFactionAndFactionMembers : SystemBase
             factionCreationEvents = FactionCreationEvents,
             factionMemberCreationEvents = FactionMemberCreationEvents,
             factionAddParentEvents = FactionAddParentEvents,
+            factionRemoveParentEvents = FactionRemoveParentEvents,
             changeFactionPowerEvents = ChangeFactionPowerEvents,
             nextFactionId = NextFactionId,
             nextFactionMemberId = NextFactionMemberId

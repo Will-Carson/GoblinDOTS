@@ -57,7 +57,6 @@ public class TestComponent : MonoBehaviour
     {
         var result = diff; // * .1;
         result = result * 2.5f;
-        result = result;
         result = pow(2, result);
         result = result / .5f;
         return (float)result;

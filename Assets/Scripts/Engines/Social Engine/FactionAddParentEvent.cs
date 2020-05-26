@@ -1,5 +1,5 @@
 ﻿public struct FactionAddParentEvent
 {
-    public int reparentedFactionId;
+    public int subjectFactionId;
     public int newFactionParentId;
 }
