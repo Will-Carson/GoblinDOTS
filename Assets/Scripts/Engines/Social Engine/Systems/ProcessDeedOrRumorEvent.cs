@@ -34,8 +34,6 @@ public class ProcessDeedOrRumorEvent : SystemBase
         {
             // Add deed
         });
-
-
     }
     
     [BurstCompile]

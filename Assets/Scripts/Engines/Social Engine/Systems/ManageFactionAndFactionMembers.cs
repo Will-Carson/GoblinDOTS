@@ -10,32 +10,121 @@ using DOTSNET;
 [ServerWorld]
 public class ManageFactionAndFactionMembers : SystemBase
 {
-    // List of structs to handle new faction member creation
-    // List of structs to handle new faction creation
-    // List of structs to handle faction reparenting
-    
-    // Struct / event types to handle each of the above cases
+    public NativeList<FactionCreationEvent> FactionCreationEvents = new NativeList<FactionCreationEvent>();
+    public NativeList<FactionMemberCreationEvent> FactionMemberCreationEvents = new NativeList<FactionMemberCreationEvent>();
+    public NativeList<FactionAddParentEvent> FactionAddParentEvents = new NativeList<FactionAddParentEvent>();
+    public NativeList<FactionRemoveParentEvent> FactionRemoveParentEvents = new NativeList<FactionRemoveParentEvent>();
+    public NativeList<ChangeFactionPowerEvent> ChangeFactionPowerEvents = new NativeList<ChangeFactionPowerEvent>();
 
-    public NativeHashMap<int, FactionMemberStruct> FactionMembers = new NativeHashMap<int, FactionMemberStruct>();
     public NativeHashMap<int, Faction> Factions = new NativeHashMap<int, Faction>();
-    
+    public NativeHashMap<int, FactionMember> FactionMembers = new NativeHashMap<int, FactionMember>();
+
+    public NativeArray<int> NextFactionId;
+    public NativeArray<int> NextFactionMemberId;
+
+    protected override void OnCreate()
+    {
+        // TODO pull these from a database
+        NextFactionId[0] = 0;
+        NextFactionMemberId[0] = 0;
+    }
+
     [BurstCompile]
     struct ManageFactionAndFactionMembersJob : IJob
     {
-        // Parallels to the above lists       
-        
+        public NativeList<FactionCreationEvent> factionCreationEvents;
+        public NativeList<FactionMemberCreationEvent> factionMemberCreationEvents;
+        public NativeList<FactionAddParentEvent> factionAddParentEvents;
+        public NativeList<ChangeFactionPowerEvent> changeFactionPowerEvents;
+
+        public NativeHashMap<int, Faction> factions;
+        public NativeHashMap<int, FactionMember> factionMembers;
+
+        public NativeArray<int> nextFactionId;
+        public NativeArray<int> nextFactionMemberId;
+
         public void Execute()
         {
             // Create new factions
+            for (int i = 0; i < factionCreationEvents.Capacity; i++)
+            {
+                var e = factionCreationEvents[i];
+                var newFaction = new Faction()
+                {
+                    parentIds = e.parentIds,
+                    personalityTraits = e.personalityTraits
+                };
+
+                factions.Add(GetNextFactionID(), newFaction);
+            }
+
             // Create new faction members
-            // reparent factions
+            for (int i = 0; i < factionMemberCreationEvents.Capacity; i++)
+            {
+                var e = factionMemberCreationEvents[i];
+                var newFactionMember = new FactionMember()
+                {
+                    factionId = e.factionId,
+                    power = e.power
+                };
+
+                factionMembers.Add(GetNextFactionMemberID(), newFactionMember);
+            }
+
+            // Reparent factions
+            for (int i = 0; i < factionAddParentEvents.Capacity; i++)
+            {
+                var e = factionAddParentEvents[i];
+                var f = factions[e.reparentedFactionId];
+                var newParentIds = new int[f.parentIds.Length + 1];
+
+                for (int j = 0; j < newParentIds.Length; j++)
+                {
+                    if (j < f.parentIds.Length)
+                    {
+                        newParentIds[j] = f.parentIds[j];
+                    }
+                    else
+                    {
+                        newParentIds[j] = e.newFactionParentId;
+                    }
+                }
+
+                f.parentIds = newParentIds;
+            }
+
+            // Change faction member power
+            for (int i = 0; i < changeFactionPowerEvents.Capacity; i++)
+            {
+                var e = changeFactionPowerEvents[i];
+                var newFactionMember = factionMembers[i];
+                newFactionMember.power = e.newPower;
+                factionMembers[i] = newFactionMember;
+            }
+        }
+
+        private int GetNextFactionID()
+        {
+            return 0;
+        }
+
+        private int GetNextFactionMemberID()
+        {
+            return 0;
         }
     }
     
     protected override void OnUpdate()
     {
-        var job = new ManageFactionAndFactionMembersJob();
-        
+        var job = new ManageFactionAndFactionMembersJob()
+        {
+            factionCreationEvents = FactionCreationEvents,
+            factionMemberCreationEvents = FactionMemberCreationEvents,
+            factionAddParentEvents = FactionAddParentEvents,
+            changeFactionPowerEvents = ChangeFactionPowerEvents,
+            nextFactionId = NextFactionId,
+            nextFactionMemberId = NextFactionMemberId
+        };
         
         job.Schedule();
     }

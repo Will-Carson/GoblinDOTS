@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-public struct FactionMemberStruct
+public struct FactionMember
 {
     public int factionId;
     public List<int> memoryIds;
