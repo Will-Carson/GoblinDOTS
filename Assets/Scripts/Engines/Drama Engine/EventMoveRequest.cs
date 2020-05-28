@@ -1,4 +1,4 @@
-﻿public struct MoveRequestEvent
+﻿public struct EventMoveRequest
 {
     int mover;
     int idOfNewLocation;
