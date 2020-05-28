@@ -5,10 +5,12 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
+[ServerWorld]
 public class RunPlaySystem : SystemBase
 {
-    public NativeArray<PlayExecutionLibrary> PlayExecutionLibrary;
+    public NativeArray<PlayExecutionLibrary> PEL;
 
     // List of play related events
     public NativeList<EventPlayRequest> EventsPlayRequest;
@@ -18,17 +20,22 @@ public class RunPlaySystem : SystemBase
 
     protected override void OnCreate()
     {
-        PlayExecutionLibrary = new NativeArray<PlayExecutionLibrary>()
+        PlayExecutionLibrary playExecutionLibrary = new PlayExecutionLibrary()
         {
-            // Define platy executions library here
-            // TODO write plays
+            playExecutions = new IPlayExecution[]
+            {
+                // Define play execution library here
+                // TODO write plays
+            }
         };
+
+        PEL[0] = playExecutionLibrary;
     }
 
     [BurstCompile]
     struct RunPlaySystemJob : IJob
     {
-        public NativeArray<PlayExecutionLibrary> playExecutionLibrary;
+        public NativeArray<PlayExecutionLibrary> pel;
 
         public NativeList<EventPlayRequest> eventPlayRequests;
         public NativeList<EventPlayFinished> eventPlaysFinished;
@@ -43,6 +50,7 @@ public class RunPlaySystem : SystemBase
                 if (eventPlayRequests[i].stageId != 0)
                 {
                     activePlays.Add(eventPlayRequests[i]);
+                    // TODO send current play to clients.
                 }
             }
             eventPlayRequests.Clear();

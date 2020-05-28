@@ -1,6 +1,4 @@
-﻿using System.Collections;
-
-public interface IPlayRequirements
+﻿public interface IPlayRequirements
 {
-    bool Requirements();
+    bool Requirements(out EventPlayRequest playRequest);
 }

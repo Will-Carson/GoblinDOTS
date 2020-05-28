@@ -5,22 +5,23 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
-public class RunTaskSystem : SystemBase
+// TODO da whole ting
+public class CharacterStateManagementSystem : SystemBase
 {
-    // Field for task requests
-    // Running tasks
-    // Task complete requests
+    public NativeList<EventChangeCharacterState> EventsChangeCharacterState = new NativeList<EventChangeCharacterState>();
+    public NativeHashMap<int, CharacterState> CharacterStates = new NativeHashMap<int, CharacterState>();
 
     [BurstCompile]
-    struct RunTaskSystemJob : IJob
+    struct CharacterStateManagementSystemJob : IJob
     {
         // Add fields here that your job needs to do its work.
         // For example,
         //    public float deltaTime;
-        
-        
-        
+
+
+
         public void Execute()
         {
             // Implement the work to perform for each entity here.
@@ -31,22 +32,22 @@ public class RunTaskSystem : SystemBase
             // that want to read Rotation component data.
             // For example,
             //     translation.Value += mul(rotation.Value, new float3(0, 0, 1)) * deltaTime;
-            
-            
+
+
         }
     }
-    
+
     protected override void OnUpdate()
     {
-        var job = new RunTaskSystemJob();
-        
+        var job = new CharacterStateManagementSystemJob();
+
         // Assign values to the fields on your job here, so that it has
         // everything it needs to do its work when it runs later.
         // For example,
         //     job.deltaTime = UnityEngine.Time.deltaTime;
-        
-        
-        
+
+
+
         // Now that the job is set up, schedule it to be run. 
         job.Schedule();
     }
