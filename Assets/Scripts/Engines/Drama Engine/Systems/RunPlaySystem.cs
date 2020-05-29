@@ -14,7 +14,7 @@ public class RunPlaySystem : SystemBase
 
     // List of play related events
     public NativeList<EventPlayRequest> EventsPlayRequest;
-    public NativeList<EventPlayFinished> EventsPlayFinished;
+    public NativeList<EventPlayComplete> EventsPlayFinished;
     public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest;
     public NativeList<EventPlayRequest> ActivePlays;
 
@@ -38,7 +38,7 @@ public class RunPlaySystem : SystemBase
         public NativeArray<PlayExecutionLibrary> pel;
 
         public NativeList<EventPlayRequest> eventPlayRequests;
-        public NativeList<EventPlayFinished> eventPlaysFinished;
+        public NativeList<EventPlayComplete> eventPlaysFinished;
         public NativeList<EventPlayContinueRequest> eventPlayContinueRequests;
         public NativeList<EventPlayRequest> activePlays;
 

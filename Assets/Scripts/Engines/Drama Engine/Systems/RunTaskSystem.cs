@@ -8,31 +8,37 @@ using static Unity.Mathematics.math;
 
 public class RunTaskSystem : SystemBase
 {
-    // Field for task requests
-    // Running tasks
-    // Task complete requests
+    // Events:
+    public NativeList<EventTaskRequest> EventsTaskRequest = new NativeList<EventTaskRequest>();
+    public NativeList<EventTaskContinue> EventsTaskContinue = new NativeList<EventTaskContinue>();
+    public NativeList<EventTaskComplete> EventsTaskComplete = new NativeList<EventTaskComplete>();
+
+    public NativeList<EventTaskRequest> RunningTasks = new NativeList<EventTaskRequest>();
 
     [BurstCompile]
     struct RunTaskSystemJob : IJob
     {
-        // Add fields here that your job needs to do its work.
-        // For example,
-        //    public float deltaTime;
-        
-        
-        
+        public NativeList<EventTaskRequest> eventsTaskRequest;
+        public NativeList<EventTaskComplete> eventsTaskComplete;
+
+        public NativeList<EventTaskRequest> runningTasks;
+
         public void Execute()
         {
-            // Implement the work to perform for each entity here.
-            // You should only access data that is local or that is a
-            // field on this job. Note that the 'rotation' parameter is
-            // marked as [ReadOnly], which means it cannot be modified,
-            // but allows this job to run in parallel with other jobs
-            // that want to read Rotation component data.
-            // For example,
-            //     translation.Value += mul(rotation.Value, new float3(0, 0, 1)) * deltaTime;
-            
-            
+            for (int i = 0; i < eventsTaskRequest.Length; i++)
+            {
+                // Process task request events
+            }
+
+            for (int i = 0; i < eventsTaskComplete.Length; i++)
+            {
+                // Process task complete events
+            }
+
+            for (int i = 0; i < runningTasks.Length; i++)
+            {
+                // Broadcast to clients the next t
+            }
         }
     }
     

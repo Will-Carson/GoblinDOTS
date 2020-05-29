@@ -13,16 +13,19 @@ public class FindValidTaskSystem : SystemBase
     [AutoAssign] public RunTaskSystem RTS;
     [AutoAssign] public CharacterStateManagementSystem CSMS;
 
-    public NativeArray<TaskRequirementsLibrary> TaskRequirementsLibrary = new NativeArray<TaskRequirementsLibrary>();
+    public NativeArray<TaskRequirementsLibrary> TRL = new NativeArray<TaskRequirementsLibrary>();
 
     protected override void OnCreate()
     {
-        base.OnCreate();
-        TaskRequirementsLibrary = new NativeArray<TaskRequirementsLibrary>()
+        TaskRequirementsLibrary trl = new TaskRequirementsLibrary()
         {
-            // Define task requirements here
-            // TODO do the thing
+            taskRequirements = new ITaskRequirement[]
+            {
+                // Define task requirements here
+                // TODO write task requirements
+            }
         };
+        TRL[0] = trl;
     }
 
     [BurstCompile]
@@ -32,7 +35,7 @@ public class FindValidTaskSystem : SystemBase
         public RunTaskSystem rts;
         public CharacterStateManagementSystem csms;
 
-        public NativeArray<TaskRequirementsLibrary> taskRequirementsLibrary;
+        public NativeArray<TaskRequirementsLibrary> trl;
 
         public void Execute()
         {
@@ -47,26 +50,34 @@ public class FindValidTaskSystem : SystemBase
             }
 
             // Assign non-busy characters tasks
+            var rl = trl[0].taskRequirements;
             EventTaskRequest eventTaskRequest = new EventTaskRequest();
             NativeList<EventTaskRequest> validTasks = new NativeList<EventTaskRequest>();
             for (int i = 0; i < lazyCharacters.Length; i++)
             {
-                for (int j = 0; j < taskRequirementsLibrary[0].taskRequirements.Length; j++)
+                for (int j = 0; j < rl.Length; j++)
                 {
-                    if (taskRequirementsLibrary[0].taskRequirements[j].Requirements(out eventTaskRequest))
+                    if (rl[j].Requirements(out eventTaskRequest))
                     {
                         validTasks.Add(eventTaskRequest);
                     }
                 }
-            }
-
-            if (validTasks.Length == 0)
-            {
-                // Send default task
-            }
-            else
-            {
-                // Send valid task
+                if (validTasks.Length == 0)
+                {
+                    // Send default task
+                    rts.EventsTaskRequest.Add(new EventTaskRequest()
+                    {
+                        characterId = lazyCharacters[i],
+                        pointId = 0,
+                        taskId = 0
+                    });
+                }
+                else
+                {
+                    // Send valid task
+                    // For now just sending the first valid task. TODO find a better way
+                    rts.EventsTaskRequest.Add(validTasks[0]);
+                }
             }
         }
     }
@@ -75,7 +86,10 @@ public class FindValidTaskSystem : SystemBase
     {
         var job = new FindValidTaskSystemJob()
         {
-
+            csms = CSMS,
+            lms = LMS,
+            rts = RTS,
+            trl = TRL
         };
 
         job.Schedule();
