@@ -12,7 +12,7 @@ public class LocationManagerSystem : SystemBase
     public NativeArray<PointData> PointDatas;
     public NativeArray<StageData> StageDatas;
     public NativeArray<SiteData> SiteDatas;
-    public NativeHashMap<int, LocationData> characterLocations;
+    public NativeHashMap<int, LocationData> CharacterLocations;
 
     // Events:
 

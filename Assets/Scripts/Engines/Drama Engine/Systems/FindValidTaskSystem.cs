@@ -61,7 +61,7 @@ public class FindValidTaskSystem : SystemBase
             {
                 for (int j = 0; j < rl.Length; j++)
                 {
-                    var worldState = wses.worldStateDatas[lms.characterLocations[i].siteId];
+                    var worldState = wses.worldStateDatas[lms.CharacterLocations[i].siteId];
                     if (rl[j].Requirements(out eventTaskRequest, worldState))
                     {
                         validTasks.Add(eventTaskRequest);

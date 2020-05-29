@@ -4,12 +4,7 @@ using UnityEngine;
 
 public struct TestPlay : IPlayRequirement
 {
-    public void Execute()
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public bool Requirements()
+    public bool Requirements(out EventPlayRequest playRequest, WorldStateData worldState)
     {
         throw new System.NotImplementedException();
     }

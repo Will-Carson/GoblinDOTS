@@ -5,4 +5,5 @@
     public int[] occupants;
     public int maxOccupants;
     public int[] points;
+    public StageState state;
 }
