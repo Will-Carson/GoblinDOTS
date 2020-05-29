@@ -1,4 +1,4 @@
 ﻿internal struct PlayRequirementsLibrary
 {
-    public IPlayRequirements[] playRequirements;
+    public IPlayRequirement[] playRequirements;
 }

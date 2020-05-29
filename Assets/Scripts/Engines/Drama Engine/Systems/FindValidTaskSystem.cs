@@ -7,11 +7,13 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
+[ServerWorld]
 public class FindValidTaskSystem : SystemBase
 {
     [AutoAssign] public LocationManagerSystem LMS;
     [AutoAssign] public RunTaskSystem RTS;
     [AutoAssign] public CharacterStateManagementSystem CSMS;
+    [AutoAssign] public WorldStateEvaluationSystem WSES;
 
     public NativeArray<TaskRequirementsLibrary> TRL = new NativeArray<TaskRequirementsLibrary>();
 
@@ -34,6 +36,7 @@ public class FindValidTaskSystem : SystemBase
         public LocationManagerSystem lms;
         public RunTaskSystem rts;
         public CharacterStateManagementSystem csms;
+        public WorldStateEvaluationSystem wses;
 
         public NativeArray<TaskRequirementsLibrary> trl;
 
@@ -50,14 +53,16 @@ public class FindValidTaskSystem : SystemBase
             }
 
             // Assign non-busy characters tasks
-            var rl = trl[0].taskRequirements;
-            EventTaskRequest eventTaskRequest = new EventTaskRequest();
             NativeList<EventTaskRequest> validTasks = new NativeList<EventTaskRequest>();
+            EventTaskRequest eventTaskRequest = new EventTaskRequest();
+            var rl = trl[0].taskRequirements;
+            
             for (int i = 0; i < lazyCharacters.Length; i++)
             {
                 for (int j = 0; j < rl.Length; j++)
                 {
-                    if (rl[j].Requirements(out eventTaskRequest))
+                    var worldState = wses.worldStateDatas[lms.characterLocations[i].siteId];
+                    if (rl[j].Requirements(out eventTaskRequest, worldState))
                     {
                         validTasks.Add(eventTaskRequest);
                     }

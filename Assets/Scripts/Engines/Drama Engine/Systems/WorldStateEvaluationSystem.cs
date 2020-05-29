@@ -5,20 +5,16 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
-public class LocationManagerSystem : SystemBase
+// TODO Updates and holds the world state datas related to stages
+[ServerWorld]
+public class WorldStateEvaluationSystem : SystemBase
 {
-    // Accessible data:
-    public NativeArray<PointData> PointDatas;
-    public NativeArray<StageData> StageDatas;
-    public NativeArray<SiteData> SiteDatas;
-    public NativeHashMap<int, LocationData> characterLocations;
-
-    // Events:
-
+    public NativeArray<WorldStateData> worldStateDatas = new NativeArray<WorldStateData>();
 
     [BurstCompile]
-    struct LocationManagerJob : IJob
+    struct WorldStateEvaluationSystemJob : IJob
     {
         // Add fields here that your job needs to do its work.
         // For example,
@@ -43,7 +39,7 @@ public class LocationManagerSystem : SystemBase
 
     protected override void OnUpdate()
     {
-        var job = new LocationManagerJob();
+        var job = new WorldStateEvaluationSystemJob();
 
         // Assign values to the fields on your job here, so that it has
         // everything it needs to do its work when it runs later.

@@ -5,7 +5,9 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
+[ServerWorld]
 public class RunTaskSystem : SystemBase
 {
     // Events:
@@ -25,19 +27,35 @@ public class RunTaskSystem : SystemBase
 
         public void Execute()
         {
+            // Process task request events
             for (int i = 0; i < eventsTaskRequest.Length; i++)
             {
-                // Process task request events
+                runningTasks.Add(eventsTaskRequest[i]);
             }
+
+            // Process task complete events
+            NativeList<int> completeTaskIds = new NativeList<int>();
 
             for (int i = 0; i < eventsTaskComplete.Length; i++)
             {
-                // Process task complete events
+                for (int j = 0; j < runningTasks.Length; j++)
+                {
+                    if (eventsTaskComplete[i].characterId == runningTasks[j].characterId)
+                    {
+                        completeTaskIds.Add(i);
+                    }
+                }
             }
 
+            for (int i = completeTaskIds.Length; i != 0; i--)
+            {
+                runningTasks.RemoveAtSwapBack(completeTaskIds[i]);
+            }
+            
+            // Broadcast to clients the next task event
             for (int i = 0; i < runningTasks.Length; i++)
             {
-                // Broadcast to clients the next t
+                // TODO
             }
         }
     }

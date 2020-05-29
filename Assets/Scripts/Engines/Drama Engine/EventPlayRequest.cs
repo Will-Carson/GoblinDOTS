@@ -2,6 +2,6 @@
 {
     public int playId;
     public int stageId;
-    public int[] actors;
+    public int[] subjects;
     public int[] objects;
 }

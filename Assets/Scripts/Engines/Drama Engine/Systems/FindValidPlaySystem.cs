@@ -8,10 +8,12 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
+[ServerWorld]
 public class FindValidPlaySystem : SystemBase
 {
     [AutoAssign] LocationManagerSystem LMS;
     [AutoAssign] RunPlaySystem RPS;
+    [AutoAssign] WorldStateEvaluationSystem WSES;
 
     private NativeArray<PlayRequirementsLibrary> PRL;
 
@@ -20,7 +22,7 @@ public class FindValidPlaySystem : SystemBase
         base.OnCreate();
         PlayRequirementsLibrary p = new PlayRequirementsLibrary()
         {
-            playRequirements = new IPlayRequirements[]
+            playRequirements = new IPlayRequirement[]
             {
                 // Define play requirements here
             }
@@ -33,6 +35,7 @@ public class FindValidPlaySystem : SystemBase
     {
         public LocationManagerSystem lms;
         public RunPlaySystem rps;
+        public WorldStateEvaluationSystem wses;
 
         public NativeArray<PlayRequirementsLibrary> prl;
 
@@ -44,18 +47,23 @@ public class FindValidPlaySystem : SystemBase
             for (int i = 0; i < lms.StageDatas.Length; i++)
             {
                 // Set stage id
-                // TODO Set stage id
+                // TODO Set stage id more selectively.
+                if (lms.StageDatas[i].state == StageState.notBusy)
+                {
+                    stageId = i;
+                }
             }
 
             // Search through plays for one that's applicable to that stage.
             // If none are applicable, play a default non-play that eats up a chunk of time.
             List<EventPlayRequest> validPlayRequests = new List<EventPlayRequest>();
             var playRequest = new EventPlayRequest();
+            var worldState = wses.worldStateDatas[stageId];
             var pr = prl[0].playRequirements;
 
             for (int i = 0; i < pr.Length; i++)
             {
-                if (pr[i].Requirements(out playRequest))
+                if (pr[i].Requirements(out playRequest, worldState))
                 {
                     validPlayRequests.Add(playRequest);
                 }
@@ -88,7 +96,8 @@ public class FindValidPlaySystem : SystemBase
         {
             lms = LMS,
             rps = RPS,
-            prl = PRL
+            prl = PRL,
+            wses = WSES
         };
         
         job.Schedule();

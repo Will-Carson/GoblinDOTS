@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public struct TestPlay : IPlayRequirements
+public struct TestPlay : IPlayRequirement
 {
     public void Execute()
     {
