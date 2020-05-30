@@ -5,53 +5,79 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
+[ServerWorld]
 public class FindValidQuestSystem : SystemBase
 {
-    // This declares a new kind of job, which is a unit of work to do.
-    // The job is declared as an IJobForEach<Translation, Rotation>,
-    // meaning it will process all entities in the world that have both
-    // Translation and Rotation components. Change it to process the component
-    // types you want.
-    //
-    // The job is also tagged with the BurstCompile attribute, which means
-    // that the Burst compiler will optimize it for the best performance.
+    [AutoAssign] LocationManagerSystem LMS;
+    [AutoAssign] CheckQuestSystem CQS;
+    [AutoAssign] WorldStateEvaluationSystem WSES;
+
+    public NativeList<EventQuestRequest> EventsQuestRequest = new NativeList<EventQuestRequest>();
+
+    private NativeArray<QuestRequirementsLibrary> QRL = new NativeArray<QuestRequirementsLibrary>(1, Allocator.Persistent);
+
+    public NativeHashMap<EventQuestRequest, ValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, ValidQuest>();
+
+    protected override void OnCreate()
+    {
+        base.OnCreate();
+        var qrl = new QuestRequirementsLibrary()
+        {
+            questRequirements = new IQuestRequirements[]
+            {
+                // Define quest requirements here
+                // TODO define quest requirements
+            }
+        };
+        QRL[0] = qrl;
+    }
+
     [BurstCompile]
     struct FindValidQuestSystemJob : IJob
     {
-        // Add fields here that your job needs to do its work.
-        // For example,
-        //    public float deltaTime;
-        
-        
-        
+        public LocationManagerSystem lms;
+        public CheckQuestSystem cqs;
+        public WorldStateEvaluationSystem wses;
+        public NativeList<EventQuestRequest> eventsQuestRequest;
+        private NativeArray<QuestRequirementsLibrary> qrl;
+        public NativeHashMap<EventQuestRequest, ValidQuest> currentQuests;
+
         public void Execute()
         {
-            // Implement the work to perform for each entity here.
-            // You should only access data that is local or that is a
-            // field on this job. Note that the 'rotation' parameter is
-            // marked as [ReadOnly], which means it cannot be modified,
-            // but allows this job to run in parallel with other jobs
-            // that want to read Rotation component data.
-            // For example,
-            //     translation.Value += mul(rotation.Value, new float3(0, 0, 1)) * deltaTime;
-            
-            
+            var validQuest = new ValidQuest();
+            var validQuests = new NativeList<ValidQuest>();
+            var qr = qrl[0].questRequirements;
+            for (int i = 0; i < eventsQuestRequest.Length; i++)
+            {
+                var e = eventsQuestRequest[i];
+                for (int j = 0; j < qr.Length; j++)
+                {
+                    qr[j].Requirements(out validQuest, wses.WorldStateDatas[lms.CharacterLocations[e.giverId].stageId]);
+                    if (validQuest.questId != 0)
+                    {
+                        validQuests.Add(validQuest);
+                    }
+                }
+
+                // Just adding the first quest to the current quests list. TODO do something more interesting.
+                currentQuests.Add(e, validQuests[0]);
+            }
         }
     }
     
     protected override void OnUpdate()
     {
-        var job = new FindValidQuestSystemJob();
-        
-        // Assign values to the fields on your job here, so that it has
-        // everything it needs to do its work when it runs later.
-        // For example,
-        //     job.deltaTime = UnityEngine.Time.deltaTime;
-        
-        
-        
-        // Now that the job is set up, schedule it to be run. 
+        var job = new FindValidQuestSystemJob()
+        {
+            cqs = CQS,
+            currentQuests = CurrentQuests,
+            eventsQuestRequest = EventsQuestRequest,
+            lms = LMS,
+            wses = WSES
+        };
+
         job.Schedule();
     }
 }

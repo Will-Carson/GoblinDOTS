@@ -25,6 +25,7 @@ public class FindValidPlaySystem : SystemBase
             playRequirements = new IPlayRequirement[]
             {
                 // Define play requirements here
+                // TODO define play requirements
             }
         };
         PRL[0] = p;
@@ -58,7 +59,7 @@ public class FindValidPlaySystem : SystemBase
             // If none are applicable, play a default non-play that eats up a chunk of time.
             List<EventPlayRequest> validPlayRequests = new List<EventPlayRequest>();
             var playRequest = new EventPlayRequest();
-            var worldState = wses.worldStateDatas[stageId];
+            var worldState = wses.WorldStateDatas[stageId];
             var pr = prl[0].playRequirements;
 
             for (int i = 0; i < pr.Length; i++)
@@ -70,8 +71,6 @@ public class FindValidPlaySystem : SystemBase
             }
 
             // Send the play request to the RunPlaySystem
-            // TODO it's possible that Native* objects Count attribute is never 0. 
-            // If this is the case, I'll have to do a different test here. Need to test this.
             if (validPlayRequests.Count == 0)
             {
                 // If no valid plays, send a default play request

@@ -11,7 +11,7 @@ using DOTSNET;
 [ServerWorld]
 public class WorldStateEvaluationSystem : SystemBase
 {
-    public NativeArray<WorldStateData> worldStateDatas = new NativeArray<WorldStateData>();
+    public NativeArray<WorldStateData> WorldStateDatas = new NativeArray<WorldStateData>();
 
     [BurstCompile]
     struct WorldStateEvaluationSystemJob : IJob

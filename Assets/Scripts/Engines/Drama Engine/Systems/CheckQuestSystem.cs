@@ -5,6 +5,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
 public class CheckQuestSystem : SystemBase
 {
