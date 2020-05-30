@@ -5,4 +5,6 @@
     public PointType type;
     public int[] occupants;
     public int maxOccupants;
+    public int parentStage;
+    public int parentSite;
 }

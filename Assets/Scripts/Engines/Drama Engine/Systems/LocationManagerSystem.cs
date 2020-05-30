@@ -5,54 +5,62 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
+using DOTSNET;
 
 public class LocationManagerSystem : SystemBase
 {
     // Accessible data:
-    public NativeArray<PointData> PointDatas;
-    public NativeArray<StageData> StageDatas;
-    public NativeArray<SiteData> SiteDatas;
-    public NativeHashMap<int, LocationData> CharacterLocations;
+    public NativeArray<PointData> PointDatas = new NativeArray<PointData>();
+    public NativeArray<StageData> StageDatas = new NativeArray<StageData>();
+    public NativeArray<SiteData> SiteDatas = new NativeArray<SiteData>();
+    public NativeHashMap<int, LocationData> CharacterLocations = new NativeHashMap<int, LocationData>();
 
     // Events:
-
+    public NativeList<EventMoveRequest> EventsMoveRequest = new NativeList<EventMoveRequest>();
 
     [BurstCompile]
-    struct LocationManagerJob : IJob
+    struct LocationManagerSystemJob : IJob
     {
-        // Add fields here that your job needs to do its work.
-        // For example,
-        //    public float deltaTime;
-
-
+        public NativeArray<PointData> pointDatas;
+        public NativeArray<StageData> stageDatas;
+        public NativeArray<SiteData> siteDatas;
+        public NativeHashMap<int, LocationData> characterLocations;
+        public NativeList<EventMoveRequest> eventsMoveRequest;
 
         public void Execute()
         {
-            // Implement the work to perform for each entity here.
-            // You should only access data that is local or that is a
-            // field on this job. Note that the 'rotation' parameter is
-            // marked as [ReadOnly], which means it cannot be modified,
-            // but allows this job to run in parallel with other jobs
-            // that want to read Rotation component data.
-            // For example,
-            //     translation.Value += mul(rotation.Value, new float3(0, 0, 1)) * deltaTime;
+            for (int i = 0; i < eventsMoveRequest.Length; i++)
+            {
+                var e = eventsMoveRequest[i];
+                var pointData = pointDatas[e.idOfNewLocation];
 
+                // Check if there's room at the new location.
+                if (pointData.occupants.Length < pointData.maxOccupants)
+                {
+                    var newLocationData = new LocationData()
+                    {
+                        pointId = e.idOfNewLocation,
+                        stageId = pointDatas[e.idOfNewLocation].parentStage,
+                        siteId = pointDatas[e.idOfNewLocation].parentSite
+                    };
 
+                    characterLocations[eventsMoveRequest[i].mover] = newLocationData;
+                }
+            }
         }
     }
 
     protected override void OnUpdate()
     {
-        var job = new LocationManagerJob();
+        var job = new LocationManagerSystemJob()
+        {
+            pointDatas = PointDatas,
+            stageDatas = StageDatas,
+            siteDatas = SiteDatas,
+            characterLocations = CharacterLocations,
+            eventsMoveRequest = EventsMoveRequest
+        };
 
-        // Assign values to the fields on your job here, so that it has
-        // everything it needs to do its work when it runs later.
-        // For example,
-        //     job.deltaTime = UnityEngine.Time.deltaTime;
-
-
-
-        // Now that the job is set up, schedule it to be run. 
         job.Schedule();
     }
 }
