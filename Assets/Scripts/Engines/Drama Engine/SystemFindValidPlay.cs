@@ -20,7 +20,7 @@ public class SystemFindValidPlay<PR, PE> : SystemBase
 
     protected override void OnCreate()
     {
-        PRL = new NativeArray<PR>(GlobalVariables.numberOfPlays, Allocator.Persistent)
+        PRL = new NativeArray<PR>(G.numberOfPlays, Allocator.Persistent)
         {
             // TODO define play requirements here
         };
@@ -52,7 +52,7 @@ public class SystemFindValidPlay<PR, PE> : SystemBase
 
             // Search through plays for one that's applicable to that stage.
             // If none are applicable, play a default non-play that eats up a chunk of time.
-            NativeList<EventPlayRequest> validPlayRequests = new NativeList<EventPlayRequest>(GlobalVariables.numberOfStages, Allocator.Temp);
+            NativeList<EventPlayRequest> validPlayRequests = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Temp);
             var playRequest = new EventPlayRequest();
             var worldState = wses.DatasWorldState[stageId];
 

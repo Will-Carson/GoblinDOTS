@@ -1,4 +1,4 @@
-﻿public class GlobalVariables
+﻿public class G
 {
     public static int numberOfPoints = 1000;
     public static int numberOfStages = 200;

@@ -20,7 +20,7 @@ public class SystemFindValidTask<TR> : SystemBase
 
     protected override void OnCreate()
     {
-        TRL = new NativeArray<TR>(GlobalVariables.numberOfTasks, Allocator.Persistent)
+        TRL = new NativeArray<TR>(G.numberOfTasks, Allocator.Persistent)
         {
             // TODO the thing
         };
@@ -39,7 +39,7 @@ public class SystemFindValidTask<TR> : SystemBase
         public void Execute()
         {
             // Loop through every character looking for ones that aren't busy
-            NativeList<int> lazyCharacters = new NativeList<int>(GlobalVariables.maxLazyCharacters, Allocator.Temp);
+            NativeList<int> lazyCharacters = new NativeList<int>(G.maxLazyCharacters, Allocator.Temp);
             for (int i = 0; i < csms.CharacterStates.Count(); i++)
             {
                 if (csms.CharacterStates[i] == CharacterState.waitingForTask)
@@ -49,7 +49,7 @@ public class SystemFindValidTask<TR> : SystemBase
             }
 
             // Assign non-busy characters tasks
-            NativeList<EventTaskRequest> validTasks = new NativeList<EventTaskRequest>(GlobalVariables.maxValidTasks, Allocator.Temp);
+            NativeList<EventTaskRequest> validTasks = new NativeList<EventTaskRequest>(G.maxValidTasks, Allocator.Temp);
             EventTaskRequest eventTaskRequest = new EventTaskRequest();
             
             for (int i = 0; i < lazyCharacters.Length; i++)

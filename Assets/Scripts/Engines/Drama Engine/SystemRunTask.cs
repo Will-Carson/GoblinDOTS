@@ -12,11 +12,11 @@ using DOTSNET;
 public class SystemRunTask : SystemBase
 {
     // Events:
-    public NativeList<EventTaskRequest> EventsTaskRequest = new NativeList<EventTaskRequest>(GlobalVariables.maxNPCPopulation, Allocator.Persistent);
-    public NativeList<EventTaskContinue> EventsTaskContinue = new NativeList<EventTaskContinue>(GlobalVariables.maxNPCPopulation, Allocator.Persistent);
-    public NativeList<EventTaskComplete> EventsTaskComplete = new NativeList<EventTaskComplete>(GlobalVariables.maxNPCPopulation, Allocator.Persistent);
+    public NativeList<EventTaskRequest> EventsTaskRequest = new NativeList<EventTaskRequest>(G.maxNPCPopulation, Allocator.Persistent);
+    public NativeList<EventTaskContinue> EventsTaskContinue = new NativeList<EventTaskContinue>(G.maxNPCPopulation, Allocator.Persistent);
+    public NativeList<EventTaskComplete> EventsTaskComplete = new NativeList<EventTaskComplete>(G.maxNPCPopulation, Allocator.Persistent);
 
-    public NativeList<EventTaskRequest> RunningTasks = new NativeList<EventTaskRequest>(GlobalVariables.maxNPCPopulation, Allocator.Persistent);
+    public NativeList<EventTaskRequest> RunningTasks = new NativeList<EventTaskRequest>(G.maxNPCPopulation, Allocator.Persistent);
 
     [BurstCompile]
     struct SystemRunTaskJob : IJob
@@ -42,7 +42,7 @@ public class SystemRunTask : SystemBase
             }
 
             // Process task complete events
-            NativeList<int> completeTaskIds = new NativeList<int>(GlobalVariables.maxNPCPopulation, Allocator.Temp);
+            NativeList<int> completeTaskIds = new NativeList<int>(G.maxNPCPopulation, Allocator.Temp);
 
             for (int i = 0; i < eventsTaskComplete.Length; i++)
             {

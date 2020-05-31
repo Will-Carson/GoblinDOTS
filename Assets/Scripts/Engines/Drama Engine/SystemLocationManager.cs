@@ -10,13 +10,13 @@ using DOTSNET;
 public class SystemLocationManager : SystemBase
 {
     // Accessible data:
-    public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(GlobalVariables.numberOfPoints, Allocator.Persistent);
-    public NativeArray<DataStage> StageDatas = new NativeArray<DataStage>(GlobalVariables.numberOfStages, Allocator.Persistent);
-    public NativeArray<DataSite> SiteDatas = new NativeArray<DataSite>(GlobalVariables.numberOfSites, Allocator.Persistent);
-    public NativeHashMap<int, DataLocation> CharacterLocations = new NativeHashMap<int, DataLocation>(GlobalVariables.maxTotalPopulation, Allocator.Persistent);
+    public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(G.numberOfPoints, Allocator.Persistent);
+    public NativeArray<DataStage> StageDatas = new NativeArray<DataStage>(G.numberOfStages, Allocator.Persistent);
+    public NativeArray<DataSite> SiteDatas = new NativeArray<DataSite>(G.numberOfSites, Allocator.Persistent);
+    public NativeHashMap<int, DataLocation> CharacterLocations = new NativeHashMap<int, DataLocation>(G.maxTotalPopulation, Allocator.Persistent);
 
     // Events:
-    public NativeList<EventMoveRequest> EventsMoveRequest = new NativeList<EventMoveRequest>(GlobalVariables.maxTotalPopulation, Allocator.Persistent);
+    public NativeList<EventMoveRequest> EventsMoveRequest = new NativeList<EventMoveRequest>(G.maxTotalPopulation, Allocator.Persistent);
 
     [BurstCompile]
     struct SystemLocationManagerJob : IJob

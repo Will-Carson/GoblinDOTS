@@ -12,7 +12,7 @@ using DOTSNET;
 public class SystemWorldStateEvaluation : SystemBase
 {
 
-    public NativeArray<DataWorldState> DatasWorldState = new NativeArray<DataWorldState>(GlobalVariables.numberOfStages, Allocator.Persistent);
+    public NativeArray<DataWorldState> DatasWorldState = new NativeArray<DataWorldState>(G.numberOfStages, Allocator.Persistent);
 
     [BurstCompile]
     struct SystemWorldStateEvaluationJob : IJob

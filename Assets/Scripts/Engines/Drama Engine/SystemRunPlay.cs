@@ -15,14 +15,14 @@ public class SystemRunPlay<PE> : SystemBase where PE : struct, IPlayExecution
     public NativeArray<PE> PEL;
 
     // List of play related events
-    public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(GlobalVariables.numberOfStages, Allocator.Persistent);
-    public NativeList<EventPlayComplete> EventsPlayFinished = new NativeList<EventPlayComplete>(GlobalVariables.numberOfStages, Allocator.Persistent);
-    public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest = new NativeList<EventPlayContinueRequest>(GlobalVariables.numberOfStages, Allocator.Persistent);
-    public NativeList<EventPlayRequest> ActivePlays = new NativeList<EventPlayRequest>(GlobalVariables.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayComplete> EventsPlayFinished = new NativeList<EventPlayComplete>(G.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest = new NativeList<EventPlayContinueRequest>(G.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayRequest> ActivePlays = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
 
     protected override void OnCreate()
     {
-        PEL = new NativeArray<PE>(GlobalVariables.numberOfPlays, Allocator.Persistent)
+        PEL = new NativeArray<PE>(G.numberOfPlays, Allocator.Persistent)
         {
             // TODO the thing
         };
@@ -59,7 +59,7 @@ public class SystemRunPlay<PE> : SystemBase where PE : struct, IPlayExecution
             eventPlayContinueRequests.Clear();
 
             // EventPlaysFinished
-            NativeList<int> removed = new NativeList<int>(GlobalVariables.numberOfStages, Allocator.Temp);
+            NativeList<int> removed = new NativeList<int>(G.numberOfStages, Allocator.Temp);
             for (int i = 0; i < eventPlaysFinished.Length; i++)
             {
                 for (int j = 0; j < activePlays.Length; j++)

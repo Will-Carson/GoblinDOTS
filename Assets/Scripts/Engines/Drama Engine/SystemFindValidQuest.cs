@@ -14,14 +14,14 @@ public class SystemFindValidQuest<QR> : SystemBase where QR : struct, IQuestRequ
     [AutoAssign] SystemCheckQuest CQS;
     [AutoAssign] SystemWorldStateEvaluation WSES;
 
-    public NativeList<EventQuestRequest> EventsQuestRequest = new NativeList<EventQuestRequest>(GlobalVariables.maxPlayerPopulation, Allocator.Persistent);
-    public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(GlobalVariables.maxCurrentQuests, Allocator.Persistent);
+    public NativeList<EventQuestRequest> EventsQuestRequest = new NativeList<EventQuestRequest>(G.maxPlayerPopulation, Allocator.Persistent);
+    public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
 
     private NativeArray<QR> QRL;
     
     protected override void OnCreate()
     {
-        QRL = new NativeArray<QR>(GlobalVariables.numberOfQuests, Allocator.Persistent)
+        QRL = new NativeArray<QR>(G.numberOfQuests, Allocator.Persistent)
         {
 
         };
@@ -40,7 +40,7 @@ public class SystemFindValidQuest<QR> : SystemBase where QR : struct, IQuestRequ
         public void Execute()
         {
             var validQuest = new DataValidQuest();
-            var validQuests = new NativeList<DataValidQuest>(GlobalVariables.numberOfQuests, Allocator.Temp);
+            var validQuests = new NativeList<DataValidQuest>(G.numberOfQuests, Allocator.Temp);
             for (int i = 0; i < eventsQuestRequest.Length; i++)
             {
                 var e = eventsQuestRequest[i];
