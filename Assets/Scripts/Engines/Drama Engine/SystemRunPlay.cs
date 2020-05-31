@@ -10,9 +10,9 @@ using DOTSNET;
 // TODO using a lot of GlobalVariables.numberOfStages, Allocator.Persistent. Should give these their own vars
 // TODO PEL has no place here. This system isn't actually running the plays, so the PEL doesn't matter.
 [ServerWorld]
-public class SystemRunPlay<PE> : SystemBase where PE : struct, IPlayExecution
+public class SystemRunPlay<PE> : SystemBase where PE : unmanaged, IPlayExecution
 {
-    public NativeArray<PE> PEL;
+    public NativeArray<PE> PEL = new NativeArray<PE>(G.numberOfPlays, Allocator.Persistent);
 
     // List of play related events
     public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
@@ -22,10 +22,8 @@ public class SystemRunPlay<PE> : SystemBase where PE : struct, IPlayExecution
 
     protected override void OnCreate()
     {
-        PEL = new NativeArray<PE>(G.numberOfPlays, Allocator.Persistent)
-        {
-            // TODO the thing
-        };
+        dynamic p;
+        PEL[0] = p = new PlayETest();
     }
 
     [BurstCompile]

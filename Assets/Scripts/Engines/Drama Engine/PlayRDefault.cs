@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public struct PlayRequirementsDefault : IPlayRequirement
+public struct PlayRDefault : IPlayRequirement
 {
     public bool Requirements(out EventPlayRequest playRequest, DataWorldState worldState)
     {

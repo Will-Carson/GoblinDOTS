@@ -9,7 +9,8 @@ using DOTSNET;
 
 public class SystemCheckQuest : SystemBase
 {
-    
+
+    public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
 
     [BurstCompile]
     struct SystemCheckQuestJob : IJob

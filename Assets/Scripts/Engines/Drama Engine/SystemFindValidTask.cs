@@ -9,21 +9,19 @@ using DOTSNET;
 
 [ServerWorld]
 public class SystemFindValidTask<TR> : SystemBase 
-    where TR : struct, ITaskRequirement
+    where TR : unmanaged, ITaskRequirement
 {
     [AutoAssign] public SystemLocationManager LMS;
     [AutoAssign] public SystemRunTask RTS;
     [AutoAssign] public SystemCharacterStateManagement CSMS;
     [AutoAssign] public SystemWorldStateEvaluation WSES;
 
-    private NativeArray<TR> TRL;
+    private NativeArray<TR> TRL = new NativeArray<TR>(G.numberOfTasks, Allocator.Persistent);
 
     protected override void OnCreate()
     {
-        TRL = new NativeArray<TR>(G.numberOfTasks, Allocator.Persistent)
-        {
-            // TODO the thing
-        };
+        dynamic t;
+        TRL[0] = t = new TaskRTest();
     }
 
     [BurstCompile]

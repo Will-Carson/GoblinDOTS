@@ -8,30 +8,28 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemFindValidQuest<QR> : SystemBase where QR : struct, IQuestRequirements
+public class SystemFindValidQuest<QR> : SystemBase 
+    where QR : unmanaged, IQuestRequirements
 {
     [AutoAssign] SystemLocationManager LMS;
     [AutoAssign] SystemCheckQuest CQS;
     [AutoAssign] SystemWorldStateEvaluation WSES;
 
     public NativeList<EventQuestRequest> EventsQuestRequest = new NativeList<EventQuestRequest>(G.maxPlayerPopulation, Allocator.Persistent);
-    public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
 
-    private NativeArray<QR> QRL;
-    
+    private NativeArray<QR> QRL = new NativeArray<QR>(G.numberOfQuests, Allocator.Persistent);
+
     protected override void OnCreate()
     {
-        QRL = new NativeArray<QR>(G.numberOfQuests, Allocator.Persistent)
-        {
-
-        };
+        // Example of adding a quest.
+        dynamic q = new QuestRTest();
+        QRL[0] = q;
     }
 
     [BurstCompile]
     struct SystemFindValidQuestJob : IJob
     {
         public SystemLocationManager lms;
-        public SystemCheckQuest cqs;
         public SystemWorldStateEvaluation wses;
         public NativeList<EventQuestRequest> eventsQuestRequest;
         private NativeArray<QR> qrl;
@@ -66,8 +64,7 @@ public class SystemFindValidQuest<QR> : SystemBase where QR : struct, IQuestRequ
     {
         var job = new SystemFindValidQuestJob()
         {
-            cqs = CQS,
-            currentQuests = CurrentQuests,
+            currentQuests = CQS.CurrentQuests,
             eventsQuestRequest = EventsQuestRequest,
             lms = LMS,
             wses = WSES
@@ -80,7 +77,6 @@ public class SystemFindValidQuest<QR> : SystemBase where QR : struct, IQuestRequ
     {
         base.OnDestroy();
         EventsQuestRequest.Dispose();
-        CurrentQuests.Dispose();
         QRL.Dispose();
     }
 }

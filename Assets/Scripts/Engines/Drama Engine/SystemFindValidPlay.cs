@@ -10,20 +10,18 @@ using DOTSNET;
 
 [ServerWorld]
 public class SystemFindValidPlay<PR, PE> : SystemBase 
-    where PR : struct, IPlayRequirement 
-    where PE : struct, IPlayExecution
+    where PR : unmanaged, IPlayRequirement 
+    where PE : unmanaged, IPlayExecution
 {
     [AutoAssign] SystemLocationManager LMS;
     [AutoAssign] SystemRunPlay<PE> RPS;
     [AutoAssign] SystemWorldStateEvaluation WSES;
-    private NativeArray<PR> PRL;
+    private NativeArray<PR> PRL = new NativeArray<PR>(G.numberOfPlays, Allocator.Persistent);
 
     protected override void OnCreate()
     {
-        PRL = new NativeArray<PR>(G.numberOfPlays, Allocator.Persistent)
-        {
-            // TODO define play requirements here
-        };
+        dynamic p;
+        PRL[0] = p = new PlayRDefault();
     }
 
     [BurstCompile]
