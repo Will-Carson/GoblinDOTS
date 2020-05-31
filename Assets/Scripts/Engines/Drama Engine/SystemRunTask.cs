@@ -89,7 +89,7 @@ public class SystemRunTask : SystemBase
         base.OnDestroy();
         EventsTaskRequest.Dispose();
         EventsTaskContinue.Dispose();
-        EventsTaskRequest.Dispose();
+        EventsTaskComplete.Dispose();
         RunningTasks.Dispose();
     }
 }
