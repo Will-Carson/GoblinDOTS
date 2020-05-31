@@ -7,7 +7,7 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class FindValidDialogueSystem : SystemBase
+public class SystemFindValidDialogue : SystemBase
 {
     // This declares a new kind of job, which is a unit of work to do.
     // The job is declared as an IJobForEach<Translation, Rotation>,
@@ -18,7 +18,7 @@ public class FindValidDialogueSystem : SystemBase
     // The job is also tagged with the BurstCompile attribute, which means
     // that the Burst compiler will optimize it for the best performance.
     [BurstCompile]
-    struct FindValidDialogueSystemJob : IJob
+    struct SystemFindValidDialogueJob : IJob
     {
         // Add fields here that your job needs to do its work.
         // For example,
@@ -43,7 +43,7 @@ public class FindValidDialogueSystem : SystemBase
     
     protected override void OnUpdate()
     {
-        var job = new FindValidDialogueSystemJob();
+        var job = new SystemFindValidDialogueJob();
         
         // Assign values to the fields on your job here, so that it has
         // everything it needs to do its work when it runs later.

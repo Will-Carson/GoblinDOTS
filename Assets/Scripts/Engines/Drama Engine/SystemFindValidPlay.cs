@@ -9,36 +9,31 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class FindValidPlaySystem : SystemBase
+public class SystemFindValidPlay<PR, PE> : SystemBase 
+    where PR : struct, IPlayRequirement 
+    where PE : struct, IPlayExecution
 {
-    [AutoAssign] LocationManagerSystem LMS;
-    [AutoAssign] RunPlaySystem RPS;
-    [AutoAssign] WorldStateEvaluationSystem WSES;
-
-    private NativeArray<PlayRequirementsLibrary> PRL;
+    [AutoAssign] SystemLocationManager LMS;
+    [AutoAssign] SystemRunPlay<PE> RPS;
+    [AutoAssign] SystemWorldStateEvaluation WSES;
+    private NativeArray<PR> PRL;
 
     protected override void OnCreate()
     {
-        base.OnCreate();
-        PlayRequirementsLibrary p = new PlayRequirementsLibrary()
+        PRL = new NativeArray<PR>(GlobalVariables.numberOfPlays, Allocator.Persistent)
         {
-            playRequirements = new IPlayRequirement[]
-            {
-                // Define play requirements here
-                // TODO define play requirements
-            }
+            // TODO define play requirements here
         };
-        PRL[0] = p;
     }
 
     [BurstCompile]
-    struct FindValidPlaySystemJob : IJob
+    struct SystemFindValidPlayJob : IJob
     {
-        public LocationManagerSystem lms;
-        public RunPlaySystem rps;
-        public WorldStateEvaluationSystem wses;
+        public SystemLocationManager lms;
+        public SystemRunPlay<PE> rps;
+        public SystemWorldStateEvaluation wses;
 
-        public NativeArray<PlayRequirementsLibrary> prl;
+        public NativeArray<PR> prl;
 
         public void Execute()
         {
@@ -49,7 +44,7 @@ public class FindValidPlaySystem : SystemBase
             {
                 // Set stage id
                 // TODO Set stage id more selectively.
-                if (lms.StageDatas[i].state == StageState.notBusy)
+                if (lms.StageDatas[i].state == TypeStageState.notBusy)
                 {
                     stageId = i;
                 }
@@ -57,21 +52,20 @@ public class FindValidPlaySystem : SystemBase
 
             // Search through plays for one that's applicable to that stage.
             // If none are applicable, play a default non-play that eats up a chunk of time.
-            List<EventPlayRequest> validPlayRequests = new List<EventPlayRequest>();
+            NativeList<EventPlayRequest> validPlayRequests = new NativeList<EventPlayRequest>(GlobalVariables.numberOfStages, Allocator.Temp);
             var playRequest = new EventPlayRequest();
-            var worldState = wses.WorldStateDatas[stageId];
-            var pr = prl[0].playRequirements;
+            var worldState = wses.DatasWorldState[stageId];
 
-            for (int i = 0; i < pr.Length; i++)
+            for (int i = 0; i < prl.Length; i++)
             {
-                if (pr[i].Requirements(out playRequest, worldState))
+                if (prl[i].Requirements(out playRequest, worldState))
                 {
                     validPlayRequests.Add(playRequest);
                 }
             }
 
             // Send the play request to the RunPlaySystem
-            if (validPlayRequests.Count == 0)
+            if (validPlayRequests.Length == 0)
             {
                 // If no valid plays, send a default play request
                 rps.EventsPlayRequest.Add(new EventPlayRequest()
@@ -86,12 +80,15 @@ public class FindValidPlaySystem : SystemBase
                 // TODO just sending the first valid play request right now. This may not be the way to do it.
                 rps.EventsPlayRequest.Add(validPlayRequests[0]);
             }
+
+            // Dispose
+            validPlayRequests.Dispose();
         }
     }
     
     protected override void OnUpdate()
     {
-        var job = new FindValidPlaySystemJob()
+        var job = new SystemFindValidPlayJob()
         {
             lms = LMS,
             rps = RPS,
@@ -100,5 +97,11 @@ public class FindValidPlaySystem : SystemBase
         };
         
         job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        PRL.Dispose();
     }
 }

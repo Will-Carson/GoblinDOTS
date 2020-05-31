@@ -7,35 +7,31 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
+// TODO using a lot of GlobalVariables.numberOfStages, Allocator.Persistent. Should give these their own vars
+// TODO PEL has no place here. This system isn't actually running the plays, so the PEL doesn't matter.
 [ServerWorld]
-public class RunPlaySystem : SystemBase
+public class SystemRunPlay<PE> : SystemBase where PE : struct, IPlayExecution
 {
-    public NativeArray<PlayExecutionLibrary> PEL;
+    public NativeArray<PE> PEL;
 
     // List of play related events
-    public NativeList<EventPlayRequest> EventsPlayRequest;
-    public NativeList<EventPlayComplete> EventsPlayFinished;
-    public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest;
-    public NativeList<EventPlayRequest> ActivePlays;
+    public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(GlobalVariables.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayComplete> EventsPlayFinished = new NativeList<EventPlayComplete>(GlobalVariables.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest = new NativeList<EventPlayContinueRequest>(GlobalVariables.numberOfStages, Allocator.Persistent);
+    public NativeList<EventPlayRequest> ActivePlays = new NativeList<EventPlayRequest>(GlobalVariables.numberOfStages, Allocator.Persistent);
 
     protected override void OnCreate()
     {
-        PlayExecutionLibrary playExecutionLibrary = new PlayExecutionLibrary()
+        PEL = new NativeArray<PE>(GlobalVariables.numberOfPlays, Allocator.Persistent)
         {
-            playExecutions = new IPlayExecution[]
-            {
-                // Define play execution library here
-                // TODO write plays
-            }
+            // TODO the thing
         };
-
-        PEL[0] = playExecutionLibrary;
     }
 
     [BurstCompile]
     struct RunPlaySystemJob : IJob
     {
-        public NativeArray<PlayExecutionLibrary> pel;
+        public NativeArray<PE> pel;
 
         public NativeList<EventPlayRequest> eventPlayRequests;
         public NativeList<EventPlayComplete> eventPlaysFinished;
@@ -54,9 +50,16 @@ public class RunPlaySystem : SystemBase
                 }
             }
             eventPlayRequests.Clear();
+            
+            // EventPlayContinueRequests
+            for (int i = 0; i < eventPlayContinueRequests.Length; i++)
+            {
+                BroadcastContinue(eventPlayContinueRequests[i].stageId);
+            }
+            eventPlayContinueRequests.Clear();
 
             // EventPlaysFinished
-            NativeList<int> removed = new NativeList<int>();
+            NativeList<int> removed = new NativeList<int>(GlobalVariables.numberOfStages, Allocator.Temp);
             for (int i = 0; i < eventPlaysFinished.Length; i++)
             {
                 for (int j = 0; j < activePlays.Length; j++)
@@ -67,17 +70,16 @@ public class RunPlaySystem : SystemBase
                     }
                 }
             }
+            eventPlaysFinished.Clear();
+
             // Removes elements in reverse order so we don't run over the lists size
             for (int i = removed.Length - 1; i == 0; i--) // TODO watch this closely.. could cause issues.
             {
-                eventPlaysFinished.RemoveAtSwapBack(removed[i]);
+                activePlays.RemoveAtSwapBack(removed[i]);
             }
 
-            // EventPlayContinueRequests
-            for (int i = 0; i < eventPlayContinueRequests.Length; i++)
-            {
-                BroadcastContinue(eventPlayContinueRequests[i].stageId);
-            }
+            // Dispose
+            removed.Dispose();
         }
 
         private void BroadcastContinue(int stageId)
@@ -90,11 +92,22 @@ public class RunPlaySystem : SystemBase
     {
         var job = new RunPlaySystemJob()
         {
+            pel = PEL,
             eventPlayRequests = EventsPlayRequest,
             eventPlaysFinished = EventsPlayFinished,
             eventPlayContinueRequests = EventsPlayContinueRequest,
             activePlays = ActivePlays
         };
         job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        PEL.Dispose();
+        EventsPlayRequest.Dispose();
+        EventsPlayFinished.Dispose();
+        EventsPlayContinueRequest.Dispose();
+        ActivePlays.Dispose();
     }
 }

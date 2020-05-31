@@ -1,4 +1,4 @@
-﻿public struct WorldStateData
+﻿public struct DataWorldState
 {
     // Information about the state of the world from a stage
     // Relationship info

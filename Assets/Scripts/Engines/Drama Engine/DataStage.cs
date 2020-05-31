@@ -1,9 +1,9 @@
-﻿public struct StageData
+﻿public struct DataStage
 {
     public string name;
-    public StageType type;
+    public TypeStage type;
     public int[] occupants;
     public int maxOccupants;
     public int[] points;
-    public StageState state;
+    public TypeStageState state;
 }

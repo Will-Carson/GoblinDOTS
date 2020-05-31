@@ -1,4 +1,4 @@
-﻿public struct ValidQuest
+﻿public struct DataValidQuest
 {
     public int questId;
     public int[] subjects;

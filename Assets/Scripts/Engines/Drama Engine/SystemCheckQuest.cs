@@ -7,21 +7,19 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-// TODO Updates and holds the world state datas related to stages
-[ServerWorld]
-public class WorldStateEvaluationSystem : SystemBase
+public class SystemCheckQuest : SystemBase
 {
-    public NativeArray<WorldStateData> WorldStateDatas = new NativeArray<WorldStateData>();
+    
 
     [BurstCompile]
-    struct WorldStateEvaluationSystemJob : IJob
+    struct SystemCheckQuestJob : IJob
     {
         // Add fields here that your job needs to do its work.
         // For example,
         //    public float deltaTime;
-
-
-
+        
+        
+        
         public void Execute()
         {
             // Implement the work to perform for each entity here.
@@ -32,22 +30,22 @@ public class WorldStateEvaluationSystem : SystemBase
             // that want to read Rotation component data.
             // For example,
             //     translation.Value += mul(rotation.Value, new float3(0, 0, 1)) * deltaTime;
-
-
+            
+            
         }
     }
-
+    
     protected override void OnUpdate()
     {
-        var job = new WorldStateEvaluationSystemJob();
-
+        var job = new SystemCheckQuestJob();
+        
         // Assign values to the fields on your job here, so that it has
         // everything it needs to do its work when it runs later.
         // For example,
         //     job.deltaTime = UnityEngine.Time.deltaTime;
-
-
-
+        
+        
+        
         // Now that the job is set up, schedule it to be run. 
         job.Schedule();
     }

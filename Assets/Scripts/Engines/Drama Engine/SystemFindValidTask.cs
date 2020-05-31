@@ -8,42 +8,38 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class FindValidTaskSystem : SystemBase
+public class SystemFindValidTask<TR> : SystemBase 
+    where TR : struct, ITaskRequirement
 {
-    [AutoAssign] public LocationManagerSystem LMS;
-    [AutoAssign] public RunTaskSystem RTS;
-    [AutoAssign] public CharacterStateManagementSystem CSMS;
-    [AutoAssign] public WorldStateEvaluationSystem WSES;
+    [AutoAssign] public SystemLocationManager LMS;
+    [AutoAssign] public SystemRunTask RTS;
+    [AutoAssign] public SystemCharacterStateManagement CSMS;
+    [AutoAssign] public SystemWorldStateEvaluation WSES;
 
-    public NativeArray<TaskRequirementsLibrary> TRL = new NativeArray<TaskRequirementsLibrary>();
+    private NativeArray<TR> TRL;
 
     protected override void OnCreate()
     {
-        TaskRequirementsLibrary trl = new TaskRequirementsLibrary()
+        TRL = new NativeArray<TR>(GlobalVariables.numberOfTasks, Allocator.Persistent)
         {
-            taskRequirements = new ITaskRequirement[]
-            {
-                // Define task requirements here
-                // TODO write task requirements
-            }
+            // TODO the thing
         };
-        TRL[0] = trl;
     }
 
     [BurstCompile]
-    struct FindValidTaskSystemJob : IJob
+    struct SystemFindValidTaskJob : IJob
     {
-        public LocationManagerSystem lms;
-        public RunTaskSystem rts;
-        public CharacterStateManagementSystem csms;
-        public WorldStateEvaluationSystem wses;
+        public SystemLocationManager lms;
+        public SystemRunTask rts;
+        public SystemCharacterStateManagement csms;
+        public SystemWorldStateEvaluation wses;
 
-        public NativeArray<TaskRequirementsLibrary> trl;
+        public NativeArray<TR> trl;
 
         public void Execute()
         {
             // Loop through every character looking for ones that aren't busy
-            NativeList<int> lazyCharacters = new NativeList<int>();
+            NativeList<int> lazyCharacters = new NativeList<int>(GlobalVariables.maxLazyCharacters, Allocator.Temp);
             for (int i = 0; i < csms.CharacterStates.Count(); i++)
             {
                 if (csms.CharacterStates[i] == CharacterState.waitingForTask)
@@ -53,16 +49,15 @@ public class FindValidTaskSystem : SystemBase
             }
 
             // Assign non-busy characters tasks
-            NativeList<EventTaskRequest> validTasks = new NativeList<EventTaskRequest>();
+            NativeList<EventTaskRequest> validTasks = new NativeList<EventTaskRequest>(GlobalVariables.maxValidTasks, Allocator.Temp);
             EventTaskRequest eventTaskRequest = new EventTaskRequest();
-            var rl = trl[0].taskRequirements;
             
             for (int i = 0; i < lazyCharacters.Length; i++)
             {
-                for (int j = 0; j < rl.Length; j++)
+                for (int j = 0; j < trl.Length; j++)
                 {
-                    var worldState = wses.WorldStateDatas[lms.CharacterLocations[i].siteId];
-                    if (rl[j].Requirements(out eventTaskRequest, worldState))
+                    var worldState = wses.DatasWorldState[lms.CharacterLocations[i].siteId];
+                    if (trl[j].Requirements(out eventTaskRequest, worldState))
                     {
                         validTasks.Add(eventTaskRequest);
                     }
@@ -83,13 +78,17 @@ public class FindValidTaskSystem : SystemBase
                     // For now just sending the first valid task. TODO find a better way
                     rts.EventsTaskRequest.Add(validTasks[0]);
                 }
+
+                // Dispose of temp Native*'s
+                lazyCharacters.Dispose();
+                validTasks.Dispose();
             }
         }
     }
     
     protected override void OnUpdate()
     {
-        var job = new FindValidTaskSystemJob()
+        var job = new SystemFindValidTaskJob()
         {
             csms = CSMS,
             lms = LMS,
@@ -98,5 +97,11 @@ public class FindValidTaskSystem : SystemBase
         };
 
         job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        TRL.Dispose();
     }
 }

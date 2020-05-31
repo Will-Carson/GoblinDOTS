@@ -1,4 +1,4 @@
-﻿public struct LocationData
+﻿public struct DataLocation
 {
     public int pointId;
     public int stageId;

@@ -1,6 +1,6 @@
-﻿public struct SiteData
+﻿public struct DataSite
 {
     public string name;
-    public SiteType type;
+    public TypeSite type;
     public int[] stages;
 }

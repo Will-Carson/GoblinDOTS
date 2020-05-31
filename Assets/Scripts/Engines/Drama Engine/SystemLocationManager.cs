@@ -7,24 +7,24 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class LocationManagerSystem : SystemBase
+public class SystemLocationManager : SystemBase
 {
     // Accessible data:
-    public NativeArray<PointData> PointDatas = new NativeArray<PointData>();
-    public NativeArray<StageData> StageDatas = new NativeArray<StageData>();
-    public NativeArray<SiteData> SiteDatas = new NativeArray<SiteData>();
-    public NativeHashMap<int, LocationData> CharacterLocations = new NativeHashMap<int, LocationData>();
+    public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(GlobalVariables.numberOfPoints, Allocator.Persistent);
+    public NativeArray<DataStage> StageDatas = new NativeArray<DataStage>(GlobalVariables.numberOfStages, Allocator.Persistent);
+    public NativeArray<DataSite> SiteDatas = new NativeArray<DataSite>(GlobalVariables.numberOfSites, Allocator.Persistent);
+    public NativeHashMap<int, DataLocation> CharacterLocations = new NativeHashMap<int, DataLocation>(GlobalVariables.maxTotalPopulation, Allocator.Persistent);
 
     // Events:
-    public NativeList<EventMoveRequest> EventsMoveRequest = new NativeList<EventMoveRequest>();
+    public NativeList<EventMoveRequest> EventsMoveRequest = new NativeList<EventMoveRequest>(GlobalVariables.maxTotalPopulation, Allocator.Persistent);
 
     [BurstCompile]
-    struct LocationManagerSystemJob : IJob
+    struct SystemLocationManagerJob : IJob
     {
-        public NativeArray<PointData> pointDatas;
-        public NativeArray<StageData> stageDatas;
-        public NativeArray<SiteData> siteDatas;
-        public NativeHashMap<int, LocationData> characterLocations;
+        public NativeArray<DataPoint> pointDatas;
+        public NativeArray<DataStage> stageDatas;
+        public NativeArray<DataSite> siteDatas;
+        public NativeHashMap<int, DataLocation> characterLocations;
         public NativeList<EventMoveRequest> eventsMoveRequest;
 
         public void Execute()
@@ -37,7 +37,7 @@ public class LocationManagerSystem : SystemBase
                 // Check if there's room at the new location.
                 if (pointData.occupants.Length < pointData.maxOccupants)
                 {
-                    var newLocationData = new LocationData()
+                    var newLocationData = new DataLocation()
                     {
                         pointId = e.idOfNewLocation,
                         stageId = pointDatas[e.idOfNewLocation].parentStage,
@@ -52,7 +52,7 @@ public class LocationManagerSystem : SystemBase
 
     protected override void OnUpdate()
     {
-        var job = new LocationManagerSystemJob()
+        var job = new SystemLocationManagerJob()
         {
             pointDatas = PointDatas,
             stageDatas = StageDatas,
@@ -62,5 +62,15 @@ public class LocationManagerSystem : SystemBase
         };
 
         job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        PointDatas.Dispose();
+        StageDatas.Dispose();
+        SiteDatas.Dispose();
+        CharacterLocations.Dispose();
+        EventsMoveRequest.Dispose();
     }
 }

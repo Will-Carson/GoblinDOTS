@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 // TODO da whole ting
-public class CharacterStateManagementSystem : SystemBase
+public class SystemCharacterStateManagement : SystemBase
 {
     public NativeList<EventChangeCharacterState> EventsChangeCharacterState = new NativeList<EventChangeCharacterState>();
     public NativeHashMap<int, CharacterState> CharacterStates = new NativeHashMap<int, CharacterState>();

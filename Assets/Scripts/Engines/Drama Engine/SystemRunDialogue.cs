@@ -18,7 +18,7 @@ public class RunDialogueSystem : SystemBase
     // The job is also tagged with the BurstCompile attribute, which means
     // that the Burst compiler will optimize it for the best performance.
     [BurstCompile]
-    struct RunDialogueSystemJob : IJob
+    struct SystemRunDialogueJob : IJob
     {
         // Add fields here that your job needs to do its work.
         // For example,
@@ -43,7 +43,7 @@ public class RunDialogueSystem : SystemBase
     
     protected override void OnUpdate()
     {
-        var job = new RunDialogueSystemJob();
+        var job = new SystemRunDialogueJob();
         
         // Assign values to the fields on your job here, so that it has
         // everything it needs to do its work when it runs later.
