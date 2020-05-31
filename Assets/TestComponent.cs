@@ -1,86 +1,50 @@
-﻿
+﻿using Unity.Burst;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 using static Unity.Mathematics.math;
 
 public class TestComponent : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    private void Awake()
     {
-        double impact = .5f;
-        double targetAffinity = .5f;
-        double deedAggession = .5f;
-        double affinityDelta = .5f;
-
-        double dominanceDelta;
-
-        for (int x = 0; x < 11; x++)
+        for (int i = 0; i < World.All.Count; i++)
         {
-            for (int y = 0; y < 20; y++)
-            {
-                for (int z = 0; z < 20; z++)
-                {
-                    //dominanceDelta = sign(-impact) * sign(targetAffinity) * abs(deedAggession) * abs(affinityDelta);
-                    ////dominanceDelta += abs(dominanceDelta) * GetPowerCurve(x * -.1f);
-                    //dominanceDelta += abs(dominanceDelta) * SolveQuadratic(x, y, z)[0];
-                    //if (double.IsNaN(dominanceDelta))
-                    //{
-                    //    Debug.Log(x + " " + y + " " + z);
-                    //}
-                }
-            }
-
-            dominanceDelta = sign(-impact) * sign(targetAffinity) * abs(deedAggession) * abs(-affinityDelta);
-            Debug.Log(dominanceDelta);
-            dominanceDelta += abs(dominanceDelta) * NewGetPowerCurve(.8f);
-            Debug.Log(dominanceDelta);
-            Debug.Log(NewGetPowerCurve(-1));
+            World.All[i].QuitUpdate = true;
         }
-
-        // sign(memory.impact) * sign(GetAffinity(witness, memory.deedTarget)) * abs(GetDeed(memory.type).Aggression) * abs(affinityDelta);
-
-
-
-        //dominanceDelta = sign(impact) * sign(targetAffinity) * abs(deedAggession) * abs(affinityDelta);
-        ////dominanceDelta += abs(dominanceDelta) * GetPowerCurve(fm.power - factionMembers[memory.deedDoer].power);
-        //Debug.Log(dominanceDelta);
-        //dominanceDelta = sign(-impact) * sign(targetAffinity) * abs(deedAggession) * abs(affinityDelta);
-        //Debug.Log(dominanceDelta);
-        //dominanceDelta = sign(impact) * sign(-targetAffinity) * abs(deedAggession) * abs(affinityDelta);
-        //Debug.Log(dominanceDelta);
-        //dominanceDelta = sign(-impact) * sign(-targetAffinity) * abs(deedAggession) * abs(affinityDelta);
-        //Debug.Log(dominanceDelta);
     }
 
-    private float GetPowerCurve(float diff)
+    private void Start()
     {
-        var result = diff; // * .1;
-        result = result * 2.5f;
-        result = pow(2, result);
-        result = result / .5f;
-        return (float)result;
+        var t = new TestClass<B>();
+        t.Func();
     }
+}
 
-    private float NewGetPowerCurve(float diff)
+public class TestClass<T> where T : unmanaged, A
+{
+    public void Func()
     {
-        var a = 10;
-        var result = pow(a, diff) - 1;
-        result = result / (a - 1);
-        return result;
-    }
+        var b = new B()
+        {
+            BigMoney = 10
+        };
 
-    public float[] SolveQuadratic(double a, double b, double c)
-    {
-        double sqrtpart = (b * b) - (4 * a * c);
-        double answer1 = ((-1) * b + sqrt(sqrtpart)) / (2 * a);
-        double answer2 = ((-1) * b - sqrt(sqrtpart)) / (2 * a);
-        return new float[] { (float)answer1, (float)answer2 };
+        NativeArray<T> As = new NativeArray<T>(1, Allocator.Temp);
+        dynamic i = b;
+        As[0] = i;
+        Debug.Log(As[0].BigMoney);
+        As.Dispose();
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+}
+public interface A
+{
+    int BigMoney { get; set; }
+}
+public struct B : A
+{
+    public int BigMoney { get; set; }
 }

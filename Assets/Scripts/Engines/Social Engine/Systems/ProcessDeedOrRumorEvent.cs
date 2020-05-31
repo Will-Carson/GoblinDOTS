@@ -8,18 +8,18 @@ using DOTSNET;
 [ServerWorld]
 public class ProcessDeedOrRumorEvent : SystemBase
 {
-    public NativeHashMap<int, Deed> DeedLibrary = new NativeHashMap<int, Deed>();
+    public NativeHashMap<int, Deed> DeedLibrary = new NativeHashMap<int, Deed>(G.numberOfDeeds, Allocator.Persistent);
 
-    public NativeList<RumorEvent> RumorEvents = new NativeList<RumorEvent>();
-    public NativeList<DeedEvent> DeedEvents = new NativeList<DeedEvent>();
+    public NativeList<RumorEvent> RumorEvents = new NativeList<RumorEvent>(G.maxNPCPopulation, Allocator.Persistent);
+    public NativeList<DeedEvent> DeedEvents = new NativeList<DeedEvent>(G.maxNPCPopulation, Allocator.Persistent);
     
     [AutoAssign] protected ManageFactionAndFactionMembers FactionSystem;
 
-    public NativeHashMap<int, Relationship> Relationships = new NativeHashMap<int, Relationship>();
-    public NativeHashMap<int, Memory> Memories = new NativeHashMap<int, Memory>();
+    public NativeHashMap<int, Relationship> Relationships = new NativeHashMap<int, Relationship>(G.maxRelationships, Allocator.Persistent);
+    public NativeHashMap<int, Memory> Memories = new NativeHashMap<int, Memory>(G.maxMemories, Allocator.Persistent);
 
-    public NativeArray<int> NextRelationshipId;
-    public NativeArray<int> NextMemoryId;
+    public NativeArray<int> NextRelationshipId = new NativeArray<int>(1, Allocator.Persistent);
+    public NativeArray<int> NextMemoryId = new NativeArray<int>(1, Allocator.Persistent);
 
     protected override void OnCreate()
     {
@@ -333,5 +333,17 @@ public class ProcessDeedOrRumorEvent : SystemBase
         };
 
         Dependency = job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        DeedLibrary.Dispose();
+        RumorEvents.Dispose();
+        DeedEvents.Dispose();
+        Relationships.Dispose();
+        Memories.Dispose();
+        NextMemoryId.Dispose();
+        NextRelationshipId.Dispose();
     }
 }

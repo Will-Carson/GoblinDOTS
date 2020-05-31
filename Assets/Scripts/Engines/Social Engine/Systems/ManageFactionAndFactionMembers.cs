@@ -10,17 +10,17 @@ using DOTSNET;
 [ServerWorld]
 public class ManageFactionAndFactionMembers : SystemBase
 {
-    public NativeList<FactionCreationEvent> FactionCreationEvents = new NativeList<FactionCreationEvent>();
-    public NativeList<FactionMemberCreationEvent> FactionMemberCreationEvents = new NativeList<FactionMemberCreationEvent>();
-    public NativeList<FactionAddParentEvent> FactionAddParentEvents = new NativeList<FactionAddParentEvent>();
-    public NativeList<FactionRemoveParentEvent> FactionRemoveParentEvents = new NativeList<FactionRemoveParentEvent>();
-    public NativeList<ChangeFactionPowerEvent> ChangeFactionPowerEvents = new NativeList<ChangeFactionPowerEvent>();
+    public NativeList<FactionCreationEvent> FactionCreationEvents = new NativeList<FactionCreationEvent>(G.rareFactionEvents, Allocator.Persistent);
+    public NativeList<FactionMemberCreationEvent> FactionMemberCreationEvents = new NativeList<FactionMemberCreationEvent>(G.rareFactionEvents, Allocator.Persistent);
+    public NativeList<FactionAddParentEvent> FactionAddParentEvents = new NativeList<FactionAddParentEvent>(G.rareFactionEvents, Allocator.Persistent);
+    public NativeList<FactionRemoveParentEvent> FactionRemoveParentEvents = new NativeList<FactionRemoveParentEvent>(G.rareFactionEvents, Allocator.Persistent);
+    public NativeList<ChangeFactionPowerEvent> ChangeFactionPowerEvents = new NativeList<ChangeFactionPowerEvent>(G.rareFactionEvents, Allocator.Persistent);
 
-    public NativeHashMap<int, Faction> Factions = new NativeHashMap<int, Faction>();
-    public NativeHashMap<int, FactionMember> FactionMembers = new NativeHashMap<int, FactionMember>();
+    public NativeHashMap<int, Faction> Factions = new NativeHashMap<int, Faction>(G.maxFactions, Allocator.Persistent);
+    public NativeHashMap<int, FactionMember> FactionMembers = new NativeHashMap<int, FactionMember>(G.maxFactions, Allocator.Persistent);
 
-    public NativeArray<int> NextFactionId;
-    public NativeArray<int> NextFactionMemberId;
+    public NativeArray<int> NextFactionId = new NativeArray<int>(1, Allocator.Persistent);
+    public NativeArray<int> NextFactionMemberId = new NativeArray<int>(1, Allocator.Persistent);
 
     protected override void OnCreate()
     {
@@ -126,6 +126,7 @@ public class ManageFactionAndFactionMembers : SystemBase
             }
         }
 
+        // TODO finish these functions lol
         private int GetNextFactionID()
         {
             return 0;
@@ -151,5 +152,17 @@ public class ManageFactionAndFactionMembers : SystemBase
         };
         
         job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        FactionCreationEvents.Dispose();
+        FactionMemberCreationEvents.Dispose();
+        FactionAddParentEvents.Dispose();
+        FactionRemoveParentEvents.Dispose();
+        ChangeFactionPowerEvents.Dispose();
+        NextFactionId.Dispose();
+        NextFactionMemberId.Dispose();
     }
 }

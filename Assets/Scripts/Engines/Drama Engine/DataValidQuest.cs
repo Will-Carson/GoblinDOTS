@@ -1,6 +1,8 @@
-﻿public struct DataValidQuest
+﻿using Unity.Collections;
+
+public struct DataValidQuest
 {
     public int questId;
-    public int[] subjects;
-    public int[] objects;
+    public NativeArray<int> subjects;
+    public NativeArray<int> objects;
 }
