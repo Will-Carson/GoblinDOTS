@@ -1,5 +1,4 @@
-﻿public struct FactionCreationEvent
+﻿public struct EventFactionCreate
 {
-    public int[] parentIds;
-    public float[] personalityTraits;
+    
 }

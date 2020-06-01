@@ -11,6 +11,8 @@ public class SystemCheckQuest : SystemBase
 {
 
     public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
+    public NativeMultiHashMap<EventQuestRequest, int> QuestSubjects = new NativeMultiHashMap<EventQuestRequest, int>(G.maxQuestSubjects, Allocator.Persistent);
+    public NativeMultiHashMap<EventQuestRequest, int> QuestObjects = new NativeMultiHashMap<EventQuestRequest, int>(G.maxQuestObjects, Allocator.Persistent);
 
     [BurstCompile]
     struct SystemCheckQuestJob : IJob
@@ -49,5 +51,13 @@ public class SystemCheckQuest : SystemBase
         
         // Now that the job is set up, schedule it to be run. 
         job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        CurrentQuests.Dispose();
+        QuestSubjects.Dispose();
+        QuestObjects.Dispose();
     }
 }

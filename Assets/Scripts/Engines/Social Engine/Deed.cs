@@ -3,5 +3,4 @@
     public DeedType Type { get; }
     public float Aggression { get; }
     public float Impact { get; }
-    public float[] Values { get; }
 }

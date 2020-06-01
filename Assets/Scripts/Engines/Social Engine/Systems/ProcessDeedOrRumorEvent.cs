@@ -6,9 +6,10 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class ProcessDeedOrRumorEvent : SystemBase
+public class SystemProcessDeedOrRumorEvent : SystemBase
 {
-    public NativeHashMap<int, Deed> DeedLibrary = new NativeHashMap<int, Deed>(G.numberOfDeeds, Allocator.Persistent);
+    public NativeArray<Deed> DeedLibrary = new NativeArray<Deed>(G.numberOfDeeds, Allocator.Persistent);
+    public NativeMultiHashMap<int, float> DeedValues = new NativeMultiHashMap<int, float>(G.valuesPerDeed, Allocator.Persistent); 
 
     public NativeList<RumorEvent> RumorEvents = new NativeList<RumorEvent>(G.maxNPCPopulation, Allocator.Persistent);
     public NativeList<DeedEvent> DeedEvents = new NativeList<DeedEvent>(G.maxNPCPopulation, Allocator.Persistent);
@@ -28,18 +29,16 @@ public class ProcessDeedOrRumorEvent : SystemBase
         NextRelationshipId[0] = 0;
         NextMemoryId[0] = 0;
 
-        // Define deed library
-        DeedLibrary = new NativeHashMap<int, Deed>();
-        DeedLibrary.Add(0, new Deed()
-        {
-            // Add deed
-        });
+        // Add deed example
+        DeedLibrary[0] = new Deed(){ /* Add new deed */ };
+        DeedValues.Add(0, 0); // Add first value for new deed
     }
     
     [BurstCompile]
     struct ProcessDeedOrRumorEventJob : IJob
     {
-        public NativeHashMap<int, Deed> deedLibrary;
+        public NativeArray<Deed> deedLibrary;
+        public NativeMultiHashMap<int, float> deedValues;
         public NativeHashMap<int, FactionMember> factionMembers;
         public NativeHashMap<int, Faction> factions;
         public NativeList<RumorEvent> rumorEvents;
@@ -303,12 +302,23 @@ public class ProcessDeedOrRumorEvent : SystemBase
 
             traitAlignment = traitAlignment / deedTraits.Length / 2;
 
+            // Dispose
+            deedTraits.Dispose();
+
             return traitAlignment;
         }
 
-        private float[] GetDeedTraits(int deed)
+        private NativeArray<float> GetDeedTraits(int deed)
         {
-            return deedLibrary[deed].Values;
+            var values = deedValues.GetValuesForKey(deed);
+            NativeList<float> result = new NativeList<float>(G.valuesPerDeed, Allocator.TempJob);
+
+            do
+            {
+                result.AddNoResize(values.Current);
+            } while (values.MoveNext());
+
+            return result;
         }
 
         public Deed GetDeed(int deedId)
@@ -339,6 +349,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
     {
         base.OnDestroy();
         DeedLibrary.Dispose();
+        DeedValues.Dispose();
         RumorEvents.Dispose();
         DeedEvents.Dispose();
         Relationships.Dispose();

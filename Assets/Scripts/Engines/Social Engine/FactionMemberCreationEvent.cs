@@ -1,4 +1,4 @@
-﻿public struct FactionMemberCreationEvent
+﻿public struct EventFactionMemberCreate
 {
     public int factionId;
     public float power;

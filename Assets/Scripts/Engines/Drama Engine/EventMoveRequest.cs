@@ -1,5 +1,5 @@
 ﻿public struct EventMoveRequest
 {
     public int mover;
-    public int idOfNewLocation;
+    public DataLocation location;
 }
