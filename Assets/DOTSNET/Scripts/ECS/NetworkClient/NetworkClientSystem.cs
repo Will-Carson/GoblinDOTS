@@ -169,7 +169,7 @@ namespace DOTSNET
                     // invalid message contents are not okay. disconnect.
                     else
                     {
-                        Debug.Log("NetworkClientSystem.OnTransportData: invalid message content for reader with Position: " + reader.Position + " Remaining: " + reader.Remaining);
+                        Debug.Log("NetworkClientSystem.OnTransportData: deserializing " + message.GetType() + " failed with reader at Position: " + reader.Position + " Remaining: " + reader.Remaining);
                         Disconnect();
                     }
                 }

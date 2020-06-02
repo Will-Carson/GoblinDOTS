@@ -3,14 +3,13 @@
     public class SpawnMessageSystem : NetworkClientMessageSystem<SpawnMessage>
     {
         protected override void OnUpdate() {}
-        protected override void OnMessage(NetworkMessage message)
+        protected override void OnMessage(SpawnMessage message)
         {
-            SpawnMessage spawnMessage = (SpawnMessage)message;
-            client.Spawn(spawnMessage.prefabId,
-                         spawnMessage.netId,
-                         spawnMessage.owned,
-                         spawnMessage.position,
-                         spawnMessage.rotation);
+            client.Spawn(message.prefabId,
+                         message.netId,
+                         message.owned,
+                         message.position,
+                         message.rotation);
         }
     }
 }

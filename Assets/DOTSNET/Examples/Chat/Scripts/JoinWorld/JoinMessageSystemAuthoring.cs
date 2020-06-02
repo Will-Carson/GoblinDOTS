@@ -16,17 +16,15 @@ namespace DOTSNET.Examples.Chat
     {
         protected override void OnUpdate() {}
         protected override bool RequiresAuthentication() { return true; }
-        protected override void OnMessage(int connectionId, NetworkMessage message)
+        protected override void OnMessage(int connectionId, JoinMessage message)
         {
-            // convert to the actual message type
-            JoinMessage msg = (JoinMessage)message;
-            Debug.Log("Server: client joining as " + msg.name);
+            Debug.Log("Server: client joining as " + message.name);
 
             // set connection nickname, reply with Joined message
             ChatServerSystem chatServer = (ChatServerSystem)server;
             if (!chatServer.names.ContainsKey(connectionId))
             {
-                chatServer.names[connectionId] = msg.name;
+                chatServer.names[connectionId] = message.name;
                 server.Send(new JoinedMessage(), connectionId);
             }
             // don't allow joining twice

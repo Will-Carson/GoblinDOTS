@@ -42,7 +42,13 @@ namespace DOTSNET
         public int Position;
 
         // helper field to calculate amount of bytes remaining to read
-        public int Remaining => segment.Count - (segment.Offset + Position);
+        // segment.Count is 'count from Offset', so we simply subtract Position
+        // without subtracting Offset.
+        // example:
+        //   {0x00, 0x01, 0x02} and segment with offset = 1, count=2
+        //   Remaining := 2 - 0 => 0
+        //           (not 2 - offset => 2 - 1 => 1)
+        public int Remaining => segment.Count - Position;
 
         public SegmentReader(ArraySegment<byte> segment)
         {

@@ -169,7 +169,7 @@ namespace Apathy
                             else
                             {
                                 // remove it when done
-                                Debug.LogWarning("[Server]: possible allocation attack with a header of: " + kvp.Value.contentSize + " bytes " + " from connectionId: " + kvp.Key + " IP: " + GetClientAddress(kvp.Key));
+                                Debug.LogWarning("[Server]: possible allocation attack with a header of: " + kvp.Value.contentSize + " bytes > MaxMessageSize=" + MaxMessageSize + " from connectionId: " + kvp.Key + " IP: " + GetClientAddress(kvp.Key));
                                 removeIds.Add(kvp.Key);
 
                                 // no need to receive any more messages

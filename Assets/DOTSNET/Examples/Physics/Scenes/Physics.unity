@@ -184,7 +184,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Port: 7777
   NoDelay: 1
-  MaxMessageSize: 16384
+  MaxMessageSize: 65536
   MaxReceivesPerTick: 100000
 --- !u!114 &439658184
 MonoBehaviour:
@@ -343,7 +343,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Port: 7777
   NoDelay: 1
-  MaxMessageSize: 16384
+  MaxMessageSize: 65536
   MaxReceivesPerTickPerConnection: 1000
 --- !u!4 &477220598
 Transform:

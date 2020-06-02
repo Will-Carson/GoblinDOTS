@@ -122,7 +122,7 @@ namespace Apathy
                             }
                             else
                             {
-                                Debug.LogWarning("[Client] possible allocation attack with a header of: " + contentSize + " bytes.");
+                                Debug.LogWarning("[Client] possible allocation attack with a header of: " + contentSize + " bytes > MaxMessageSize=" + MaxMessageSize);
 
                                 // add disconnected message and close properly
                                 // -> DO NOT wait for next GetNextMessage to

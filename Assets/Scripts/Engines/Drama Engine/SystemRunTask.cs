@@ -66,7 +66,7 @@ public class SystemRunTask : SystemBase
                 // TODO
             }
 
-            // Dispose of temporary Native*
+            // Dispose
             completeTaskIds.Dispose();
         }
     }

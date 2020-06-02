@@ -20,6 +20,7 @@ public class SystemFindValidTask<TR> : SystemBase
 
     protected override void OnCreate()
     {
+        // Example of assigning a task
         dynamic t;
         TRL[0] = t = new TaskRTest();
     }
@@ -91,6 +92,7 @@ public class SystemFindValidTask<TR> : SystemBase
             csms = CSMS,
             lms = LMS,
             rts = RTS,
+            wses = WSES,
             trl = TRL
         };
 

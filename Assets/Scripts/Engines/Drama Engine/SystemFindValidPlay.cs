@@ -50,7 +50,7 @@ public class SystemFindValidPlay<PR, PE> : SystemBase
 
             // Search through plays for one that's applicable to that stage.
             // If none are applicable, play a default non-play that eats up a chunk of time.
-            NativeList<EventPlayRequest> validPlayRequests = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Temp);
+            var validPlayRequests = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Temp);
             var playRequest = new EventPlayRequest();
             var worldState = wses.DatasWorldState[stageId];
 

@@ -69,9 +69,6 @@ namespace DOTSNET
 
         // message handlers
         // -> we use delegates to be as widely usable as possible
-        // -> if necessary, a componentsystem could provide a delegate that adds
-        //    the networkmessage as component so that it can be processed by a
-        //    (job)componentsystem
         // -> KeyValuePair so that we can deserialize into a copy of Network-
         //    Message of the correct type, before calling the handler
         Dictionary<ushort, KeyValuePair<NetworkMessage, NetworkMessageServerDelegate>> handlers =
@@ -93,7 +90,8 @@ namespace DOTSNET
         public void StartServer()
         {
             // do nothing if already started
-            if (state == ServerState.ACTIVE) return;
+            if (state == ServerState.ACTIVE)
+                return;
 
             connections = new Dictionary<int, ConnectionState>(
                 // use limit as first capacity. can still grow at runtime.
@@ -109,7 +107,8 @@ namespace DOTSNET
         public void StopServer()
         {
             // do nothing if already stopped
-            if (state == ServerState.INACTIVE) return;
+            if (state == ServerState.INACTIVE)
+                return;
 
             // server solely operates on NetworkEntities.
             // destroy them all when stopping to clean up properly.
@@ -170,9 +169,6 @@ namespace DOTSNET
                     // ConnectMessage, so supporting authenticators by letting
                     // them overwrite authenticated state first is perfect.
                     connectionState.authenticated = true;
-
-                    // initialize owned entities
-                    connectionState.ownedEntities = new HashSet<Entity>();
 
                     // add the connection
                     connections[connectionId] = connectionState;
@@ -350,7 +346,6 @@ namespace DOTSNET
                                     // it would just slow down the server
                                     // significantly, and spam the logs.
                                     connection.broken = true;
-                                    connections[connectionId] = connection;
 
                                     // the transport is supposed to disconnect
                                     // the connection in case of send errors,
@@ -741,9 +736,7 @@ namespace DOTSNET
             if (Spawn(player, connectionId))
             {
                 // mark connection as 'joined world'. some systems might need it
-                ConnectionState connection = connections[connectionId];
-                connection.joinedWorld = true;
-                connections[connectionId] = connection;
+                connections[connectionId].joinedWorld = true;
 
                 // note: Spawn() rebuilds observers so everyone else knows about
                 //       the new player, and the new player knows about everyone

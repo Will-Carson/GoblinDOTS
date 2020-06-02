@@ -17,29 +17,26 @@ namespace DOTSNET.Examples.Chat
     {
         protected override void OnUpdate() {}
         protected override bool RequiresAuthentication() { return true; }
-        protected override void OnMessage(int connectionId, NetworkMessage message)
+        protected override void OnMessage(int connectionId, ChatMessage message)
         {
-            // convert to the actual message type
-            ChatMessage msg = (ChatMessage)message;
-
             // get name from manager
             ChatServerSystem chatServer = (ChatServerSystem)server;
             if (chatServer.names.TryGetValue(connectionId, out NativeString32 name))
             {
-                Debug.Log("Server message: " + name + ": " + msg.text);
+                Debug.Log("Server message: " + name + ": " + message.text);
 
                 // put name into message
-                msg.sender = name;
+                message.sender = name;
 
                 // broadcast to all clients that joined with a name
                 foreach (int clientConnectionId in chatServer.names.Keys)
                 {
-                    server.Send(msg, clientConnectionId);
+                    server.Send(message, clientConnectionId);
                 }
             }
             else
             {
-                UnityEngine.Debug.LogWarning("Server failed to find name for " + connectionId);
+                Debug.LogWarning("Server failed to find name for " + connectionId);
                 server.Disconnect(connectionId);
             }
         }

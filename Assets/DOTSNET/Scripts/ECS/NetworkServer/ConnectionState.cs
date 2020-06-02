@@ -5,7 +5,9 @@ namespace DOTSNET
 {
     // note: we use booleans instead of an enum. this way it is easier to check
     //       if authenticated (easier than state == AUTH || state == WORLD) etc.
-    public struct ConnectionState
+    // -> struct would avoid allocations, but class is just way easier to use
+    //    especially when modifying state while iterating
+    public class ConnectionState
     {
         // each connection needs to authenticate before it can send/receive
         // game specific messages
@@ -19,7 +21,7 @@ namespace DOTSNET
         // otherwise we would have to iterate all server objects on each
         // disconnect.
         // (HashSet so that Add/Remove(Entity) is extremely fast!
-        public HashSet<Entity> ownedEntities;
+        public HashSet<Entity> ownedEntities = new HashSet<Entity>();
 
         // if Send fails only once, we will flag the connection as broken to
         // avoid possibly logging thousands of 'Send Message failed' warnings

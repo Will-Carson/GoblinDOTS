@@ -15,15 +15,14 @@ namespace DOTSNET.Examples.Chat
     public class ChatMessageClientSystem : NetworkClientMessageSystem<ChatMessage>
     {
         protected override void OnUpdate() {}
-        protected override void OnMessage(NetworkMessage message)
+        protected override void OnMessage(ChatMessage message)
         {
             // convert to the actual message type
-            ChatMessage msg = (ChatMessage)message;
-            Debug.Log("Client message: " + msg.sender + ": " + msg.text);
+            Debug.Log("Client message: " + message.sender + ": " + message.text);
 
             // add message
             ChatClientSystem chatClient = (ChatClientSystem)client;
-            chatClient.messages.Enqueue(msg);
+            chatClient.messages.Enqueue(message);
 
             // respect max entries
             if (chatClient.messages.Count > chatClient.keepMessages)

@@ -3,10 +3,9 @@
     public class UnspawnMessageSystem : NetworkClientMessageSystem<UnspawnMessage>
     {
         protected override void OnUpdate() {}
-        protected override void OnMessage(NetworkMessage message)
+        protected override void OnMessage(UnspawnMessage message)
         {
-            UnspawnMessage spawnMessage = (UnspawnMessage)message;
-            client.Unspawn(spawnMessage.netId);
+            client.Unspawn(message.netId);
         }
     }
 }

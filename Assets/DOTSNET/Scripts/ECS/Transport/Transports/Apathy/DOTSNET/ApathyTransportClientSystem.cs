@@ -13,13 +13,17 @@ namespace Apathy
     {
         // configuration
         public ushort Port = 7777;
-        public bool NoDelay = true;
-        public int MaxMessageSize = 16 * 1024;
+        // NoDelay disabled by default because DOTS will have large amounts of
+        // messages and TCP's internal send interval buffering might be helpful.
+        public bool NoDelay = false;
+        // Apathy default MaxSize is 16 KB. let's do 64 because we combine
+        // messages.
+        public int MaxMessageSize = 64 * 1024;
         // for large ECS worlds, 1k/tick is not enough:
         public int MaxReceivesPerTick = 100000;
 
         // client
-        Client client = new Client();
+        internal Client client = new Client();
 
         // cache GetNextMessages queue to avoid allocations
         // -> with capacity to avoid rescaling as long as possible!
@@ -42,7 +46,9 @@ namespace Apathy
         public override void Disconnect() => client.Disconnect();
 
         // ECS /////////////////////////////////////////////////////////////////
-        protected override void OnCreate()
+        // configure Apathy in OnStartRunning. OnCreate is too early because
+        // settings are still applied from Authoring.Awake after OnCreate.
+        protected override void OnStartRunning()
         {
             // configure
             client.NoDelay = NoDelay;
@@ -53,6 +59,7 @@ namespace Apathy
 
         protected override void OnUpdate()
         {
+            // process incoming messages
             client.GetNextMessages(queue);
             while (queue.Count > 0)
             {
@@ -63,7 +70,12 @@ namespace Apathy
                         OnConnected();
                         break; // breaks switch, not while
                     case EventType.Data:
-                        OnData(message.data);
+                        // server combines multiple messages, so handle each one
+                        SegmentReader reader = new SegmentReader(message.data);
+                        while (reader.ReadBytesAndSize(out ArraySegment<byte> segment))
+                        {
+                            OnData(segment);
+                        }
                         break; // breaks switch, not while
                     case EventType.Disconnected:
                         OnDisconnected();

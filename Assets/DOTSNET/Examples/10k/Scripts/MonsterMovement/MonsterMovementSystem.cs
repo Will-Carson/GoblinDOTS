@@ -71,7 +71,7 @@ namespace DOTSNET.Examples.Example10k
                         // calculate random destination in moveDistance
                         float2 circle2D = rnd.NextFloat2Direction();
                         float3 direction = new float3(circle2D.x, 0, circle2D.y);
-                        float3 destination = translation.Value + math.normalizesafe(direction) * movement.moveDistance;
+                        float3 destination = translation.Value + direction * movement.moveDistance;
 
                         // only go there if it's within a circle around start
                         // so we don't wander off into nirvana

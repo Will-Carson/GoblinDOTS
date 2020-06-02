@@ -20,10 +20,16 @@ namespace DOTSNET.Examples.Physics
     {
         protected override void OnUpdate()
         {
-            float h = Input.GetAxisRaw("Horizontal");
-            float v = Input.GetAxisRaw("Vertical");
-            float3 direction = math.normalizesafe(new float3(h, 0, v));
+            // get input
+            float horizontal = Input.GetAxisRaw("Horizontal");
+            float vertical = Input.GetAxisRaw("Vertical");
+            float3 direction = new float3(horizontal, 0, vertical);
 
+            // normalize diagonal but only if >1 to respect GetAxis acceleration
+            if (math.length(direction) > 1)
+                direction = math.normalize(direction);
+
+            // foreach
             Entities.ForEach((NetworkEntity networkEntity,
                               MovementComponent movement,
                               PhysicsMass mass,

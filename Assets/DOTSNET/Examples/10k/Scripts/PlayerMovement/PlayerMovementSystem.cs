@@ -31,9 +31,11 @@ namespace DOTSNET.Examples.Example10k
                 if (!networkEntity.owned)
                     return;
 
-                // move
+                // move (normalize diagonal but only if >1 to respect GetAxis acceleration)
                 float3 direction = new float3(horizontal, 0, vertical);
-                translation.Value += math.normalizesafe(direction) * (deltaTime * movement.speed);
+                if (math.length(direction) > 1)
+                    direction = math.normalize(direction);
+                translation.Value += direction * (deltaTime * movement.speed);
             })
             .Run();
         }

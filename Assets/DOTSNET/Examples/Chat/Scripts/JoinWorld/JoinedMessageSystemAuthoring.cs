@@ -15,7 +15,7 @@ namespace DOTSNET.Examples.Chat
     public class JoinedMessageSystem : NetworkClientMessageSystem<JoinedMessage>
     {
         protected override void OnUpdate() {}
-        protected override void OnMessage(NetworkMessage message)
+        protected override void OnMessage(JoinedMessage message)
         {
             ((ChatClientSystem)client).joined = true;
         }

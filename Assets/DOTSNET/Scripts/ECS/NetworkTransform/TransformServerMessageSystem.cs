@@ -9,15 +9,14 @@ namespace DOTSNET
     {
         protected override void OnUpdate() {}
         protected override bool RequiresAuthentication() { return true; }
-        protected override void OnMessage(int connectionId, NetworkMessage message)
+        protected override void OnMessage(int connectionId, TransformMessage message)
         {
             // find entity by netId
-            TransformMessage transformMessage = (TransformMessage)message;
-            if (server.spawned.TryGetValue(transformMessage.netId, out Entity entity))
+            if (server.spawned.TryGetValue(message.netId, out Entity entity))
             {
                 // apply position & rotation
-                SetComponent(entity, new Translation{Value = transformMessage.position});
-                SetComponent(entity, new Rotation{Value = transformMessage.rotation});
+                SetComponent(entity, new Translation{Value = message.position});
+                SetComponent(entity, new Rotation{Value = message.rotation});
             }
         }
     }

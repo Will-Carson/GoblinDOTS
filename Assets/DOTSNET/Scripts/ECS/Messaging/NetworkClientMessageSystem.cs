@@ -15,8 +15,14 @@ namespace DOTSNET
         // dependencies
         [AutoAssign] protected NetworkClientSystem client;
 
+        // wrapper function to convert NetworkMessage back to type T
+        void OnMessageInternal(NetworkMessage message)
+        {
+            OnMessage((T)message);
+        }
+
         // the handler function
-        protected abstract void OnMessage(NetworkMessage message);
+        protected abstract void OnMessage(T message);
 
         // OnStartRunning registers the message type in the client.
         // -> need to use OnStartRunning, because OnCreate doesn't necessarily
@@ -24,7 +30,7 @@ namespace DOTSNET
         protected override void OnStartRunning()
         {
             // register handler
-            if (client.RegisterHandler<T>(OnMessage))
+            if (client.RegisterHandler<T>(OnMessageInternal))
             {
                 Debug.Log("NetworkClientMessage/System Registered for: " + typeof(T));
             }

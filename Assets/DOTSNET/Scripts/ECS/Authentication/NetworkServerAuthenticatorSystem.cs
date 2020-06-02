@@ -15,7 +15,7 @@ namespace DOTSNET
         // username/password/etc.
         protected abstract void BeginAuthentication(int connectionId);
         protected override bool RequiresAuthentication() { return false; }
-        protected override void OnMessage(int connectionId, NetworkMessage message)
+        protected override void OnMessage(int connectionId, ConnectMessage message)
         {
             // reset authenticated state (it is set to true by default, and
             // authenticators reset it before starting custom authentication)
@@ -28,9 +28,7 @@ namespace DOTSNET
         // helper function to set authenticated state for a connection
         protected void SetAuthenticated(int connectionId, bool authenticated)
         {
-            ConnectionState state = server.connections[connectionId];
-            state.authenticated = authenticated;
-            server.connections[connectionId] = state;
+            server.connections[connectionId].authenticated = authenticated;
         }
     }
 }

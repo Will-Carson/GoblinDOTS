@@ -18,8 +18,14 @@ namespace DOTSNET
         // overwrite to indicate if the message should require authentication
         protected abstract bool RequiresAuthentication();
 
+        // wrapper function to convert NetworkMessage back to type T
+        void OnMessageInternal(int connectionId, NetworkMessage message)
+        {
+            OnMessage(connectionId, (T)message);
+        }
+
         // the handler function
-        protected abstract void OnMessage(int connectionId, NetworkMessage message);
+        protected abstract void OnMessage(int connectionId, T message);
 
         // OnStartRunning registers the message type in the server.
         // -> need to use OnStartRunning, because OnCreate doesn't necessarily
@@ -27,7 +33,7 @@ namespace DOTSNET
         protected override void OnStartRunning()
         {
             // register handler
-            if (server.RegisterHandler<T>(OnMessage, RequiresAuthentication()))
+            if (server.RegisterHandler<T>(OnMessageInternal, RequiresAuthentication()))
             {
                 Debug.Log("NetworkServerMessage/System Registered for: " + typeof(T));
             }

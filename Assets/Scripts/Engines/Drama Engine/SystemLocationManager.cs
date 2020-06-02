@@ -12,15 +12,15 @@ public class SystemLocationManager : SystemBase
 {
     // Accessible data:
     public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(G.numberOfPoints, Allocator.Persistent);
-    public NativeMultiHashMap<int, int> PointOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerPoint, Allocator.Temp);
+    public NativeMultiHashMap<int, int> PointOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerPoint, Allocator.Persistent);
 
     public NativeArray<DataStage> StageDatas = new NativeArray<DataStage>(G.numberOfStages, Allocator.Persistent);
-    public NativeMultiHashMap<int, int> StagePoints = new NativeMultiHashMap<int, int>(G.pointsPerStage, Allocator.Temp);
-    public NativeMultiHashMap<int, int> StageOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerStage, Allocator.Temp);
+    public NativeMultiHashMap<int, int> StagePoints = new NativeMultiHashMap<int, int>(G.pointsPerStage, Allocator.Persistent);
+    public NativeMultiHashMap<int, int> StageOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerStage, Allocator.Persistent);
 
     public NativeArray<DataSite> SiteDatas = new NativeArray<DataSite>(G.numberOfSites, Allocator.Persistent);
-    public NativeMultiHashMap<int, int> SiteStages = new NativeMultiHashMap<int, int>(G.stagesPerSite, Allocator.Temp);
-    public NativeMultiHashMap<int, int> SiteOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerSite, Allocator.Temp);
+    public NativeMultiHashMap<int, int> SiteStages = new NativeMultiHashMap<int, int>(G.stagesPerSite, Allocator.Persistent);
+    public NativeMultiHashMap<int, int> SiteOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerSite, Allocator.Persistent);
 
     public NativeHashMap<int, DataLocation> CharacterLocations = new NativeHashMap<int, DataLocation>(G.maxTotalPopulation, Allocator.Persistent);
 
@@ -30,7 +30,7 @@ public class SystemLocationManager : SystemBase
     [BurstCompile]
     struct CacheLocationDataJob : IJob
     {
-        public NativeHashMap<int, DataLocation> characterLocations;
+        [ReadOnly] public NativeHashMap<int, DataLocation> characterLocations;
 
         public NativeMultiHashMap<int, int> pointOccupants;
         public NativeMultiHashMap<int, int> stageOccupants;
@@ -53,11 +53,11 @@ public class SystemLocationManager : SystemBase
     [BurstCompile]
     struct ProcessEventsJob : IJob
     {
-        public NativeArray<DataPoint> pointDatas;
-        public NativeMultiHashMap<int, int> pointOccupants;
-        public NativeArray<DataStage> stageDatas;
-        public NativeMultiHashMap<int, int> stageOccupants;
-        public NativeArray<DataSite> siteDatas;
+        [ReadOnly] public NativeArray<DataPoint> pointDatas;
+        [ReadOnly] public NativeMultiHashMap<int, int> pointOccupants;
+        [ReadOnly] public NativeArray<DataStage> stageDatas;
+        [ReadOnly] public NativeMultiHashMap<int, int> stageOccupants;
+        [ReadOnly] public NativeArray<DataSite> siteDatas;
 
         public NativeHashMap<int, DataLocation> characterLocations;
         public NativeList<EventMoveRequest> eventsMoveRequest;
@@ -69,11 +69,11 @@ public class SystemLocationManager : SystemBase
                 var e = eventsMoveRequest[i];
                 var pointData = pointDatas[e.location.pointId];
                 var stageData = stageDatas[e.location.stageId];
-                var pointOccupants = this.pointOccupants.CountValuesForKey(e.location.pointId);
-                var stageOccupants = this.stageOccupants.CountValuesForKey(e.location.stageId);
+                var po = pointOccupants.CountValuesForKey(e.location.pointId);
+                var so = stageOccupants.CountValuesForKey(e.location.stageId);
 
                 // Check if there's room at the new location.
-                if (pointOccupants < pointData.maxOccupants && stageOccupants < stageData.maxOccupants)
+                if (po < pointData.maxOccupants && so < stageData.maxOccupants)
                 {
                     // Add to new location
                     var newLocationData = new DataLocation()
@@ -86,6 +86,8 @@ public class SystemLocationManager : SystemBase
                     characterLocations[eventsMoveRequest[i].mover] = newLocationData;
                 }
             }
+
+            eventsMoveRequest.Clear();
         }
     }
 
@@ -99,26 +101,36 @@ public class SystemLocationManager : SystemBase
             siteOccupants = SiteOccupants
         };
 
-        job1.Schedule();
+        var h1 = job1.Schedule();
 
         var job2 = new ProcessEventsJob()
         {
             pointDatas = PointDatas,
+            pointOccupants = PointOccupants,
             stageDatas = StageDatas,
+            stageOccupants = StageOccupants,
             siteDatas = SiteDatas,
             characterLocations = CharacterLocations,
             eventsMoveRequest = EventsMoveRequest
         };
 
-        job2.Schedule();
+        if (h1.IsCompleted)
+        {
+            var h2 = job2.Schedule();
+        }
     }
 
     protected override void OnDestroy()
     {
         base.OnDestroy();
         PointDatas.Dispose();
+        PointOccupants.Dispose();
         StageDatas.Dispose();
+        StageOccupants.Dispose();
+        StagePoints.Dispose();
         SiteDatas.Dispose();
+        SiteOccupants.Dispose();
+        SiteStages.Dispose();
         CharacterLocations.Dispose();
         EventsMoveRequest.Dispose();
     }
