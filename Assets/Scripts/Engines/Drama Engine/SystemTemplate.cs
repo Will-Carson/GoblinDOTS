@@ -7,26 +7,25 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class SystemRunDialogue : SystemBase, INonScheduler
+public class SystemTemplate : SystemBase, INonScheduler
 {
     [BurstCompile]
     struct SystemRunDialogueJob : IJob
     {
-        
+
         public void Execute()
         {
-            
+
         }
     }
-    
+
     protected override void OnUpdate()
     {
-        
+
     }
 
     public JobHandle ScheduleEvent()
     {
-        var job = new SystemRunDialogueJob();
-        return job.Schedule();
+        throw new System.NotImplementedException();
     }
 }

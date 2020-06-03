@@ -10,14 +10,16 @@ using DOTSNET;
 // TODO using a lot of GlobalVariables.numberOfStages, Allocator.Persistent. Should give these their own vars
 // TODO PEL has no place here. This system isn't actually running the plays, so the PEL doesn't matter.
 [ServerWorld]
-public class SystemRunPlay<PE> : SystemBase where PE : unmanaged, IPlayExecution
+public class SystemRunPlay<PE> : SystemBase, INonScheduler 
+    where PE : unmanaged, IPlayExecution
 {
     public NativeArray<PE> PEL = new NativeArray<PE>(G.numberOfPlays, Allocator.Persistent);
 
-    // List of play related events
+    // Play related events
     public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
     public NativeList<EventPlayComplete> EventsPlayFinished = new NativeList<EventPlayComplete>(G.numberOfStages, Allocator.Persistent);
     public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest = new NativeList<EventPlayContinueRequest>(G.numberOfStages, Allocator.Persistent);
+
     public NativeList<EventPlayRequest> ActivePlays = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
 
     protected override void OnCreate()
@@ -88,15 +90,7 @@ public class SystemRunPlay<PE> : SystemBase where PE : unmanaged, IPlayExecution
     
     protected override void OnUpdate()
     {
-        var job = new RunPlaySystemJob()
-        {
-            pel = PEL,
-            eventPlayRequests = EventsPlayRequest,
-            eventPlaysFinished = EventsPlayFinished,
-            eventPlayContinueRequests = EventsPlayContinueRequest,
-            activePlays = ActivePlays
-        };
-        job.Schedule();
+        
     }
 
     protected override void OnDestroy()
@@ -107,5 +101,18 @@ public class SystemRunPlay<PE> : SystemBase where PE : unmanaged, IPlayExecution
         EventsPlayFinished.Dispose();
         EventsPlayContinueRequest.Dispose();
         ActivePlays.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
+        var job = new RunPlaySystemJob()
+        {
+            pel = PEL,
+            eventPlayRequests = EventsPlayRequest,
+            eventPlaysFinished = EventsPlayFinished,
+            eventPlayContinueRequests = EventsPlayContinueRequest,
+            activePlays = ActivePlays
+        };
+        return job.Schedule();
     }
 }

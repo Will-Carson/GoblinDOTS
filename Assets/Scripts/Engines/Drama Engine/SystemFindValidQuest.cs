@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemFindValidQuest<QR> : SystemBase 
+public class SystemFindValidQuest<QR> : SystemBase, INonScheduler 
     where QR : unmanaged, IQuestRequirements
 {
     [AutoAssign] SystemLocationManager LMS;
@@ -61,6 +61,7 @@ public class SystemFindValidQuest<QR> : SystemBase
                 // Just adding the first quest to the current quests list. TODO do something more interesting.
                 currentQuests.Add(e, validQuests[0]);
             }
+            eventsQuestRequest.Clear();
 
             // Dispose
             validQuests.Dispose();
@@ -68,6 +69,18 @@ public class SystemFindValidQuest<QR> : SystemBase
     }
     
     protected override void OnUpdate()
+    {
+        
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        EventsQuestRequest.Dispose();
+        QRL.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
     {
         var job = new SystemFindValidQuestJob()
         {
@@ -79,13 +92,6 @@ public class SystemFindValidQuest<QR> : SystemBase
             wses = WSES
         };
 
-        job.Schedule();
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        EventsQuestRequest.Dispose();
-        QRL.Dispose();
+        return job.Schedule();
     }
 }

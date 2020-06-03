@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemLocationManager : SystemBase
+public class SystemLocationManager : SystemBase, INonScheduler
 {
     // Accessible data:
     public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(G.numberOfPoints, Allocator.Persistent);
@@ -28,30 +28,7 @@ public class SystemLocationManager : SystemBase
     public NativeList<EventMoveRequest> EventsMoveRequest = new NativeList<EventMoveRequest>(G.maxTotalPopulation, Allocator.Persistent);
 
     [BurstCompile]
-    struct CacheLocationDataJob : IJob
-    {
-        [ReadOnly] public NativeHashMap<int, DataLocation> characterLocations;
-
-        public NativeMultiHashMap<int, int> pointOccupants;
-        public NativeMultiHashMap<int, int> stageOccupants;
-        public NativeMultiHashMap<int, int> siteOccupants;
-
-        public void Execute()
-        {
-            pointOccupants.Clear();
-            stageOccupants.Clear();
-            siteOccupants.Clear();
-            for (int i = 0; i < characterLocations.Count(); i++)
-            {
-                pointOccupants.Add(characterLocations[i].pointId, i);
-                stageOccupants.Add(characterLocations[i].stageId, i);
-                siteOccupants.Add(characterLocations[i].siteId, i);
-            }
-        }
-    }
-
-    [BurstCompile]
-    struct ProcessEventsJob : IJob
+    struct ProcessLocationEventsJob : IJob
     {
         [ReadOnly] public NativeArray<DataPoint> pointDatas;
         [ReadOnly] public NativeMultiHashMap<int, int> pointOccupants;
@@ -93,31 +70,7 @@ public class SystemLocationManager : SystemBase
 
     protected override void OnUpdate()
     {
-        var job1 = new CacheLocationDataJob()
-        {
-            characterLocations = CharacterLocations,
-            pointOccupants = PointOccupants,
-            stageOccupants = StageOccupants,
-            siteOccupants = SiteOccupants
-        };
-
-        var h1 = job1.Schedule();
-
-        var job2 = new ProcessEventsJob()
-        {
-            pointDatas = PointDatas,
-            pointOccupants = PointOccupants,
-            stageDatas = StageDatas,
-            stageOccupants = StageOccupants,
-            siteDatas = SiteDatas,
-            characterLocations = CharacterLocations,
-            eventsMoveRequest = EventsMoveRequest
-        };
-
-        if (h1.IsCompleted)
-        {
-            var h2 = job2.Schedule();
-        }
+        
     }
 
     protected override void OnDestroy()
@@ -133,5 +86,21 @@ public class SystemLocationManager : SystemBase
         SiteStages.Dispose();
         CharacterLocations.Dispose();
         EventsMoveRequest.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
+        var job = new ProcessLocationEventsJob()
+        {
+            pointDatas = PointDatas,
+            pointOccupants = PointOccupants,
+            stageDatas = StageDatas,
+            stageOccupants = StageOccupants,
+            siteDatas = SiteDatas,
+            characterLocations = CharacterLocations,
+            eventsMoveRequest = EventsMoveRequest
+        };
+
+        return job.Schedule();
     }
 }

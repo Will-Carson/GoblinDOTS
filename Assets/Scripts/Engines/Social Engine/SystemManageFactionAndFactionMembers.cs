@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class ManageFactionAndFactionMembers : SystemBase
+public class SystemManageFactionAndFactionMembers : SystemBase, INonScheduler
 {
     public NativeList<EventFactionCreate> EventsFactionCreate = new NativeList<EventFactionCreate>(G.rareFactionEvents, Allocator.Persistent);
     public NativeMultiHashMap<int, int> EventsFactionCreateParents = new NativeMultiHashMap<int, int>(G.rareFactionEvents * G.maxFactionParents, Allocator.Persistent);
@@ -165,23 +165,7 @@ public class ManageFactionAndFactionMembers : SystemBase
     public NativeArray<int> nextFactionMemberId;
     protected override void OnUpdate()
     {
-        var job = new ManageFactionAndFactionMembersJob()
-        {
-            eventsFactionCreate = EventsFactionCreate,
-            eventsFactionCreateParents = EventsFactionCreateParents,
-            eventsFactionMemberCreate = EventsFactionMemberCreate,
-            eventsFactionAddParent = EventsFactionAddParent,
-            eventsFactionRemoveParent = EventsFactionRemoveParent,
-            eventsChangeFactionPower = EventsChangeFactionPower,
-            factions = Factions,
-            factionParents = FactionParents,
-            factionRelationshipIds = FactionRelationshipIds,
-            factionMembers = FactionMembers,
-            nextFactionId = NextFactionId,
-            nextFactionMemberId = NextFactionMemberId
-        };
         
-        job.Schedule();
     }
 
     protected override void OnDestroy()
@@ -199,5 +183,26 @@ public class ManageFactionAndFactionMembers : SystemBase
         FactionMembers.Dispose();
         NextFactionId.Dispose();
         NextFactionMemberId.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
+        var job = new ManageFactionAndFactionMembersJob()
+        {
+            eventsFactionCreate = EventsFactionCreate,
+            eventsFactionCreateParents = EventsFactionCreateParents,
+            eventsFactionMemberCreate = EventsFactionMemberCreate,
+            eventsFactionAddParent = EventsFactionAddParent,
+            eventsFactionRemoveParent = EventsFactionRemoveParent,
+            eventsChangeFactionPower = EventsChangeFactionPower,
+            factions = Factions,
+            factionParents = FactionParents,
+            factionRelationshipIds = FactionRelationshipIds,
+            factionMembers = FactionMembers,
+            nextFactionId = NextFactionId,
+            nextFactionMemberId = NextFactionMemberId
+        };
+
+        return job.Schedule();
     }
 }

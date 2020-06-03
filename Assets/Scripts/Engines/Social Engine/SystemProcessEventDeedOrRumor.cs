@@ -6,9 +6,9 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemProcessDeedOrRumorEvent : SystemBase
+public class SystemProcessDeedOrRumorEvent : SystemBase, INonScheduler
 {
-    [AutoAssign] protected ManageFactionAndFactionMembers FactionSystem;
+    [AutoAssign] protected SystemManageFactionAndFactionMembers FactionSystem;
 
     public NativeArray<DataDeed> DeedLibrary = new NativeArray<DataDeed>(G.numberOfDeeds, Allocator.Persistent);
 
@@ -331,6 +331,25 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
     
     protected override void OnUpdate()
     {
+        
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        DeedLibrary.Dispose();
+        EventsRumorOrDeed.Dispose();
+        EventsRumorOrDeedWitnesses.Dispose();
+        Relationships.Dispose();
+        RelationshipIds.Dispose();
+        Memories.Dispose();
+        MemoryIds.Dispose();
+        NextMemoryId.Dispose();
+        NextRelationshipId.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
         var job = new ProcessDeedOrRumorEventJob()
         {
             dataDeedLibrary = DeedLibrary,
@@ -346,20 +365,6 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
             nextRelationshipId = NextRelationshipId
         };
 
-        Dependency = job.Schedule();
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        DeedLibrary.Dispose();
-        EventsRumorOrDeed.Dispose();
-        EventsRumorOrDeedWitnesses.Dispose();
-        Relationships.Dispose();
-        RelationshipIds.Dispose();
-        Memories.Dispose();
-        MemoryIds.Dispose();
-        NextMemoryId.Dispose();
-        NextRelationshipId.Dispose();
+        return job.Schedule();
     }
 }

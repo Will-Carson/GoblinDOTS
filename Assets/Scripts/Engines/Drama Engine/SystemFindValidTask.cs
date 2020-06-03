@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemFindValidTask<TR> : SystemBase 
+public class SystemFindValidTask<TR> : SystemBase, INonScheduler 
     where TR : unmanaged, ITaskRequirement
 {
     [AutoAssign] public SystemLocationManager LMS;
@@ -87,6 +87,17 @@ public class SystemFindValidTask<TR> : SystemBase
     
     protected override void OnUpdate()
     {
+        
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        TRL.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
         var job = new SystemFindValidTaskJob()
         {
             csms = CSMS,
@@ -96,12 +107,6 @@ public class SystemFindValidTask<TR> : SystemBase
             trl = TRL
         };
 
-        job.Schedule();
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        TRL.Dispose();
+        return job.Schedule();
     }
 }

@@ -7,7 +7,7 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class SystemCheckQuest : SystemBase
+public class SystemCheckQuest : SystemBase, INonScheduler
 {
 
     public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
@@ -40,17 +40,7 @@ public class SystemCheckQuest : SystemBase
     
     protected override void OnUpdate()
     {
-        var job = new SystemCheckQuestJob();
         
-        // Assign values to the fields on your job here, so that it has
-        // everything it needs to do its work when it runs later.
-        // For example,
-        //     job.deltaTime = UnityEngine.Time.deltaTime;
-        
-        
-        
-        // Now that the job is set up, schedule it to be run. 
-        job.Schedule();
     }
 
     protected override void OnDestroy()
@@ -59,5 +49,11 @@ public class SystemCheckQuest : SystemBase
         CurrentQuests.Dispose();
         QuestSubjects.Dispose();
         QuestObjects.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
+        var job = new SystemCheckQuestJob();
+        return job.Schedule();
     }
 }

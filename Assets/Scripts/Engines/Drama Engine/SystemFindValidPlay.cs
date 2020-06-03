@@ -9,7 +9,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemFindValidPlay<PR, PE> : SystemBase 
+public class SystemFindValidPlay<PR, PE> : SystemBase, INonScheduler 
     where PR : unmanaged, IPlayRequirement 
     where PE : unmanaged, IPlayExecution
 {
@@ -86,6 +86,17 @@ public class SystemFindValidPlay<PR, PE> : SystemBase
     
     protected override void OnUpdate()
     {
+        
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        PRL.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
         var job = new SystemFindValidPlayJob()
         {
             lms = LMS,
@@ -93,13 +104,7 @@ public class SystemFindValidPlay<PR, PE> : SystemBase
             prl = PRL,
             wses = WSES
         };
-        
-        job.Schedule();
-    }
 
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        PRL.Dispose();
+        return job.Schedule();
     }
 }

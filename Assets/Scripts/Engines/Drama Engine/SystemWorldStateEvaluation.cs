@@ -9,7 +9,7 @@ using DOTSNET;
 
 // TODO Updates and holds the world state datas related to stages
 [ServerWorld]
-public class SystemWorldStateEvaluation : SystemBase
+public class SystemWorldStateEvaluation : SystemBase, INonScheduler
 {
 
     public NativeArray<DataWorldState> DatasWorldState = new NativeArray<DataWorldState>(G.numberOfStages, Allocator.Persistent);
@@ -40,22 +40,18 @@ public class SystemWorldStateEvaluation : SystemBase
 
     protected override void OnUpdate()
     {
-        var job = new SystemWorldStateEvaluationJob();
-
-        // Assign values to the fields on your job here, so that it has
-        // everything it needs to do its work when it runs later.
-        // For example,
-        //     job.deltaTime = UnityEngine.Time.deltaTime;
-
-
-
-        // Now that the job is set up, schedule it to be run. 
-        job.Schedule();
+        
     }
 
     protected override void OnDestroy()
     {
         base.OnDestroy();
         DatasWorldState.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
+        var job = new SystemWorldStateEvaluationJob();
+        return job.Schedule();
     }
 }

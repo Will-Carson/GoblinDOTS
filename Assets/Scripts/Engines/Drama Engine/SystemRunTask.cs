@@ -9,7 +9,7 @@ using DOTSNET;
 
 // TODO just using max population for all Native* type allocation. Create more specific values.
 [ServerWorld]
-public class SystemRunTask : SystemBase
+public class SystemRunTask : SystemBase, INonScheduler
 {
     // Events:
     public NativeList<EventTaskRequest> EventsTaskRequest = new NativeList<EventTaskRequest>(G.maxNPCPopulation, Allocator.Persistent);
@@ -19,7 +19,7 @@ public class SystemRunTask : SystemBase
     public NativeList<EventTaskRequest> RunningTasks = new NativeList<EventTaskRequest>(G.maxNPCPopulation, Allocator.Persistent);
 
     [BurstCompile]
-    struct SystemRunTaskJob : IJob
+    public struct SystemRunTaskJob : IJob
     {
         public NativeList<EventTaskRequest> eventsTaskRequest;
         public NativeList<EventTaskContinue> eventsTaskContinue;
@@ -34,16 +34,17 @@ public class SystemRunTask : SystemBase
             {
                 runningTasks.Add(eventsTaskRequest[i]);
             }
+            eventsTaskRequest.Clear();
 
             // Process task continue events
             for (int i = 0; i < eventsTaskContinue.Length; i++)
             {
                 // TODO finish this
             }
+            eventsTaskContinue.Clear();
 
             // Process task complete events
             NativeList<int> completeTaskIds = new NativeList<int>(G.maxNPCPopulation, Allocator.Temp);
-
             for (int i = 0; i < eventsTaskComplete.Length; i++)
             {
                 for (int j = 0; j < runningTasks.Length; j++)
@@ -54,7 +55,7 @@ public class SystemRunTask : SystemBase
                     }
                 }
             }
-
+            eventsTaskComplete.Clear();
             for (int i = completeTaskIds.Length; i != 0; i--)
             {
                 runningTasks.RemoveAtSwapBack(completeTaskIds[i]);
@@ -73,15 +74,7 @@ public class SystemRunTask : SystemBase
     
     protected override void OnUpdate()
     {
-        var job = new SystemRunTaskJob()
-        {
-            eventsTaskRequest = EventsTaskRequest,
-            eventsTaskContinue = EventsTaskContinue,
-            eventsTaskComplete = EventsTaskComplete,
-            runningTasks = RunningTasks
-        };
-
-        job.Schedule();
+        
     }
 
     protected override void OnDestroy()
@@ -91,5 +84,18 @@ public class SystemRunTask : SystemBase
         EventsTaskContinue.Dispose();
         EventsTaskComplete.Dispose();
         RunningTasks.Dispose();
+    }
+
+    public JobHandle ScheduleEvent()
+    {
+        var job = new SystemRunTaskJob()
+        {
+            eventsTaskRequest = EventsTaskRequest,
+            eventsTaskContinue = EventsTaskContinue,
+            eventsTaskComplete = EventsTaskComplete,
+            runningTasks = RunningTasks
+        };
+
+        return job.Schedule();
     }
 }
