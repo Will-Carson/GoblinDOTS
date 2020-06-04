@@ -6,7 +6,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemProcessDeedOrRumorEvent : SystemBase, INonScheduler
+public class SystemProcessDeedOrRumorEvent : SystemBase
 {
     [AutoAssign] protected SystemManageFactionAndFactionMembers FactionSystem;
 

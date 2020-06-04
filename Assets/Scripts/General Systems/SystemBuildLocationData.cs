@@ -7,7 +7,8 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class SystemBuildLocationData : SystemBase, INonScheduler
+[ServerWorld]
+public class SystemBuildLocationData : SystemBase
 {
     [AutoAssign] SystemLocationManager SLM;
 

@@ -9,7 +9,7 @@ using DOTSNET;
 
 // TODO Updates and holds the world state datas related to stages
 [ServerWorld]
-public class SystemWorldStateEvaluation : SystemBase, INonScheduler
+public class SystemWorldStateEvaluation : SystemBase
 {
 
     public NativeArray<DataWorldState> DatasWorldState = new NativeArray<DataWorldState>(G.numberOfStages, Allocator.Persistent);

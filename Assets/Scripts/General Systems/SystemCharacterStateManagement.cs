@@ -8,10 +8,12 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 // TODO da whole ting
+[ServerWorld]
 public class SystemCharacterStateManagement : SystemBase
 {
-    public NativeList<EventChangeCharacterState> EventsChangeCharacterState = new NativeList<EventChangeCharacterState>();
-    public NativeHashMap<int, CharacterState> CharacterStates = new NativeHashMap<int, CharacterState>();
+    public NativeList<EventChangeCharacterState> EventsChangeCharacterState = new NativeList<EventChangeCharacterState>(G.maxTotalPopulation, Allocator.Persistent);
+    public NativeHashMap<int, CharacterState> CharacterStates = new NativeHashMap<int, CharacterState>(G.maxTotalPopulation, Allocator.Persistent);
+    
 
     [BurstCompile]
     struct CharacterStateManagementSystemJob : IJob

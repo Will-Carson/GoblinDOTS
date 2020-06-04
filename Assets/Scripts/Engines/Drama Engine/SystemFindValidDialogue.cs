@@ -7,7 +7,8 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class SystemFindValidDialogue : SystemBase, INonScheduler
+[ServerWorld]
+public class SystemFindValidDialogue : SystemBase
 {
     
     [BurstCompile]

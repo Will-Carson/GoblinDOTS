@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemManageFactionAndFactionMembers : SystemBase, INonScheduler
+public class SystemManageFactionAndFactionMembers : SystemBase
 {
     public NativeList<EventFactionCreate> EventsFactionCreate = new NativeList<EventFactionCreate>(G.rareFactionEvents, Allocator.Persistent);
     public NativeMultiHashMap<int, int> EventsFactionCreateParents = new NativeMultiHashMap<int, int>(G.rareFactionEvents * G.maxFactionParents, Allocator.Persistent);

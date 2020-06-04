@@ -7,12 +7,14 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class SystemCheckQuest : SystemBase, INonScheduler
+[ServerWorld]
+public class SystemCheckQuest : SystemBase
 {
 
-    public NativeHashMap<EventQuestRequest, DataValidQuest> CurrentQuests = new NativeHashMap<EventQuestRequest, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
-    public NativeMultiHashMap<EventQuestRequest, int> QuestSubjects = new NativeMultiHashMap<EventQuestRequest, int>(G.maxQuestSubjects, Allocator.Persistent);
-    public NativeMultiHashMap<EventQuestRequest, int> QuestObjects = new NativeMultiHashMap<EventQuestRequest, int>(G.maxQuestObjects, Allocator.Persistent);
+    public NativeHashMap<int, DataValidQuest> CurrentQuests = new NativeHashMap<int, DataValidQuest>(G.maxCurrentQuests, Allocator.Persistent);
+    public NativeHashMap<int, EventQuestRequest> CurrentQuestRequests = new NativeHashMap<int, EventQuestRequest>(G.maxCurrentQuests, Allocator.Persistent);
+    public NativeMultiHashMap<int, int> QuestSubjects = new NativeMultiHashMap<int, int>(G.maxQuestSubjects, Allocator.Persistent);
+    public NativeMultiHashMap<int, int> QuestObjects = new NativeMultiHashMap<int, int>(G.maxQuestObjects, Allocator.Persistent);
 
     [BurstCompile]
     struct SystemCheckQuestJob : IJob

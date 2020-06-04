@@ -6,42 +6,40 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
+using System;
 
 [ServerWorld]
-public class SystemFindValidTask<TR> : SystemBase, INonScheduler 
-    where TR : unmanaged, ITaskRequirement
+public class SystemFindValidTask : SystemBase 
 {
     [AutoAssign] public SystemLocationManager LMS;
     [AutoAssign] public SystemRunTask RTS;
     [AutoAssign] public SystemCharacterStateManagement CSMS;
     [AutoAssign] public SystemWorldStateEvaluation WSES;
 
-    private NativeArray<TR> TRL = new NativeArray<TR>(G.numberOfTasks, Allocator.Persistent);
+    private NativeArray<TaskRequirement> TRL = new NativeArray<TaskRequirement>(G.numberOfTasks, Allocator.Persistent);
 
     protected override void OnCreate()
     {
         // Example of assigning a task
-        dynamic t;
-        TRL[0] = t = new TaskRTest();
+        TRL[0] = new TaskRequirement();
     }
 
     [BurstCompile]
     struct SystemFindValidTaskJob : IJob
     {
-        public SystemLocationManager lms;
-        public SystemRunTask rts;
-        public SystemCharacterStateManagement csms;
-        public SystemWorldStateEvaluation wses;
-
-        public NativeArray<TR> trl;
+        [ReadOnly] public NativeHashMap<int, DataLocation> ld;
+        public NativeList<EventTaskRequest> ets;
+        [ReadOnly] public NativeHashMap<int, CharacterState> cs;
+        [ReadOnly] public NativeArray<DataWorldState> dws;
+        [ReadOnly] public NativeArray<TaskRequirement> trl;
 
         public void Execute()
         {
             // Loop through every character looking for ones that aren't busy
             NativeList<int> lazyCharacters = new NativeList<int>(G.maxLazyCharacters, Allocator.Temp);
-            for (int i = 0; i < csms.CharacterStates.Count(); i++)
+            for (int i = 0; i < cs.Count(); i++)
             {
-                if (csms.CharacterStates[i] == CharacterState.waitingForTask)
+                if (cs[i] == CharacterState.waitingForTask)
                 {
                     lazyCharacters.Add(i);
                 }
@@ -55,8 +53,8 @@ public class SystemFindValidTask<TR> : SystemBase, INonScheduler
             {
                 for (int j = 0; j < trl.Length; j++)
                 {
-                    var worldState = wses.DatasWorldState[lms.CharacterLocations[i].siteId];
-                    if (trl[j].Requirements(out eventTaskRequest, worldState))
+                    var worldState = dws[ld[i].siteId];
+                    if (Requirements(trl[j], out eventTaskRequest, worldState))
                     {
                         validTasks.Add(eventTaskRequest);
                     }
@@ -64,7 +62,7 @@ public class SystemFindValidTask<TR> : SystemBase, INonScheduler
                 if (validTasks.Length == 0)
                 {
                     // Send default task
-                    rts.EventsTaskRequest.Add(new EventTaskRequest()
+                    ets.Add(new EventTaskRequest()
                     {
                         characterId = lazyCharacters[i],
                         pointId = 0,
@@ -75,13 +73,19 @@ public class SystemFindValidTask<TR> : SystemBase, INonScheduler
                 {
                     // Send valid task
                     // For now just sending the first valid task. TODO find a better way
-                    rts.EventsTaskRequest.Add(validTasks[0]);
+                    ets.Add(validTasks[0]);
                 }
 
                 // Dispose of temp Native*'s
                 lazyCharacters.Dispose();
                 validTasks.Dispose();
             }
+        }
+
+        private bool Requirements(TaskRequirement taskReq, out EventTaskRequest tr, DataWorldState ws)
+        {
+            tr = new EventTaskRequest();
+            return false;
         }
     }
     
@@ -100,10 +104,10 @@ public class SystemFindValidTask<TR> : SystemBase, INonScheduler
     {
         var job = new SystemFindValidTaskJob()
         {
-            csms = CSMS,
-            lms = LMS,
-            rts = RTS,
-            wses = WSES,
+            cs = CSMS.CharacterStates,
+            dws = WSES.DatasWorldState,
+            ets = RTS.EventsTaskRequest,
+            ld = LMS.CharacterLocations,
             trl = TRL
         };
 

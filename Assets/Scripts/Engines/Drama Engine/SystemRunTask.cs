@@ -9,7 +9,7 @@ using DOTSNET;
 
 // TODO just using max population for all Native* type allocation. Create more specific values.
 [ServerWorld]
-public class SystemRunTask : SystemBase, INonScheduler
+public class SystemRunTask : SystemBase
 {
     // Events:
     public NativeList<EventTaskRequest> EventsTaskRequest = new NativeList<EventTaskRequest>(G.maxNPCPopulation, Allocator.Persistent);
@@ -86,7 +86,7 @@ public class SystemRunTask : SystemBase, INonScheduler
         RunningTasks.Dispose();
     }
 
-    public JobHandle ScheduleEvent()
+    public JobHandle ScheduleEvent(JobHandle h)
     {
         var job = new SystemRunTaskJob()
         {
@@ -96,6 +96,6 @@ public class SystemRunTask : SystemBase, INonScheduler
             runningTasks = RunningTasks
         };
 
-        return job.Schedule();
+        return job.Schedule(h);
     }
 }

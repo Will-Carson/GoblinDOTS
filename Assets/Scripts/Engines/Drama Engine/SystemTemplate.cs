@@ -7,7 +7,7 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-public class SystemTemplate : SystemBase, INonScheduler
+public class SystemTemplate : SystemBase
 {
     [BurstCompile]
     struct SystemRunDialogueJob : IJob

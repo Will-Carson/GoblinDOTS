@@ -8,7 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemLocationManager : SystemBase, INonScheduler
+public class SystemLocationManager : SystemBase
 {
     // Accessible data:
     public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(G.numberOfPoints, Allocator.Persistent);
@@ -88,7 +88,7 @@ public class SystemLocationManager : SystemBase, INonScheduler
         EventsMoveRequest.Dispose();
     }
 
-    public JobHandle ScheduleEvent()
+    public JobHandle ScheduleEvent(JobHandle h)
     {
         var job = new ProcessLocationEventsJob()
         {
@@ -101,6 +101,6 @@ public class SystemLocationManager : SystemBase, INonScheduler
             eventsMoveRequest = EventsMoveRequest
         };
 
-        return job.Schedule();
+        return job.Schedule(h);
     }
 }

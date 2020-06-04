@@ -7,13 +7,12 @@ using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
 
-// TODO using a lot of GlobalVariables.numberOfStages, Allocator.Persistent. Should give these their own vars
+// TODO using a lot of G.numberOfStages. Should give these their own vars
 // TODO PEL has no place here. This system isn't actually running the plays, so the PEL doesn't matter.
 [ServerWorld]
-public class SystemRunPlay<PE> : SystemBase, INonScheduler 
-    where PE : unmanaged, IPlayExecution
+public class SystemRunPlay : SystemBase
 {
-    public NativeArray<PE> PEL = new NativeArray<PE>(G.numberOfPlays, Allocator.Persistent);
+    public NativeArray<PlayExecution> PEL = new NativeArray<PlayExecution>(G.numberOfPlays, Allocator.Persistent);
 
     // Play related events
     public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
@@ -24,14 +23,13 @@ public class SystemRunPlay<PE> : SystemBase, INonScheduler
 
     protected override void OnCreate()
     {
-        dynamic p;
-        PEL[0] = p = new PlayETest();
+        PEL[0] = new PlayExecution();
     }
 
     [BurstCompile]
     struct RunPlaySystemJob : IJob
     {
-        public NativeArray<PE> pel;
+        public NativeArray<PlayExecution> pel;
 
         public NativeList<EventPlayRequest> eventPlayRequests;
         public NativeList<EventPlayComplete> eventPlaysFinished;
@@ -103,7 +101,7 @@ public class SystemRunPlay<PE> : SystemBase, INonScheduler
         ActivePlays.Dispose();
     }
 
-    public JobHandle ScheduleEvent()
+    public JobHandle ScheduleEvent(JobHandle h)
     {
         var job = new RunPlaySystemJob()
         {
@@ -113,6 +111,6 @@ public class SystemRunPlay<PE> : SystemBase, INonScheduler
             eventPlayContinueRequests = EventsPlayContinueRequest,
             activePlays = ActivePlays
         };
-        return job.Schedule();
+        return job.Schedule(h);
     }
 }

@@ -1,8 +1,4 @@
-﻿using Unity.Jobs;
-using Unity.Collections;
-using System;
-
-public class G
+﻿public class G
 {
     public readonly static int numberOfPoints = 1000;
     public readonly static int numberOfStages = 200;
