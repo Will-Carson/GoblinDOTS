@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -7,6 +6,8 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
+using System.Collections.Generic;
+using System.Linq;
 using System;
 
 [ServerWorld]
@@ -32,55 +33,28 @@ public class SystemFindValidPlay : SystemBase
 
         public void Execute()
         {
-            // Search through stages for a stage without a play
-            int stageId = 0;
+            IEnumerable<DataStage> validStages =
+                from stage in datasStage
+                where stage.state == TypeStageState.notBusy
+                select stage;
 
-            for (int i = 0; i < datasStage.Length; i++)
+            if (validStages.Count() == 0) return;
+
+            var e = new EventPlayRequest();
+            foreach (var vs in validStages)
             {
-                // Set stage id
-                // TODO Set stage id more selectively.
-                if (datasStage[i].state == TypeStageState.notBusy)
-                {
-                    stageId = i;
-                }
-            }
+                var ws = dws[vs.id];
+                IEnumerable<EventPlayRequest> validPlays =
+                    from pr in prl
+                    where Requirements(pr, out e, ws)
+                    select e;
 
-            // Search through plays for one that's applicable to that stage.
-            // If none are applicable, play a default non-play that eats up a chunk of time.
-            var validPlayRequests = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Temp);
-            var playRequest = new EventPlayRequest();
-            var worldState = dws[stageId];
-
-            for (int i = 0; i < prl.Length; i++)
-            {
-                if (Requirements(prl[i], out playRequest, worldState))
-                {
-                    validPlayRequests.Add(playRequest);
-                }
+                if (validPlays.Count() == 0) epr.Add(new EventPlayRequest(0, vs.id));
+                else epr.Add(validPlays.First());
             }
-
-            // Send the play request to the RunPlaySystem
-            if (validPlayRequests.Length == 0)
-            {
-                // If no valid plays, send a default play request
-                epr.Add(new EventPlayRequest()
-                {
-                    playId = 0,
-                    stageId = stageId
-                });
-            }
-            else
-            {
-                // Otherwise send a valid play request
-                // TODO just sending the first valid play request right now. This may not be the way to do it.
-                epr.Add(validPlayRequests[0]);
-            }
-
-            // Dispose
-            validPlayRequests.Dispose();
         }
 
-        private bool Requirements(PlayRequirement playReq, out EventPlayRequest pr, DataWorldState ws)
+        private static bool Requirements(PlayRequirement playReq, out EventPlayRequest pr, DataWorldState ws)
         {
             pr = new EventPlayRequest();
             return false;

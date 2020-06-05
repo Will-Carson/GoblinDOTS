@@ -57,10 +57,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                 if (eventsRumorOrDeed[i].needsEvaluation)
                 {
                     var witnesses = eventsRumorOrDeedWitnesses.GetValuesForKey(i);
-                    do
-                    {
-                        ProcessEvent(witnesses.Current, eventsRumorOrDeed[i]);
-                    } while (witnesses.MoveNext());
+                    foreach (var witness in witnesses) ProcessEvent(witness, eventsRumorOrDeed[i]);
                 }
             }
         }
@@ -124,10 +121,9 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
             var faction = factions[fm.factionId];
             var factionRelationshipIds = relationshipIds.GetValuesForKey(fm.factionId);
             bool establishedRelationship = false;
-            
-            do
+
+            foreach (var rid in factionRelationshipIds)
             {
-                var rid = factionRelationshipIds.Current;
                 var relationship = relationships[fm.factionId];
                 if (relationship.targetId == m.deedDoer)
                 {
@@ -136,7 +132,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     m.impact = affinityDelta * pow(.8f, m.timesCommitted) * affinityDelta;
                     establishedRelationship = true;
                 }
-            } while (factionRelationshipIds.MoveNext());
+            }
 
             if (!establishedRelationship)
             {
@@ -166,9 +162,8 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
             // Only if the lowest impact memory is lower impact then the new memory.
             var mids = memoryIds.GetValuesForKey(witness);
             var midNum = memoryIds.CountValuesForKey(witness);
-            do
+            foreach (var mid in mids)
             {
-                var mid = mids.Current;
                 if (midNum >= G.memoriesPerCharacter)
                 {
                     float lowestImpact = 1;
@@ -193,7 +188,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                         m.timesCommitted = c.timesCommitted + 1;
                     }
                 }
-            } while (mids.MoveNext());
+            }
 
             // Otherwise, just give them the next memory ID.
             if (memoryId == 0) { memoryId = GetNextMemoryId(); }
@@ -257,14 +252,13 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
             var faction = factions[factionMembers[master].factionId];
             var rids = relationshipIds.GetValuesForKey(factionMembers[master].factionId);
 
-            do
+            foreach (var rid in rids)
             {
-                var rid = rids.Current;
                 if (rid == factionMembers[target].factionId)
                 {
                     return relationships[rid].relationshipValues.affinity;
                 }
-            } while (rids.MoveNext());
+            }
 
             return 0;
             
@@ -312,13 +306,13 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
 
         private NativeArray<float> GetDeedTraits(int deed)
         {
-            var values = GetDeed(deed).values.GetValues(Allocator.TempJob).GetEnumerator();
+            var values = GetDeed(deed).values.GetValues(Allocator.TempJob);
             NativeList<float> result = new NativeList<float>(G.valuesPerDeed, Allocator.TempJob);
 
-            do
+            foreach (var value in values)
             {
-                result.AddNoResize(values.Current);
-            } while (values.MoveNext());
+                result.AddNoResize(value);
+            }
 
             return result;
         }

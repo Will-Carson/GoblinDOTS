@@ -1,4 +1,6 @@
-﻿using Unity.Burst;
+﻿using System.Collections.Generic;
+using System.Linq;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
@@ -65,13 +67,9 @@ public class SystemManageFactionAndFactionMembers : SystemBase
                     var newFaction = new DataFaction();
 
                     var parents = eventsFactionCreateParents.GetValuesForKey(i);
-                    do
-                    {
-                        factionParents.Add(id, parents.Current);
-                    } while (parents.MoveNext());
+                    foreach (var parent in parents) factionParents.Add(id, parent);
 
                     factions.Add(id, newFaction);
-
                     factions[id].personality.SetValues(e.values.GetValues(Allocator.TempJob));
                 }
             }
@@ -95,18 +93,22 @@ public class SystemManageFactionAndFactionMembers : SystemBase
             // Add parent to factions
             if (eventsFactionAddParent.Length != 0)
             {
-                for (int i = 0; i < eventsFactionAddParent.Capacity; i++)
+                for (int i = 0; i < eventsFactionAddParent.Length; i++)
                 {
                     var e = eventsFactionAddParent[i];
                     var f = factionParents.GetValuesForKey(i);
+                    // Removes all parents from the faction
                     factionParents.Remove(e.subjectFactionId);
                     var added = 0;
 
-                    do
+                    foreach (var faction in f)
                     {
-                        added++;
-                        factionParents.Add(e.subjectFactionId, f.Current);
-                    } while (f.MoveNext() && added < G.maxFactionParents - 1);
+                        if (added <= G.maxFactionParents - 1)
+                        {
+                            factionParents.Add(e.subjectFactionId, f.Current);
+                            added++;
+                        }
+                    }
 
                     factionParents.Add(e.subjectFactionId, e.newFactionParentId);
                 }
@@ -121,23 +123,20 @@ public class SystemManageFactionAndFactionMembers : SystemBase
                     var f = factionParents.GetValuesForKey(i);
                     factionParents.Remove(e.subjectFactionId);
 
-                    do
+                    foreach (var fp in f)
                     {
                         if (f.Current != e.removeFactionParentId)
                         {
-                            factionParents.Add(e.subjectFactionId, f.Current);
+                            factionParents.Add(e.subjectFactionId, fp);
                         }
-                    } while (f.MoveNext());
-
-                    // Dispose
-                    f.Dispose();
+                    }
                 }
             }
             
             // Change faction member power
             if (eventsChangeFactionPower.Length != 0)
             {
-                for (int i = 0; i < eventsChangeFactionPower.Capacity; i++)
+                for (int i = 0; i < eventsChangeFactionPower.Length; i++)
                 {
                     var e = eventsChangeFactionPower[i];
                     var newFactionMember = factionMembers[i];
@@ -146,8 +145,7 @@ public class SystemManageFactionAndFactionMembers : SystemBase
                 }
             }
         }
-
-        // TODO finish these functions lol
+        
         private int GetNextFactionID()
         {
             return nextFactionId[0]++;
@@ -157,12 +155,8 @@ public class SystemManageFactionAndFactionMembers : SystemBase
         {
             return nextFactionMemberId[0]++;
         }
-
-        // Dispose
     }
     
-
-    public NativeArray<int> nextFactionMemberId;
     protected override void OnUpdate()
     {
         
