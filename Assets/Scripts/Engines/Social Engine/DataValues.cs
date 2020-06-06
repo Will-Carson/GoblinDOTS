@@ -1,4 +1,5 @@
-﻿using Unity.Collections;
+﻿using System;
+using Unity.Collections;
 
 public struct DataValues
 {
@@ -19,5 +20,11 @@ public struct DataValues
     {
         // Set each value here
         placeholder = v[0];
+    }
+
+    internal bool InRange(ValueRequirement template)
+    {
+        if (placeholder > template.minValues.placeholder && placeholder < template.maxValues.placeholder) return true;
+        return false;
     }
 }
