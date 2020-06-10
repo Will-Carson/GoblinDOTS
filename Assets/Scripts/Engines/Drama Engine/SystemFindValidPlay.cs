@@ -150,17 +150,6 @@ public class SystemFindValidPlay : SystemBase
     
     protected override void OnUpdate()
     {
-        
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        PRL.Dispose();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
         var job = new SystemFindValidPlayJob()
         {
             prl = PRL,
@@ -169,6 +158,12 @@ public class SystemFindValidPlay : SystemBase
             epr = SRP.EventsPlayRequest
         };
 
-        return job.Schedule();
+        job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        PRL.Dispose();
     }
 }

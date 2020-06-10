@@ -70,7 +70,18 @@ public class SystemLocationManager : SystemBase
 
     protected override void OnUpdate()
     {
-        
+        var job = new ProcessLocationEventsJob()
+        {
+            pointDatas = PointDatas,
+            pointOccupants = PointOccupants,
+            stageDatas = DatasStage,
+            stageOccupants = StageOccupants,
+            siteDatas = SiteDatas,
+            characterLocations = CharacterLocations,
+            eventsMoveRequest = EventsMoveRequest
+        };
+
+        job.Schedule();
     }
 
     protected override void OnDestroy()
@@ -86,21 +97,5 @@ public class SystemLocationManager : SystemBase
         SiteStages.Dispose();
         CharacterLocations.Dispose();
         EventsMoveRequest.Dispose();
-    }
-
-    public JobHandle ScheduleEvent(JobHandle h)
-    {
-        var job = new ProcessLocationEventsJob()
-        {
-            pointDatas = PointDatas,
-            pointOccupants = PointOccupants,
-            stageDatas = DatasStage,
-            stageOccupants = StageOccupants,
-            siteDatas = SiteDatas,
-            characterLocations = CharacterLocations,
-            eventsMoveRequest = EventsMoveRequest
-        };
-
-        return job.Schedule(h);
     }
 }

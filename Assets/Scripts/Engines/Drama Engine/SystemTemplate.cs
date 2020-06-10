@@ -24,8 +24,8 @@ public class SystemTemplate : SystemBase
 
     }
 
-    public JobHandle ScheduleEvent()
+    protected override void OnDestroy()
     {
-        throw new System.NotImplementedException();
+        
     }
 }

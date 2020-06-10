@@ -88,7 +88,15 @@ public class SystemRunPlay : SystemBase
     
     protected override void OnUpdate()
     {
-        
+        var job = new RunPlaySystemJob()
+        {
+            pel = PEL,
+            eventPlayRequests = EventsPlayRequest,
+            eventPlaysFinished = EventsPlayFinished,
+            eventPlayContinueRequests = EventsPlayContinueRequest,
+            activePlays = ActivePlays
+        };
+        job.Schedule();
     }
 
     protected override void OnDestroy()
@@ -99,18 +107,5 @@ public class SystemRunPlay : SystemBase
         EventsPlayFinished.Dispose();
         EventsPlayContinueRequest.Dispose();
         ActivePlays.Dispose();
-    }
-
-    public JobHandle ScheduleEvent(JobHandle h)
-    {
-        var job = new RunPlaySystemJob()
-        {
-            pel = PEL,
-            eventPlayRequests = EventsPlayRequest,
-            eventPlaysFinished = EventsPlayFinished,
-            eventPlayContinueRequests = EventsPlayContinueRequest,
-            activePlays = ActivePlays
-        };
-        return job.Schedule(h);
     }
 }

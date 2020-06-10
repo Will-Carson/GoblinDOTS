@@ -74,7 +74,16 @@ public class SystemRunTask : SystemBase
     
     protected override void OnUpdate()
     {
-        
+        var job = new SystemRunTaskJob()
+        {
+            eventsTaskRequest = EventsTaskRequest,
+            eventsTaskContinue = EventsTaskContinue,
+            eventsTaskComplete = EventsTaskComplete,
+            runningTasks = RunningTasks
+        };
+
+        job.Schedule();
+
     }
 
     protected override void OnDestroy()
@@ -84,18 +93,5 @@ public class SystemRunTask : SystemBase
         EventsTaskContinue.Dispose();
         EventsTaskComplete.Dispose();
         RunningTasks.Dispose();
-    }
-
-    public JobHandle ScheduleEvent(JobHandle h)
-    {
-        var job = new SystemRunTaskJob()
-        {
-            eventsTaskRequest = EventsTaskRequest,
-            eventsTaskContinue = EventsTaskContinue,
-            eventsTaskComplete = EventsTaskComplete,
-            runningTasks = RunningTasks
-        };
-
-        return job.Schedule(h);
     }
 }

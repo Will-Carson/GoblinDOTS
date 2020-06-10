@@ -1,4 +1,4 @@
-﻿public struct DataSite
-{
-    //public TypeSite type;
-}
+﻿//public struct DataSite
+//{
+//    //public TypeSite type;
+//}

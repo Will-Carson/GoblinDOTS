@@ -22,17 +22,12 @@ public class SystemFindValidDialogue : SystemBase
     
     protected override void OnUpdate()
     {
-        
+        var job = new SystemFindValidDialogueJob();
+        job.Schedule();
     }
 
     protected override void OnDestroy()
     {
         base.OnDestroy();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
-        var job = new SystemFindValidDialogueJob(); 
-        return job.Schedule();
     }
 }

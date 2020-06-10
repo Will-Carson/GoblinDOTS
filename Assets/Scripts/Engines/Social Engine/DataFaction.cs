@@ -1,4 +1,4 @@
-﻿public struct DataFaction
-{
-    public DataValues personality;
-}
+﻿//public struct DataFaction
+//{
+//    public DataValues personality;
+//}

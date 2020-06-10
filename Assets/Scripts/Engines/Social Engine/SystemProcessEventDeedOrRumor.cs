@@ -325,25 +325,6 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
     
     protected override void OnUpdate()
     {
-        
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        DeedLibrary.Dispose();
-        EventsRumorOrDeed.Dispose();
-        EventsRumorOrDeedWitnesses.Dispose();
-        Relationships.Dispose();
-        RelationshipIds.Dispose();
-        Memories.Dispose();
-        MemoryIds.Dispose();
-        NextMemoryId.Dispose();
-        NextRelationshipId.Dispose();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
         var job = new ProcessDeedOrRumorEventJob()
         {
             dataDeedLibrary = DeedLibrary,
@@ -359,6 +340,20 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
             nextRelationshipId = NextRelationshipId
         };
 
-        return job.Schedule();
+        job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        DeedLibrary.Dispose();
+        EventsRumorOrDeed.Dispose();
+        EventsRumorOrDeedWitnesses.Dispose();
+        Relationships.Dispose();
+        RelationshipIds.Dispose();
+        Memories.Dispose();
+        MemoryIds.Dispose();
+        NextMemoryId.Dispose();
+        NextRelationshipId.Dispose();
     }
 }

@@ -22,12 +22,7 @@ public class SystemRunDialogue : SystemBase
     
     protected override void OnUpdate()
     {
-        
-    }
-
-    public JobHandle ScheduleEvent()
-    {
         var job = new SystemRunDialogueJob();
-        return job.Schedule();
+        job.Schedule();
     }
 }

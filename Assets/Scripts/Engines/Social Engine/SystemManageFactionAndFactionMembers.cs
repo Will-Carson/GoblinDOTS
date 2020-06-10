@@ -159,7 +159,23 @@ public class SystemManageFactionAndFactionMembers : SystemBase
     
     protected override void OnUpdate()
     {
-        
+        var job = new ManageFactionAndFactionMembersJob()
+        {
+            eventsFactionCreate = EventsFactionCreate,
+            eventsFactionCreateParents = EventsFactionCreateParents,
+            eventsFactionMemberCreate = EventsFactionMemberCreate,
+            eventsFactionAddParent = EventsFactionAddParent,
+            eventsFactionRemoveParent = EventsFactionRemoveParent,
+            eventsChangeFactionPower = EventsChangeFactionPower,
+            factions = Factions,
+            factionParents = FactionParents,
+            factionRelationshipIds = FactionRelationshipIds,
+            factionMembers = FactionMembers,
+            nextFactionId = NextFactionId,
+            nextFactionMemberId = NextFactionMemberId
+        };
+
+        job.Schedule();
     }
 
     protected override void OnDestroy()
@@ -177,26 +193,5 @@ public class SystemManageFactionAndFactionMembers : SystemBase
         FactionMembers.Dispose();
         NextFactionId.Dispose();
         NextFactionMemberId.Dispose();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
-        var job = new ManageFactionAndFactionMembersJob()
-        {
-            eventsFactionCreate = EventsFactionCreate,
-            eventsFactionCreateParents = EventsFactionCreateParents,
-            eventsFactionMemberCreate = EventsFactionMemberCreate,
-            eventsFactionAddParent = EventsFactionAddParent,
-            eventsFactionRemoveParent = EventsFactionRemoveParent,
-            eventsChangeFactionPower = EventsChangeFactionPower,
-            factions = Factions,
-            factionParents = FactionParents,
-            factionRelationshipIds = FactionRelationshipIds,
-            factionMembers = FactionMembers,
-            nextFactionId = NextFactionId,
-            nextFactionMemberId = NextFactionMemberId
-        };
-
-        return job.Schedule();
     }
 }

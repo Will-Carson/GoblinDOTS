@@ -38,11 +38,15 @@ public class SystemFindValidQuest : SystemBase
         public NativeHashMap<int, DataValidQuest> currentQuests;
         public NativeHashMap<int, EventQuestRequest> currentQuestRequests;
 
+        
+
         public void Execute()
         {
             var validQuest = new DataValidQuest();
             var validQuests = new NativeList<DataValidQuest>(G.numberOfQuests, Allocator.Temp);
+
             
+
             for (int i = 0; i < eventsQuestRequest.Length; i++)
             {
                 var e = eventsQuestRequest[i];
@@ -82,18 +86,6 @@ public class SystemFindValidQuest : SystemBase
     
     protected override void OnUpdate()
     {
-        
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        EventsQuestRequest.Dispose();
-        QRL.Dispose();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
         var job = new SystemFindValidQuestJob()
         {
             currentQuests = CQS.CurrentQuests,
@@ -105,6 +97,13 @@ public class SystemFindValidQuest : SystemBase
             questId = QuestId
         };
 
-        return job.Schedule();
+        job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        EventsQuestRequest.Dispose();
+        QRL.Dispose();
     }
 }

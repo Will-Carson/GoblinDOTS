@@ -40,18 +40,13 @@ public class SystemWorldStateEvaluation : SystemBase
 
     protected override void OnUpdate()
     {
-        
+        var job = new SystemWorldStateEvaluationJob();
+        job.Schedule();
     }
 
     protected override void OnDestroy()
     {
         base.OnDestroy();
         DatasWorldState.Dispose();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
-        var job = new SystemWorldStateEvaluationJob();
-        return job.Schedule();
     }
 }

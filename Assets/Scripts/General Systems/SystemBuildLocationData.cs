@@ -37,11 +37,6 @@ public class SystemBuildLocationData : SystemBase
 
     protected override void OnUpdate()
     {
-
-    }
-
-    public JobHandle ScheduleEvent()
-    {
         var job = new CacheLocationDataJob()
         {
             characterLocations = SLM.CharacterLocations,
@@ -50,6 +45,6 @@ public class SystemBuildLocationData : SystemBase
             siteOccupants = SLM.SiteOccupants
         };
 
-        return job.Schedule();
+        job.Schedule();
     }
 }

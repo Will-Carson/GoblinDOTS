@@ -91,17 +91,6 @@ public class SystemFindValidTask : SystemBase
     
     protected override void OnUpdate()
     {
-        
-    }
-
-    protected override void OnDestroy()
-    {
-        base.OnDestroy();
-        TRL.Dispose();
-    }
-
-    public JobHandle ScheduleEvent()
-    {
         var job = new SystemFindValidTaskJob()
         {
             cs = CSMS.CharacterStates,
@@ -111,6 +100,12 @@ public class SystemFindValidTask : SystemBase
             trl = TRL
         };
 
-        return job.Schedule();
+        job.Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        TRL.Dispose();
     }
 }
