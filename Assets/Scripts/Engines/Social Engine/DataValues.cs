@@ -24,7 +24,8 @@ public struct DataValues
 
     internal bool InRange(ValueRequirement template)
     {
-        if (placeholder > template.minValues.placeholder && placeholder < template.maxValues.placeholder) return true;
-        return false;
+        var test = true;
+        if (placeholder < template.minValues.placeholder || placeholder > template.maxValues.placeholder) test = false;
+        return test;
     }
 }

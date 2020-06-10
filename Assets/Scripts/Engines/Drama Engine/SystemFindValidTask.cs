@@ -76,7 +76,7 @@ public class SystemFindValidTask : SystemBase
                     ets.Add(validTasks[0]);
                 }
 
-                // Dispose of temp Native*'s
+                // Dispose
                 lazyCharacters.Dispose();
                 validTasks.Dispose();
             }

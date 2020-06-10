@@ -14,7 +14,7 @@ public class SystemLocationManager : SystemBase
     public NativeArray<DataPoint> PointDatas = new NativeArray<DataPoint>(G.numberOfPoints, Allocator.Persistent);
     public NativeMultiHashMap<int, int> PointOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerPoint, Allocator.Persistent);
 
-    public NativeArray<DataStage> StageDatas = new NativeArray<DataStage>(G.numberOfStages, Allocator.Persistent);
+    public NativeArray<DataStage> DatasStage = new NativeArray<DataStage>(G.numberOfStages, Allocator.Persistent);
     public NativeMultiHashMap<int, int> StagePoints = new NativeMultiHashMap<int, int>(G.pointsPerStage, Allocator.Persistent);
     public NativeMultiHashMap<int, int> StageOccupants = new NativeMultiHashMap<int, int>(G.occupantsPerStage, Allocator.Persistent);
 
@@ -78,7 +78,7 @@ public class SystemLocationManager : SystemBase
         base.OnDestroy();
         PointDatas.Dispose();
         PointOccupants.Dispose();
-        StageDatas.Dispose();
+        DatasStage.Dispose();
         StageOccupants.Dispose();
         StagePoints.Dispose();
         SiteDatas.Dispose();
@@ -94,7 +94,7 @@ public class SystemLocationManager : SystemBase
         {
             pointDatas = PointDatas,
             pointOccupants = PointOccupants,
-            stageDatas = StageDatas,
+            stageDatas = DatasStage,
             stageOccupants = StageOccupants,
             siteDatas = SiteDatas,
             characterLocations = CharacterLocations,

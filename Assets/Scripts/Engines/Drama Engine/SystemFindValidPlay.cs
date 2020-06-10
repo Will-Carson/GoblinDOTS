@@ -78,12 +78,11 @@ public class SystemFindValidPlay : SystemBase
         /// Takes a world state and a plays requirements and sees if they're compatable.
         /// If they are, returns true and produces a valid EventPlayRequest.
         /// </summary>
-        /// <param name="pr"></param>
-        /// <param name="playReq"></param>
-        /// <param name="ws"></param>
-        /// <param name="fr"></param>
-        /// <returns></returns>
-        private static bool Requirements(PlayRequirement pr, out EventPlayRequest playReq, DataWorldState ws, NativeArray<FullRelationship> frs, NativeArray<TemplateMemory> tms, NativeHashMap<int, DataValues> vid)
+        private static bool Requirements(PlayRequirement pr, out EventPlayRequest playReq, 
+            DataWorldState ws, 
+            NativeArray<FullRelationship> frs, 
+            NativeArray<TemplateMemory> tms, 
+            NativeHashMap<int, DataValues> vid)
         {
             playReq = new EventPlayRequest(){ playId = pr.playId, stageId = ws.stageId };
             var vpr = new NativeList<PlayRequirement>(10, Allocator.TempJob);
@@ -164,10 +163,10 @@ public class SystemFindValidPlay : SystemBase
     {
         var job = new SystemFindValidPlayJob()
         {
-            datasStage = SLM.StageDatas,
+            prl = PRL,
+            datasStage = SLM.DatasStage,
             dws = SWSE.DatasWorldState,
-            epr = SRP.EventsPlayRequest,
-            prl = PRL
+            epr = SRP.EventsPlayRequest
         };
 
         return job.Schedule();

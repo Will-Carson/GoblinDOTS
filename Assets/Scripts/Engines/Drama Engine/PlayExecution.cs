@@ -1,4 +1,4 @@
-﻿public struct PlayExecution
+﻿public struct DataPlayExecution
 {
-    // TODO Oh god oh fuck
+    public int scriptId;
 }

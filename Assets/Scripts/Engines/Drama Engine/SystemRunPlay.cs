@@ -12,7 +12,7 @@ using DOTSNET;
 [ServerWorld]
 public class SystemRunPlay : SystemBase
 {
-    public NativeArray<PlayExecution> PEL = new NativeArray<PlayExecution>(G.numberOfPlays, Allocator.Persistent);
+    public NativeArray<DataPlayExecution> PEL = new NativeArray<DataPlayExecution>(G.numberOfPlays, Allocator.Persistent);
 
     // Play related events
     public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
@@ -23,13 +23,13 @@ public class SystemRunPlay : SystemBase
 
     protected override void OnCreate()
     {
-        PEL[0] = new PlayExecution();
+        PEL[0] = new DataPlayExecution();
     }
 
     [BurstCompile]
     struct RunPlaySystemJob : IJob
     {
-        public NativeArray<PlayExecution> pel;
+        public NativeArray<DataPlayExecution> pel;
 
         public NativeList<EventPlayRequest> eventPlayRequests;
         public NativeList<EventPlayComplete> eventPlaysFinished;
