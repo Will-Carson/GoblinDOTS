@@ -1,5 +1,5 @@
-﻿public struct EventFactionRemoveParent
-{
-    public int subjectFactionId;
-    public int removeFactionParentId;
-}
+﻿//public struct EventFactionRemoveParent
+//{
+//    public int subjectFactionId;
+//    public int removeFactionParentId;
+//}

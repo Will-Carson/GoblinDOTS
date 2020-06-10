@@ -1,4 +1,4 @@
-﻿public struct EventPlayComplete
-{
-    public int stageId;
-}
+﻿//public struct EventPlayComplete
+//{
+//    public int stageId;
+//}

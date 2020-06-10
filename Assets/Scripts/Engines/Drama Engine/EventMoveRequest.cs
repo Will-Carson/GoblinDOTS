@@ -1,5 +1,5 @@
-﻿public struct EventMoveRequest
-{
-    public int mover;
-    public DataLocation location;
-}
+﻿//public struct EventMoveRequest
+//{
+//    public int mover;
+//    public DataLocation location;
+//}

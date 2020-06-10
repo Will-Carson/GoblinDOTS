@@ -1,4 +1,4 @@
-﻿public struct EventFactionCreate
-{
-    public DataValues values;
-}
+﻿//public struct EventFactionCreate
+//{
+//    public DataValues values;
+//}

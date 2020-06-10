@@ -1,5 +1,5 @@
-﻿public struct EventFactionAddParent
-{
-    public int subjectFactionId;
-    public int newFactionParentId;
-}
+﻿//public struct EventFactionAddParent
+//{
+//    public int subjectFactionId;
+//    public int newFactionParentId;
+//}

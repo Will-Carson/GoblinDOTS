@@ -1,5 +1,5 @@
-﻿public struct EventChangeFactionPower
-{
-    public int factionMemberId;
-    public float newPower;
-}
+﻿//public struct EventChangeFactionPower
+//{
+//    public int factionMemberId;
+//    public float newPower;
+//}

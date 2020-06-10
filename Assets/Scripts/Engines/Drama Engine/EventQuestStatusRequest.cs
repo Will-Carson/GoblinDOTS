@@ -1,5 +1,5 @@
-﻿public struct EventQuestStatusRequest
-{
-    public int questId;
-    public int currentDialogue;
-}
+﻿//public struct EventQuestStatusRequest
+//{
+//    public int questId;
+//    public int currentDialogue;
+//}

@@ -1,4 +1,4 @@
-﻿public struct EventPlayContinueRequest
-{
-    public int stageId;
-}
+﻿//public struct EventPlayContinueRequest
+//{
+//    public int stageId;
+//}

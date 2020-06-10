@@ -1,4 +1,4 @@
-﻿public struct EventTaskComplete
-{
-    public int characterId;
-}
+﻿//public struct EventTaskComplete
+//{
+//    public int characterId;
+//}

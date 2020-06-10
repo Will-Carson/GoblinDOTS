@@ -1,5 +1,5 @@
-﻿public struct EventFactionMemberCreate
-{
-    public int factionId;
-    public float power;
-}
+﻿//public struct EventFactionMemberCreate
+//{
+//    public int factionId;
+//    public float power;
+//}
