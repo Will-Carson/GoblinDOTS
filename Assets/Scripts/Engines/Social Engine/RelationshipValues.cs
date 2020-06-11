@@ -1,6 +1,6 @@
 ﻿using Unity.Collections;
 
-public struct DataValues
+public struct RelationshipValues
 {
     // define personality traits here
     public float placeholder;

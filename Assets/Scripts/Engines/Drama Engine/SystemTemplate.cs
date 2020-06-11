@@ -32,13 +32,17 @@ public class SystemTemplate : SystemBase
     protected override void OnUpdate()
     {
         // Add system state component to facilitate tracking
+        var trackedEntities = TrackedEntities;
+        var buffer = ESECBS.CreateCommandBuffer();
+
         Entities
-            .WithAll<ExampleComponent>()
             .WithNone<ExampleSystemComponent>()
-            .ForEach((Entity entity, in ExampleComponent exampleComponent, in ExampleSystemComponent exampleSystemComponent) =>
+            .ForEach((Entity entity, in ExampleComponent exampleComponent) =>
             {
-                ESECBS.EntityManager.AddComponentData(entity, new ExampleSystemComponent() { Value = exampleComponent.Value });
-                TrackedEntities.Add(entity, exampleSystemComponent);
+                var e = new ExampleSystemComponent() { Value = exampleComponent.Value };
+                buffer.AddComponent<ExampleSystemComponent>(entity);
+                buffer.SetComponent<ExampleSystemComponent>(entity, e);
+                trackedEntities.Add(entity, e);
             })
             .WithBurst()
             .Schedule();
@@ -53,21 +57,14 @@ public class SystemTemplate : SystemBase
         // Destroy entities without real components and stop tracking them
         Entities
             .WithNone<ExampleComponent>()
-            .WithAll<ExampleSystemComponent>()
-            .ForEach((Entity entity, in ExampleComponent exampleComponent, in ExampleSystemComponent exampleSystemComponent) =>
+            .ForEach((Entity entity, in ExampleSystemComponent exampleSystemComponent) =>
             {
-                
-                ESECBS.EntityManager.DestroyEntity(entity);
-                TrackedEntities.Remove(entity);
+                trackedEntities.Remove(entity);
+                buffer.DestroyEntity(entity);
             })
             .WithBurst()
             .Schedule();
     }
-}
-
-public struct EntityTag : IComponentData
-{
-    public Entity myEntity;
 }
 
 public struct ExampleComponent : IComponentData
