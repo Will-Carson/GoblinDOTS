@@ -2,10 +2,16 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
+using System.Collections.Generic;
+using System.Linq;
+using System;
 
 [ServerWorld]
+[UpdateBefore(typeof(TransformSystemGroup))]
 public class SystemProcessDeedOrRumorEvent : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
@@ -27,6 +33,8 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
             {
                 for (int i = 0; i < eventsWitness.Length; i++)
                 {
+                    #region data prep
+
                     var eventWitness = eventsWitness[i];
                     if (!eventWitness.needsEvaluation) return;
 
@@ -53,12 +61,12 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     }
 
                     var deedData = deedLibrary[(int)newMemory.type];
-                    var deedValues = deedData.values.GetValues(Allocator.TempJob);
+                    var deedValues = DataValues.GetValues(Allocator.TempJob, deedData.values);
                     float traitAlignment = 1;
 
                     // Get the difference between the character and the deeds traits. Will produce a number between 0 and 1.
                     // 0 being the least possible alignment and 1 being the most possible alignment.
-                    var traits = faction.values.GetValues(Allocator.TempJob);
+                    var traits = DataValues.GetValues(Allocator.TempJob, faction.values);
                     for (int j = 0; j < traits.Length; j++)
                     {
                         traitAlignment -= abs(traits[j] - deedValues[j]);
@@ -77,6 +85,8 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     {
                         newMemory.reliability = 1;
                     }
+
+                    #endregion
 
                     #region affinity calculation
 

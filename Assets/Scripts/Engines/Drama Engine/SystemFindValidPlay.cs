@@ -1,169 +1,203 @@
-﻿//using Unity.Burst;
-//using Unity.Collections;
-//using Unity.Entities;
-//using Unity.Jobs;
-//using Unity.Mathematics;
-//using Unity.Transforms;
-//using static Unity.Mathematics.math;
-//using DOTSNET;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System;
+﻿using Unity.Burst;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
+using static Unity.Mathematics.math;
+using DOTSNET;
+using System.Collections.Generic;
+using System.Linq;
+using System;
+using UnityEngine;
 
-//[ServerWorld]
-//public class SystemFindValidPlay : SystemBase
-//{
-//    [AutoAssign] SystemLocationManager SLM;
-//    [AutoAssign] SystemRunPlay SRP;
-//    [AutoAssign] SystemWorldStateEvaluation SWSE;
-//    private NativeArray<PlayRequirement> PRL = new NativeArray<PlayRequirement>(G.numberOfPlays, Allocator.Persistent);
+[ServerWorld]
+[UpdateAfter(typeof(TransformSystemGroup))]
+public class SystemFindValidPlay : SystemBase
+{
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    private NativeArray<PlayRequirement> PlayRequirementsLibrary = new NativeArray<PlayRequirement>(G.numberOfPlays, Allocator.Persistent);
+    private EntityQueryDesc QueryDesc;
 
-//    protected override void OnCreate()
-//    {
-//        PRL[0] = new PlayRequirement();
-//    }
-
-//    [BurstCompile]
-//    struct SystemFindValidPlayJob : IJob
-//    {
-//        public NativeList<EventPlayRequest> epr;
-//        [ReadOnly] public NativeArray<DataWorldState> dws;
-//        [ReadOnly] public NativeArray<DataStage> datasStage;
-//        [ReadOnly] public NativeArray<PlayRequirement> prl;
-
-//        public void Execute()
-//        {
-//            IEnumerable<DataStage> validStages =
-//                from stage in datasStage
-//                where stage.state == TypeStageState.notBusy
-//                select stage;
-
-//            if (validStages.Count() == 0) return;
-
-//            var e = new EventPlayRequest();
-//            foreach (var vs in validStages)
-//            {
-//                var ws = dws[vs.id];
-//                var fr = GetFullRelationships(ws);
-//                var tm = GetMemoryTemplates(ws);
-//                var vid = GetValuesByIds(ws);
-//                IEnumerable<EventPlayRequest> validPlays =
-//                    from pr in prl
-//                    where Requirements(pr, out e, ws, fr, tm, vid)
-//                    select e;
-
-//                if (validPlays.Count() == 0) epr.Add(new EventPlayRequest() { playId = 0, stageId = vs.id });
-//                else epr.Add(validPlays.First());
-//            }
-//        }
-
-//        private NativeHashMap<int, DataValues> GetValuesByIds(DataWorldState ws)
-//        {
-//            throw new NotImplementedException();
-//        }
-
-//        private NativeArray<TemplateMemory> GetMemoryTemplates(DataWorldState ws)
-//        {
-//            // TODO
-//            throw new NotImplementedException();
-//        }
-
-//        private NativeArray<FullRelationship> GetFullRelationships(DataWorldState ws)
-//        {
-//            // TODO get relationships from a particular area
-//            throw new NotImplementedException();
-//        }
-
-//        /// <summary>
-//        /// Takes a world state and a plays requirements and sees if they're compatable.
-//        /// If they are, returns true and produces a valid EventPlayRequest.
-//        /// </summary>
-//        private static bool Requirements(PlayRequirement pr, out EventPlayRequest playReq, 
-//            DataWorldState ws, 
-//            NativeArray<FullRelationship> frs, 
-//            NativeArray<TemplateMemory> tms, 
-//            NativeHashMap<int, DataValues> vid)
-//        {
-//            playReq = new EventPlayRequest(){ playId = pr.playId, stageId = ws.stageId };
-//            var vpr = new NativeList<PlayRequirement>(10, Allocator.TempJob);
-
-//            // Populate list with items meeting one of the constraints
-//            foreach (var fr in frs)
-//            {
-//                var nvpr = new PlayRequirement();
-//                nvpr.TryAddFullRelationship(1, fr, pr.relationshipX);
-//                vpr.Add(nvpr);
-//            }
-            
-//            // Check if there are any items that meet the constraint. If not, this play is invalid.
-//            if (vpr.Count() == 0) return false;
-
-//            // Remove items from the list that do not meet another constraint
-//            for (var i = vpr.Count() - 1; i >= 0; i--)
-//            {
-//                for (var j = 0; j < frs.Length; j++)
-//                {
-//                    if (!vpr[i].TryAddFullRelationship(2, frs[j], pr.relationshipY))
-//                        vpr.RemoveAt(i);
-//                }
-//            }
-
-//            // Every time we get done removing items we check again
-//            if (vpr.Count() == 0) return false;
-
-//            // Repeat...
-//            for (var i = vpr.Count() - 1; i >= 0; i--)
-//            {
-//                var test = true;
-//                if (vpr[i].CheckValuesInRange(1, vid[vpr[i].subjectX], pr.cXValues)) test = false;
-//                if (vpr[i].CheckValuesInRange(2, vid[vpr[i].subjectY], pr.cYValues)) test = false;
-//                if (vpr[i].CheckValuesInRange(3, vid[vpr[i].subjectZ], pr.cZValues)) test = false;
-//                if (!test) vpr.RemoveAt(i);
-//            }
-
-//            if (vpr.Count() == 0) return false;
-
-//            for (var i = vpr.Count() - 1; i >= 0; i--)
-//            {
-//                var test = false;
-//                for (var j = 0; j < tms.Length; j++)
-//                {
-//                    if (vpr[i].CheckValidMemory(tms[j], pr.templateMemory)) test = true;
-//                }
-//                if (!test)
-//                {
-//                    vpr.RemoveAt(i);
-//                }
-//            }
-
-//            if (vpr.Count() == 0) return false;
-
-//            // Set remaining play request data before returning.
-//            playReq.subjectX = vpr[0].subjectX;
-//            playReq.subjectY = vpr[0].subjectY;
-//            playReq.subjectZ = vpr[0].subjectZ;
-
-//            // If all constraints are met and we have any items left over, return true.
-//            return true;
-//        }
-//    }
+    protected override void OnCreate()
+    {
+        QueryDesc = new EntityQueryDesc()
+        {
+            All = new ComponentType[]
+            {
+                ComponentType.ReadOnly<StageId>(),
+                ComponentType.ReadOnly<BufferFullRelationship>(),
+                ComponentType.ReadOnly<BufferTemplateMemory>(),
+                ComponentType.ReadOnly<BufferDataValues>()
+            },
+            None = new ComponentType[]
+            {
+                typeof(RunningPlay)
+            }
+        };
+        PlayRequirementsLibrary[0] = new PlayRequirement();
+    }
     
-//    protected override void OnUpdate()
-//    {
-//        var job = new SystemFindValidPlayJob()
-//        {
-//            prl = PRL,
-//            datasStage = SLM.DatasStage,
-//            dws = SWSE.DatasWorldState,
-//            epr = SRP.EventsPlayRequest
-//        };
+    [BurstCompile]
+    public struct FindValidPlays : IJobChunk
+    {
+        [ReadOnly] public NativeArray<PlayRequirement> playRequirementsLibrary;
+        [ReadOnly] public ArchetypeChunkEntityType entityArchetype;
+        [ReadOnly] public ArchetypeChunkComponentType<StageId> stageIdArchetype;
+        [ReadOnly] public ArchetypeChunkBufferType<BufferFullRelationship> fullRelationshipArchetype;
+        [ReadOnly] public ArchetypeChunkBufferType<BufferTemplateMemory> templateMemoryArchetype;
+        [ReadOnly] public ArchetypeChunkBufferType<BufferDataValues> valuesComponentArchetype;
+        [ReadOnly] public EntityCommandBuffer.Concurrent buffer;
 
-//        job.Schedule();
-//    }
+        public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+        {
+            var stageIds = chunk.GetNativeArray(stageIdArchetype);
+            var fullRelationshipBuffers = chunk.GetBufferAccessor(fullRelationshipArchetype);
+            var memoryTemplateBuffers = chunk.GetBufferAccessor(templateMemoryArchetype);
+            var valuesComponentBuffers = chunk.GetBufferAccessor(valuesComponentArchetype);
+            var chunkEntities = chunk.GetNativeArray(entityArchetype);
 
-//    protected override void OnDestroy()
-//    {
-//        base.OnDestroy();
-//        PRL.Dispose();
-//    }
-//}
+            for (int i = 0; i < chunk.Count; i++)
+            {
+                var runningPlay = new RunningPlay();
+
+                var stageData = new StageData()
+                {
+                    fullRelationships = fullRelationshipBuffers[i],
+                    templateMemories = memoryTemplateBuffers[i],
+                    valuesComponents = valuesComponentBuffers[i]
+                };
+
+                var validPlay = new RunningPlay();
+
+                for(int j = 0; j < playRequirementsLibrary.Length; j++)
+                {
+                    if (Requirements( out runningPlay, stageData))
+                    {
+                        validPlay = runningPlay;
+                    }
+                }
+
+                buffer.SetComponent(chunkIndex, chunkEntities[i], validPlay);
+            }
+        }
+    }
+
+    private static bool Requirements(
+            //PlayRequirement playRequirement,
+            out RunningPlay runningPlay,
+            StageData stageData)
+    {
+        var playRequirement = new PlayRequirement();
+        var fullRelationships = stageData.fullRelationships.ToNativeArray(Allocator.TempJob);
+        var valueComponents = stageData.valuesComponents;
+        var templateMemories = stageData.templateMemories;
+
+        runningPlay = new RunningPlay() { stageId = stageData.stageId.stageId, playId = playRequirement.playId }; // TODO Set defaults?
+        var validPlays = new NativeList<PlayRequirement>(10, Allocator.TempJob);
+
+        // Populate list with items meeting one of the constraints
+        for (var i = 0; i < fullRelationships.Length; i++)
+        {
+            var validPlay = new PlayRequirement();
+            PlayRequirement.TryAddFullRelationship(1, fullRelationships[i].value, playRequirement.relationshipX, validPlay, out validPlay);
+            validPlays.Add(validPlay);
+        }
+
+        // Check if there are any items that meet the constraint. If not, this play is invalid.
+        if (validPlays.Length == 0) return false;
+
+        // Remove items from the list that do not meet another constraint
+        for (var i = validPlays.Length - 1; i >= 0; i--)
+        {
+            for (var j = 0; j < fullRelationships.Length; j++)
+            {
+                var newValidPlay = new PlayRequirement();
+                if (!PlayRequirement.TryAddFullRelationship(2, fullRelationships[j].value, playRequirement.relationshipY, validPlays[i], out newValidPlay))
+                    validPlays[i] = newValidPlay;
+                else validPlays.RemoveAt(i);
+            }
+        }
+
+        // Every time we get done removing items we check again
+        if (validPlays.Length == 0) return false;
+
+        // Repeat...
+        var factionValues = new NativeHashMap<int, DataValues>(valueComponents.Length, Allocator.Persistent);
+        for (var i = 0; i < valueComponents.Length; i++)
+        {
+            factionValues.Add(valueComponents[i].factionId, valueComponents[i].value);
+        }
+
+        for (var i = validPlays.Length - 1; i >= 0; i--)
+        {
+            var test = true;
+            if (PlayRequirement.CheckValuesInRange(factionValues[validPlays[i].subjectX], playRequirement.cXValues)) test = false;
+            if (PlayRequirement.CheckValuesInRange(factionValues[validPlays[i].subjectY], playRequirement.cYValues)) test = false;
+            if (PlayRequirement.CheckValuesInRange(factionValues[validPlays[i].subjectZ], playRequirement.cZValues)) test = false;
+            if (!test) validPlays.RemoveAt(i);
+        }
+
+        if (validPlays.Length == 0) return false;
+
+        for (var i = validPlays.Length - 1; i >= 0; i--)
+        {
+            var test = false;
+            for (var j = 0; j < templateMemories.Length; j++)
+            {
+                var newValidPlay = new PlayRequirement();
+                if (PlayRequirement.CheckValidMemory(templateMemories[j].value, playRequirement.templateMemory, validPlays[i], out newValidPlay))
+                {
+                    test = true;
+                    validPlays[i] = newValidPlay;
+                }
+            }
+            if (!test) validPlays.RemoveAt(i);
+        }
+
+        if (validPlays.Length == 0) return false;
+
+        // Set remaining play request data before returning.
+        runningPlay.subjectX = validPlays[0].subjectX;
+        runningPlay.subjectY = validPlays[0].subjectY;
+        runningPlay.subjectZ = validPlays[0].subjectZ;
+
+        // If all constraints are met and we have any items left over, return true.
+        return true;
+    }
+
+    public struct StageData
+    {
+        public StageId stageId;
+        public DynamicBuffer<BufferFullRelationship> fullRelationships;
+        public DynamicBuffer<BufferTemplateMemory> templateMemories;
+        public DynamicBuffer<BufferDataValues> valuesComponents;
+    }
+
+    EntityCommandBuffer.Concurrent commandBuffer;
+    protected override void OnUpdate()
+    {
+        commandBuffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+
+        var job = new FindValidPlays();
+
+        job.playRequirementsLibrary = PlayRequirementsLibrary;
+        job.entityArchetype = GetArchetypeChunkEntityType();
+        job.stageIdArchetype = GetArchetypeChunkComponentType<StageId>(true);
+        job.fullRelationshipArchetype = GetArchetypeChunkBufferType<BufferFullRelationship>(true);
+        job.templateMemoryArchetype = GetArchetypeChunkBufferType<BufferTemplateMemory>(true);
+        job.valuesComponentArchetype = GetArchetypeChunkBufferType<BufferDataValues>(true);
+        job.buffer = commandBuffer;
+
+        Dependency = job.Schedule(GetEntityQuery(QueryDesc), Dependency);
+        Dependency.Complete();
+
+        ESECBS.AddJobHandleForProducer(Dependency);
+    }
+
+    protected override void OnDestroy()
+    {
+        Dependency.Complete();
+        PlayRequirementsLibrary.Dispose();
+    }
+}

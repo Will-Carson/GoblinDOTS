@@ -8,6 +8,7 @@ using static Unity.Mathematics.math;
 using DOTSNET;
 using System;
 
+// TODO declare server or client world
 public class SystemTemplate : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
@@ -64,6 +65,11 @@ public class SystemTemplate : SystemBase
             })
             .WithBurst()
             .Schedule();
+    }
+
+    protected override void OnDestroy()
+    {
+        TrackedEntities.Dispose();
     }
 }
 
