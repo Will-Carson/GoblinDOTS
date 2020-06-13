@@ -42,7 +42,7 @@ public class SystemTemplate : SystemBase
             {
                 var e = new ExampleSystemComponent() { Value = exampleComponent.Value };
                 buffer.AddComponent<ExampleSystemComponent>(entity);
-                buffer.SetComponent<ExampleSystemComponent>(entity, e);
+                buffer.SetComponent(entity, e);
                 trackedEntities.Add(entity, e);
             })
             .WithBurst()

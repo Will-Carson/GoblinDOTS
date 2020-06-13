@@ -29,7 +29,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
         var deedLibrary = DeedLibrary;
         
         Entities
-            .ForEach(((Entity entity, FactionMember factionMember, Faction faction, DynamicBuffer<Relationship> relationships, DynamicBuffer<Memory> memories, DynamicBuffer<EventWitness> eventsWitness) =>
+            .ForEach((Entity entity, FactionMember factionMember, Faction faction, DynamicBuffer<Relationship> relationships, DynamicBuffer<Memory> memories, DynamicBuffer<EventWitness> eventsWitness) =>
             {
                 for (int i = 0; i < eventsWitness.Length; i++)
                 {
@@ -201,7 +201,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
 
                 // Wipe buffer after going through all elements
                 buffer.SetBuffer<EventWitness>(entity);
-            }))
+            })
             .WithBurst()
             .Schedule();
     }
@@ -216,7 +216,6 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
 
     protected override void OnDestroy()
     {
-        base.OnDestroy();
         DeedLibrary.Dispose();
     }
 }

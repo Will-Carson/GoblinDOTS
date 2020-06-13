@@ -1,111 +1,66 @@
-﻿//using Unity.Burst;
-//using Unity.Collections;
-//using Unity.Entities;
-//using Unity.Jobs;
-//using Unity.Mathematics;
-//using Unity.Transforms;
-//using static Unity.Mathematics.math;
-//using DOTSNET;
+﻿using Unity.Burst;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
+using static Unity.Mathematics.math;
+using DOTSNET;
 
-//// TODO using a lot of G.numberOfStages. Should give these their own vars
-//// TODO PEL has no place here. This system isn't actually running the plays, so the PEL doesn't matter.
-//[ServerWorld]
-//public class SystemRunPlay : SystemBase
-//{
-//    public NativeArray<DataPlayExecution> PEL = new NativeArray<DataPlayExecution>(G.numberOfPlays, Allocator.Persistent);
+// TODO PEL has no place here. This system isn't actually running the plays, so the PEL doesn't matter.
+[ServerWorld]
+public class SystemRunPlay : SystemBase
+{
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    public NativeArray<DataPlayExecution> PEL = new NativeArray<DataPlayExecution>(G.numberOfPlays, Allocator.Persistent);
+    public NativeArray<Entity> RunningPlays = new NativeArray<Entity>(G.numberOfStages, Allocator.Persistent);
 
-//    // Play related events
-//    public NativeList<EventPlayRequest> EventsPlayRequest = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
-//    public NativeList<EventPlayComplete> EventsPlayFinished = new NativeList<EventPlayComplete>(G.numberOfStages, Allocator.Persistent);
-//    public NativeList<EventPlayContinueRequest> EventsPlayContinueRequest = new NativeList<EventPlayContinueRequest>(G.numberOfStages, Allocator.Persistent);
+    protected override void OnCreate()
+    {
+        PEL[0] = new DataPlayExecution();
+    }
 
-//    public NativeList<EventPlayRequest> ActivePlays = new NativeList<EventPlayRequest>(G.numberOfStages, Allocator.Persistent);
+    protected override void OnUpdate()
+    {
+        var trackedEntities = RunningPlays;
+        var buffer = ESECBS.CreateCommandBuffer();
+        var X = new Entity();
 
-//    protected override void OnCreate()
-//    {
-//        PEL[0] = new DataPlayExecution();
-//    }
+        #region Track running play objects with system 
+        Entities
+            .WithNone<SystemRunningPlay>()
+            .ForEach((Entity entity, in RunningPlay runningPlay, in StageId stageId) =>
+            {
+                var s = new SystemRunningPlay() { /*set values*/ };
+                buffer.AddComponent<SystemRunningPlay>(entity);
+                buffer.SetComponent(entity, s);
+                trackedEntities[stageId.stageId] = entity;
+            })
+            .WithBurst()
+            .Schedule();
 
-//    [BurstCompile]
-//    struct RunPlaySystemJob : IJob
-//    {
-//        public NativeArray<DataPlayExecution> pel;
+        Entities
+            .WithNone<RunningPlay>()
+            .ForEach((Entity entity, in SystemRunningPlay system, in StageId stageId) =>
+            {
+                buffer.RemoveComponent<SystemRunningPlay>(entity);
+                trackedEntities[stageId.stageId] = X;
+            })
+            .WithBurst()
+            .Schedule();
+        #endregion
 
-//        public NativeList<EventPlayRequest> eventPlayRequests;
-//        public NativeList<EventPlayComplete> eventPlaysFinished;
-//        public NativeList<EventPlayContinueRequest> eventPlayContinueRequests;
-//        public NativeList<EventPlayRequest> activePlays;
+        // Update plays as necessary
+        // Send play updates to clients
+    }
 
-//        public void Execute()
-//        {
-//            // EventPlayRequest
-//            for (int i = 0; i < eventPlayRequests.Length; i++)
-//            {
-//                if (eventPlayRequests[i].stageId != 0)
-//                {
-//                    activePlays.Add(eventPlayRequests[i]);
-//                    // TODO send current play to clients.
-//                }
-//            }
-//            eventPlayRequests.Clear();
-            
-//            // EventPlayContinueRequests
-//            for (int i = 0; i < eventPlayContinueRequests.Length; i++)
-//            {
-//                BroadcastContinue(eventPlayContinueRequests[i].stageId);
-//            }
-//            eventPlayContinueRequests.Clear();
+    protected override void OnDestroy()
+    {
+        PEL.Dispose();
+    }
+}
 
-//            // EventPlaysFinished
-//            NativeList<int> removed = new NativeList<int>(G.numberOfStages, Allocator.Temp);
-//            for (int i = 0; i < eventPlaysFinished.Length; i++)
-//            {
-//                for (int j = 0; j < activePlays.Length; j++)
-//                {
-//                    if (eventPlaysFinished[i].stageId == activePlays[j].stageId)
-//                    {
-//                        removed.Add(j);
-//                    }
-//                }
-//            }
-//            eventPlaysFinished.Clear();
-
-//            // Removes elements in reverse order so we don't run over the lists size
-//            for (int i = removed.Length - 1; i == 0; i--) // TODO watch this closely.. could cause issues.
-//            {
-//                activePlays.RemoveAtSwapBack(removed[i]);
-//            }
-
-//            // Dispose
-//            removed.Dispose();
-//        }
-
-//        private void BroadcastContinue(int stageId)
-//        {
-//            // TODO make message and broadcast system for this... Also need to define the dialogue system more generally.
-//        }
-//    }
-    
-//    protected override void OnUpdate()
-//    {
-//        var job = new RunPlaySystemJob()
-//        {
-//            pel = PEL,
-//            eventPlayRequests = EventsPlayRequest,
-//            eventPlaysFinished = EventsPlayFinished,
-//            eventPlayContinueRequests = EventsPlayContinueRequest,
-//            activePlays = ActivePlays
-//        };
-//        job.Schedule();
-//    }
-
-//    protected override void OnDestroy()
-//    {
-//        base.OnDestroy();
-//        PEL.Dispose();
-//        EventsPlayRequest.Dispose();
-//        EventsPlayFinished.Dispose();
-//        EventsPlayContinueRequest.Dispose();
-//        ActivePlays.Dispose();
-//    }
-//}
+public struct SystemRunningPlay : ISystemStateComponentData
+{
+    public int Value;
+}
