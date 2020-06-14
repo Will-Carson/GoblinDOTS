@@ -22,19 +22,5 @@ namespace DOTSNET
             this.position = position;
             this.rotation = rotation;
         }
-
-        public bool Serialize(ref SegmentWriter writer)
-        {
-            return writer.WriteULong(netId) &&
-                   writer.WriteFloat3(position) &&
-                   writer.WriteQuaternion(rotation);
-        }
-
-        public bool Deserialize(ref SegmentReader reader)
-        {
-            return reader.ReadULong(out netId) &&
-                   reader.ReadFloat3(out position) &&
-                   reader.ReadQuaternion(out rotation);
-        }
     }
 }

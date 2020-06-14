@@ -19,7 +19,7 @@ namespace DOTSNET.Examples.Physics
         {
             // remove physics components from from spheres on the server,
             // so that we can apply NetworkTransform synchronization.
-            Entities.ForEach((Entity entity, MovementComponent movement) =>
+            Entities.ForEach((in Entity entity, in MovementComponent movement) =>
             {
                 EntityManager.RemoveComponent<PhysicsCollider>(entity);
                 EntityManager.RemoveComponent<PhysicsDamping>(entity);

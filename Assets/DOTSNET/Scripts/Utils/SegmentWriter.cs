@@ -20,6 +20,12 @@
 // => 100% allocation free for MMO scale networking.
 // => only DOTS supported blittable types like float3, NativeString, etc.
 //
+// Endianness:
+//   DOTSNET automatically serializes full structs.
+//   this only works as long as all the platforms have the same endianness,
+//   which is Little Endian on Mac/Windows/Linux.
+//   (see https://www.coder.work/article/247983 in case we need both endians)
+//
 // Use C# extensions to add your own writer functions, for example:
 //
 //   public static bool WriteItem(this SegmentWriter writer, Item item)
@@ -32,6 +38,7 @@ using System;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace DOTSNET
 {
@@ -63,10 +70,15 @@ namespace DOTSNET
             Position = 0;
         }
 
-
         ////////////////////////////////////////////////////////////////////////
-        // writes 'size' bytes for blittable(!) type T via fixed memory copying
-        unsafe bool WriteBlittable<T>(T value, int size)
+        // writes bytes for blittable(!) type T via fixed memory copying
+        //
+        // this works for all blittable structs, and the value order is always
+        // the same on all platforms because:
+        // "C#, Visual Basic, and C++ compilers apply the Sequential layout
+        //  value to structures by default."
+        // https://docs.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.structlayoutattribute?view=netcore-3.1
+        public unsafe bool WriteBlittable<T>(T value)
             where T : unmanaged
         {
             // check if blittable for safety.
@@ -80,8 +92,19 @@ namespace DOTSNET
             // => it's definitely worth it to avoid strange non-blittable issues
 #if UNITY_EDITOR
             if (!UnsafeUtility.IsBlittable(typeof(T)))
-                throw new Exception(typeof(T) + " is not blittable!");
+            {
+                Debug.LogError(typeof(T) + " is not blittable!");
+                return false;
+            }
 #endif
+
+            // calculate size
+            //   sizeof(T) gets the managed size at compile time.
+            //   Marshal.SizeOf<T> gets the unmanaged size at runtime (slow).
+            // => our 1mio writes benchmark is 6x slower with Marshal.SizeOf<T>
+            // => for blittable types, sizeof(T) is even recommended:
+            // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices
+            int size = sizeof(T);
 
             // enough space in array?
             // => check total size before any writes to make it atomic!
@@ -89,6 +112,9 @@ namespace DOTSNET
             {
                 fixed (byte* ptr = &buffer[Position])
                 {
+                    // Marshal class is 6x slower in our 10mio writes benchmark
+                    //Marshal.StructureToPtr(value, (IntPtr)ptr, false);
+
                     // cast buffer to T* pointer, then assign value to the area
                     *(T*)ptr = value;
                 }
@@ -103,48 +129,60 @@ namespace DOTSNET
         ////////////////////////////////////////////////////////////////////////
 
         // write 1 byte, grow segment
-        public bool WriteByte(byte value) => WriteBlittable(value, 1);
+        public bool WriteByte(byte value) => WriteBlittable(value);
 
         // write 1 byte bool, grow segment
         // -> bool is not blittable, so cast it to a byte first.
-        public bool WriteBool(bool value) => WriteBlittable((byte)(value ? 1 : 0), 1);
+        public bool WriteBool(bool value) => WriteBlittable((byte)(value ? 1 : 0));
 
         // write 2 bytes ushort, grow segment
-        public bool WriteUShort(ushort value) => WriteBlittable(value, 2);
+        public bool WriteUShort(ushort value) => WriteBlittable(value);
 
         // write 2 bytes short, grow segment
-        public bool WriteShort(short value) => WriteBlittable(value, 2);
+        public bool WriteShort(short value) => WriteBlittable(value);
 
         // write 4 bytes uint, grow segment
-        public bool WriteUInt(uint value) => WriteBlittable(value, 4);
+        public bool WriteUInt(uint value) => WriteBlittable(value);
 
         // write 4 bytes int, grow segment
-        public bool WriteInt(int value) => WriteBlittable(value, 4);
+        public bool WriteInt(int value) => WriteBlittable(value);
 
         // write 8 bytes int2, grow segment
-        public bool WriteInt2(int2 value) => WriteBlittable(value, 8);
+        public bool WriteInt2(int2 value) => WriteBlittable(value);
 
         // write 12 bytes int3, grow segment
-        public bool WriteInt3(int3 value) => WriteBlittable(value, 12);
+        public bool WriteInt3(int3 value) => WriteBlittable(value);
 
         // write 16 bytes int4, grow segment
-        public bool WriteInt4(int4 value) => WriteBlittable(value, 16);
+        public bool WriteInt4(int4 value) => WriteBlittable(value);
 
         // write 8 bytes ulong, grow segment
-        public bool WriteULong(ulong value) => WriteBlittable(value, 8);
+        public bool WriteULong(ulong value) => WriteBlittable(value);
 
         // write 8 bytes long, grow segment
-        public bool WriteLong(long value) => WriteBlittable(value, 8);
+        public bool WriteLong(long value) => WriteBlittable(value);
 
         // write byte array as ArraySegment, grow segment
-        public bool WriteBytes(ArraySegment<byte> value)
+        public unsafe bool WriteBytes(ArraySegment<byte> value)
         {
             // enough space in array?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= value.Count)
             {
                 // write 'count' bytes at position
-                Array.Copy(value.Array, value.Offset, buffer, Position, value.Count);
+
+                // 10 mio writes: 868ms
+                //Array.Copy(value.Array, value.Offset, buffer, Position, value.Count);
+
+                // 10 mio writes: 775ms
+                //Buffer.BlockCopy(value.Array, value.Offset, buffer, Position, value.Count);
+
+                fixed (byte* dst = &buffer[Position],
+                             src = &value.Array[value.Offset])
+                {
+                    // 10 mio writes: 637ms
+                    UnsafeUtility.MemCpy(dst, src, value.Count);
+                }
 
                 // update position
                 Position += value.Count;
@@ -178,49 +216,49 @@ namespace DOTSNET
 
         // write 4 bytes float
         // Write"Float" instead of WriteSingle for consistency with WriteFloat2 etc
-        public bool WriteFloat(float value) => WriteBlittable(value, 4);
+        public bool WriteFloat(float value) => WriteBlittable(value);
 
         // write 8 bytes float2
-        public bool WriteFloat2(float2 value) => WriteBlittable(value, 8);
+        public bool WriteFloat2(float2 value) => WriteBlittable(value);
 
         // write 12 bytes float3
-        public bool WriteFloat3(float3 value) => WriteBlittable(value, 12);
+        public bool WriteFloat3(float3 value) => WriteBlittable(value);
 
         // write 16 bytes float4
-        public bool WriteFloat4(float4 value) => WriteBlittable(value, 16);
+        public bool WriteFloat4(float4 value) => WriteBlittable(value);
 
         // write 8 bytes double
-        public bool WriteDouble(double value) => WriteBlittable(value, 8);
+        public bool WriteDouble(double value) => WriteBlittable(value);
 
         // write 16 bytes double2
-        public bool WriteDouble2(double2 value) => WriteBlittable(value, 16);
+        public bool WriteDouble2(double2 value) => WriteBlittable(value);
 
         // write 24 bytes double3
-        public bool WriteDouble3(double3 value) => WriteBlittable(value, 24);
+        public bool WriteDouble3(double3 value) => WriteBlittable(value);
 
         // write 32 bytes double4
-        public bool WriteDouble4(double4 value) => WriteBlittable(value, 32);
+        public bool WriteDouble4(double4 value) => WriteBlittable(value);
 
         // write 16 bytes decimal
-        public bool WriteDecimal(decimal value) => WriteBlittable(value, 16);
+        public bool WriteDecimal(decimal value) => WriteBlittable(value);
 
         // write 16 bytes quaternion
-        public bool WriteQuaternion(quaternion value) => WriteBlittable(value, 16);
+        public bool WriteQuaternion(quaternion value) => WriteBlittable(value);
 
         // write Bytes16 struct
-        public bool WriteBytes16(Bytes16 value) => WriteBlittable(value, 16);
+        public bool WriteBytes16(Bytes16 value) => WriteBlittable(value);
 
         // write Bytes30 struct
-        public bool WriteBytes30(Bytes30 value) => WriteBlittable(value, 30);
+        public bool WriteBytes30(Bytes30 value) => WriteBlittable(value);
 
         // write Bytes62 struct
-        public bool WriteBytes62(Bytes62 value) => WriteBlittable(value, 62);
+        public bool WriteBytes62(Bytes62 value) => WriteBlittable(value);
 
         // write Bytes126 struct
-        public bool WriteBytes126(Bytes126 value) => WriteBlittable(value, 126);
+        public bool WriteBytes126(Bytes126 value) => WriteBlittable(value);
 
         // write Bytes510 struct
-        public bool WriteBytes510(Bytes510 value) => WriteBlittable(value, 510);
+        public bool WriteBytes510(Bytes510 value) => WriteBlittable(value);
 
         // write NativeString32 struct
         // -> fixed size means not worrying about max size / allocation attacks

@@ -28,7 +28,10 @@ namespace DOTSNET
         {
             // DynamicBuffer foreach allocates. use for.
             for (int i = 0; i < buffer.Length; ++i)
-                if (buffer[i].Equals(value))
+                // .Equals can't be called from a Job.
+                // GetHashCode() works as long as <T> implements it manually!
+                // (which is faster too!)
+                if (buffer[i].GetHashCode() == value.GetHashCode())
                     return true;
             return false;
         }

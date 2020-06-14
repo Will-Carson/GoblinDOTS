@@ -10,19 +10,13 @@ namespace DOTSNET
     [ServerWorld]
     [UpdateInGroup(typeof(ServerActiveSimulationSystemGroup))]
     public abstract class NetworkServerMessageSystem<T> : SystemBase
-        where T : NetworkMessage, new()
+        where T : unmanaged, NetworkMessage
     {
         // dependencies
         [AutoAssign] protected NetworkServerSystem server;
 
         // overwrite to indicate if the message should require authentication
         protected abstract bool RequiresAuthentication();
-
-        // wrapper function to convert NetworkMessage back to type T
-        void OnMessageInternal(int connectionId, NetworkMessage message)
-        {
-            OnMessage(connectionId, (T)message);
-        }
 
         // the handler function
         protected abstract void OnMessage(int connectionId, T message);
@@ -33,7 +27,7 @@ namespace DOTSNET
         protected override void OnStartRunning()
         {
             // register handler
-            if (server.RegisterHandler<T>(OnMessageInternal, RequiresAuthentication()))
+            if (server.RegisterHandler<T>(OnMessage, RequiresAuthentication()))
             {
                 Debug.Log("NetworkServerMessage/System Registered for: " + typeof(T));
             }

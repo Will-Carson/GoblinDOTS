@@ -12,15 +12,5 @@ namespace DOTSNET.Examples.Physics
         {
             this.playerPrefabId = playerPrefabId;
         }
-
-        public bool Serialize(ref SegmentWriter writer)
-        {
-            return writer.WriteBytes16(playerPrefabId);
-        }
-
-        public bool Deserialize(ref SegmentReader reader)
-        {
-            return reader.ReadBytes16(out playerPrefabId);
-        }
     }
 }

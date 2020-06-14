@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
@@ -12,8 +13,17 @@ namespace DOTSNET
         INACTIVE, ACTIVE
     }
 
-    // NetworkMessage delegate for servers
-    public delegate void NetworkMessageServerDelegate(int connectionId, NetworkMessage message);
+    // NetworkMessage delegate for message handlers
+    public delegate void NetworkMessageServerDelegate<T>(int connectionId, T message)
+        where T : unmanaged, NetworkMessage;
+
+    // message handler delegates are wrapped around another delegate because
+    // the wrapping function still knows the message's type <T>, required for:
+    //   1. Creating new T() before deserializing. we can't create a new
+    //      NetworkMessage interface, only the explicit type.
+    //   2. Knowing <T> when deserializing allows for automated serialization
+    //      in the future.
+    public delegate void NetworkMessageServerDelegateWrapper(int connectionId, SegmentReader reader);
 
     // NetworkServerSystem should be updated AFTER all other server systems.
     // we need a guaranteed update order to avoid race conditions where it might
@@ -71,8 +81,8 @@ namespace DOTSNET
         // -> we use delegates to be as widely usable as possible
         // -> KeyValuePair so that we can deserialize into a copy of Network-
         //    Message of the correct type, before calling the handler
-        Dictionary<ushort, KeyValuePair<NetworkMessage, NetworkMessageServerDelegate>> handlers =
-            new Dictionary<ushort, KeyValuePair<NetworkMessage, NetworkMessageServerDelegate>>();
+        Dictionary<ushort, NetworkMessageServerDelegateWrapper> handlers =
+            new Dictionary<ushort, NetworkMessageServerDelegateWrapper>();
 
         // all spawned NetworkEntities.
         // for cases where we need to modify one of them. this way we don't have
@@ -139,6 +149,7 @@ namespace DOTSNET
         // network events called by TransportSystem ////////////////////////////
         // named On'Transport'Connected etc. because OnServerConnected wouldn't
         // be completely obvious that it comes from the transport
+        byte[] connectMessageBytes = new byte[Marshal.SizeOf<ConnectMessage>()];
         void OnTransportConnected(int connectionId)
         {
             Debug.Log("NetworkServerSystem.OnTransportConnected: " + connectionId);
@@ -175,9 +186,14 @@ namespace DOTSNET
 
                     // call OnConnect handler by invoking an artificial ConnectMessage
                     ConnectMessage message = new ConnectMessage();
-                    if (handlers.TryGetValue(message.GetID(), out KeyValuePair<NetworkMessage, NetworkMessageServerDelegate> kvp))
+                    if (handlers.TryGetValue(message.GetID(), out NetworkMessageServerDelegateWrapper handler))
                     {
-                        kvp.Value(connectionId, message);
+                        // serialize connect message
+                        SegmentWriter writer = new SegmentWriter(connectMessageBytes);
+                        writer.WriteBlittable(message);
+
+                        // handle it
+                        handler(connectionId, new SegmentReader(writer.segment));
                         Debug.Log("NetworkServerSystem.OnTransportConnected: invoked ConnectMessage handler for connectionId: " + connectionId);
                     }
                 }
@@ -210,23 +226,10 @@ namespace DOTSNET
                 // create a new message of type messageId by copying the
                 // template from the handler. we copy it automatically because
                 // messages are value types, so that's a neat trick here.
-                if (handlers.TryGetValue(messageId, out KeyValuePair<NetworkMessage, NetworkMessageServerDelegate> kvp))
+                if (handlers.TryGetValue(messageId, out NetworkMessageServerDelegateWrapper handler))
                 {
-                    // deserialize message data
-                    // IMPORTANT: remember that segment expires after returning,
-                    //            so if byte[] payloads are needed then copy them
-                    NetworkMessage message = kvp.Key;
-                    if (message.Deserialize(ref reader))
-                    {
-                        // handle it
-                        kvp.Value(connectionId, message);
-                    }
-                    // invalid message contents are not okay. disconnect.
-                    else
-                    {
-                        Debug.Log("NetworkServerSystem.OnTransportData: invalid message content for reader with Position: " + reader.Position + " Remaining: " + reader.Remaining + " for connectionId: " + connectionId);
-                        Disconnect(connectionId);
-                    }
+                    // deserialize and handle it
+                    handler(connectionId, reader);
                 }
                 // unhandled messageIds are not okay. disconnect.
                 else
@@ -244,14 +247,20 @@ namespace DOTSNET
             }
         }
 
+        byte[] disconnectMessageBytes = new byte[Marshal.SizeOf<DisconnectMessage>()];
         void OnTransportDisconnected(int connectionId)
         {
             // call OnDisconnected handler by invoking an artificial DisconnectMessage
             // (in case a system needs it)
             DisconnectMessage message = new DisconnectMessage();
-            if (handlers.TryGetValue(message.GetID(), out KeyValuePair<NetworkMessage, NetworkMessageServerDelegate> kvp))
+            if (handlers.TryGetValue(message.GetID(), out NetworkMessageServerDelegateWrapper handler))
             {
-                kvp.Value(connectionId, message);
+                // serialize disconnect message
+                SegmentWriter writer = new SegmentWriter(disconnectMessageBytes);
+                writer.WriteBlittable(message);
+
+                // handle it
+                handler(connectionId, new SegmentReader(writer.segment));
                 Debug.Log("NetworkServerSystem.OnTransportDisconnected: invoked DisconnectMessage handler for connectionId: " + connectionId);
             }
 
@@ -292,7 +301,8 @@ namespace DOTSNET
 
         // messages ////////////////////////////////////////////////////////////
         // send a message to a connectionId
-        public void Send<T>(T message, int connectionId) where T : NetworkMessage
+        public void Send<T>(T message, int connectionId)
+            where T : unmanaged, NetworkMessage
         {
             // valid connectionId?
             // Checking is technically not needed, but this way we get a nice
@@ -324,8 +334,18 @@ namespace DOTSNET
                         // write message id
                         if (writer.WriteUShort(message.GetID()))
                         {
-                            // serialize message content
-                            if (message.Serialize(ref writer))
+                            // serialize message content:
+                            // instead of manually serializing every value via
+                            // message.Serialize, we only allow blittable
+                            // messages - which we can just block copy.
+                            //
+                            // that's a giant improvement:
+                            // + no more need to write Serialize functions
+                            // + no more accidentally forgetting a field
+                            // + fastest performance: only one call, instead of
+                            //   several WriteString, WriteInt, etc. calls and
+                            //   checks
+                            if (writer.WriteBlittable(message))
                             {
                                 // send to transport.
                                 // (it will have to free up the segment immediately)
@@ -370,6 +390,33 @@ namespace DOTSNET
             else Debug.LogWarning("NetworkServerSystem.Send: invalid connectionId=" + connectionId);
         }
 
+        // convenience function to send a whole NativeMultiMap of messages to
+        // connections, useful for Job systems.
+        public void Send<T>(NativeMultiHashMap<int, T> messages)
+            where T : unmanaged, NetworkMessage
+        {
+            // messages.GetKeyArray allocates.
+            // -> BroadcastSystems send to each connection anyway
+            // -> we need a connections.ContainsKey check anyway
+            // --> so we might as well iterate all known connections and only
+            //     send to the ones that are in messages (which are usually all)
+            foreach (int connectionId in connections.Keys)
+            {
+                // iterate all messages for this connectionId
+                // (NativeMultiHashMap iteration is a bit ugly)
+                if (messages.TryGetFirstValue(connectionId,
+                    out T message,
+                    out NativeMultiHashMapIterator<int> it))
+                {
+                    Send(message, connectionId);
+                    while (messages.TryGetNextValue(out message, ref it))
+                    {
+                        Send(message, connectionId);
+                    }
+                }
+            }
+        }
+
         // we need to check authentication before calling handlers.
         // there are two options:
         // a) store 'requiresAuth' in the dictionary and check it before calling
@@ -382,9 +429,10 @@ namespace DOTSNET
         //    elegant solution.
         // => note that we lose the ability to compare handlers because we wrap
         //    them, but that's fine.
-        NetworkMessageServerDelegate WrapHandler(NetworkMessageServerDelegate handler, bool requiresAuthentication)
+        NetworkMessageServerDelegateWrapper WrapHandler<T>(NetworkMessageServerDelegate<T> handler, bool requiresAuthentication)
+            where T : unmanaged, NetworkMessage
         {
-            return delegate(int connectionId, NetworkMessage message)
+            return delegate(int connectionId, SegmentReader reader)
             {
                 // find connection state
                 if (connections.TryGetValue(connectionId, out ConnectionState state))
@@ -394,8 +442,22 @@ namespace DOTSNET
                     // -> or if we need it, connection needs to be authenticated
                     if (!requiresAuthentication || state.authenticated)
                     {
-                        // call it
-                        handler(connectionId, message);
+                        // deserialize
+                        // -> we do this in WrapHandler because in here we still
+                        //    know <T>
+                        // -> later on we only know NetworkMessage
+                        // -> knowing <T> allows for automated serialization
+                        if (reader.ReadBlittable(out T message))
+                        {
+                            // call it
+                            handler(connectionId, message);
+                        }
+                        // invalid message contents are not okay. disconnect.
+                        else
+                        {
+                            Debug.Log("NetworkServerSystem: failed to deserialize " + typeof(T) + " for reader with Position: " + reader.Position + " Remaining: " + reader.Remaining + " for connectionId: " + connectionId);
+                            Disconnect(connectionId);
+                        }
                     }
                     // authentication was required, but we were not authenticated
                     // in this case always disconnect the connection.
@@ -422,8 +484,8 @@ namespace DOTSNET
         //    NetworkMessage template each time. it's just cleaner this way.
         //
         // usage: RegisterHandler<TestMessage>(func);
-        public bool RegisterHandler<T>(NetworkMessageServerDelegate handler, bool requiresAuthentication)
-            where T : NetworkMessage, new()
+        public bool RegisterHandler<T>(NetworkMessageServerDelegate<T> handler, bool requiresAuthentication)
+            where T : unmanaged, NetworkMessage
         {
             // create a message template to get id and to copy from
             T template = default;
@@ -432,11 +494,8 @@ namespace DOTSNET
             // (might happen in case of duplicate messageIds etc.)
             if (!handlers.ContainsKey(template.GetID()))
             {
-                // wrap the handler with auth check
-                NetworkMessageServerDelegate wrap = WrapHandler(handler, requiresAuthentication);
-
-                // add the wrapped version
-                handlers[template.GetID()] = new KeyValuePair<NetworkMessage, NetworkMessageServerDelegate>(template, wrap);
+                // wrap the handler with auth check & deserialization
+                handlers[template.GetID()] = WrapHandler(handler, requiresAuthentication);
                 return true;
             }
 
@@ -451,7 +510,7 @@ namespace DOTSNET
         // unregister a handler.
         // => we use <T> generics so we don't have to pass messageId  each time.
         public bool UnregisterHandler<T>()
-            where T : NetworkMessage, new()
+            where T : unmanaged, NetworkMessage
         {
             // create a message template to get id
             T template = default;

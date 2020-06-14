@@ -30,11 +30,11 @@ namespace DOTSNET.Examples.Physics
                 direction = math.normalize(direction);
 
             // foreach
-            Entities.ForEach((NetworkEntity networkEntity,
-                              MovementComponent movement,
-                              PhysicsMass mass,
-                              ref Translation translation,
-                              ref PhysicsVelocity velocity) =>
+            Entities.ForEach((ref Translation translation,
+                              ref PhysicsVelocity velocity,
+                              in NetworkEntity networkEntity,
+                              in MovementComponent movement,
+                              in PhysicsMass mass) =>
             {
                 // only for our own player
                 if (!networkEntity.owned)

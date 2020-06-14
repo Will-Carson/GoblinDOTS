@@ -27,10 +27,10 @@ namespace DOTSNET.Examples.Pong
             float deltaTime = Time.DeltaTime;
 
             // for the local player
-            Entities.ForEach((Entity entity,
-                              NetworkEntity networkEntity,
-                              RacketMovementData movement,
-                              ref Translation translation) =>
+            Entities.ForEach((ref Translation translation,
+                              in Entity entity,
+                              in NetworkEntity networkEntity,
+                              in RacketMovementData movement) =>
             {
                 // is this our player?
                 if (!networkEntity.owned)

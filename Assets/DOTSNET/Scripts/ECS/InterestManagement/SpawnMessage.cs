@@ -14,7 +14,8 @@ namespace DOTSNET
         public ulong netId;
 
         // flag to indicate if the connection that we send it to owns the entity
-        public bool owned;
+        // (byte instead of bool because bool isn't blittable)
+        public byte owned;
 
         // the spawn position
         // unlike StateMessage, we include the position once when spawning so
@@ -30,31 +31,13 @@ namespace DOTSNET
 
         public ushort GetID() { return 0x0022; }
 
-        public SpawnMessage(Bytes16 prefabId, ulong netId, bool owned, float3 position, quaternion rotation)
+        public SpawnMessage(Bytes16 prefabId, ulong netId, byte owned, float3 position, quaternion rotation)
         {
             this.prefabId = prefabId;
             this.netId = netId;
             this.owned = owned;
             this.position = position;
             this.rotation = rotation;
-        }
-
-        public bool Serialize(ref SegmentWriter writer)
-        {
-            return writer.WriteBytes16(prefabId) &&
-                   writer.WriteULong(netId) &&
-                   writer.WriteBool(owned) &&
-                   writer.WriteFloat3(position) &&
-                   writer.WriteQuaternion(rotation);
-        }
-
-        public bool Deserialize(ref SegmentReader reader)
-        {
-            return reader.ReadBytes16(out prefabId) &&
-                   reader.ReadULong(out netId) &&
-                   reader.ReadBool(out owned) &&
-                   reader.ReadFloat3(out position) &&
-                   reader.ReadQuaternion(out rotation);
         }
     }
 }

@@ -21,7 +21,7 @@ namespace DOTSNET.Examples.Pong
         {
             // remove physics components from from spheres on the server,
             // so that we can apply NetworkTransform synchronization.
-            Entities.ForEach((Entity entity, BallTag ball) =>
+            Entities.ForEach((in Entity entity, in BallTag ball) =>
             {
                 EntityManager.RemoveComponent<PhysicsCollider>(entity);
                 EntityManager.RemoveComponent<PhysicsDamping>(entity);

@@ -9,6 +9,7 @@ namespace DOTSNET
         BruteForceInterestManagementSystem bruteForceSystem =>
             Bootstrap.ServerWorld.GetExistingSystem<BruteForceInterestManagementSystem>();
 
+        public bool showSlider;
         public float visibilityRadius = 15;
         public float updateInterval = 1;
 
@@ -26,6 +27,28 @@ namespace DOTSNET
         {
             bruteForceSystem.visibilityRadius = visibilityRadius;
             bruteForceSystem.updateInterval = updateInterval;
+        }
+
+        // interest management visibility radius is the ultimate benchmark.
+        // let's show a slider to change it at runtime. it makes the 10k demo
+        // way more fun.
+        void OnGUI()
+        {
+            if (!showSlider) return;
+
+            int height = 30;
+            int width = 250;
+            GUILayout.BeginArea(new Rect(Screen.width / 2 - width / 2,
+                                         Screen.height - height,
+                                         width,
+                                         height));
+
+            GUILayout.BeginHorizontal("Box");
+            GUILayout.Label("Radius:");
+            visibilityRadius = GUILayout.HorizontalSlider(visibilityRadius, 0, 200, GUILayout.Width(150));
+            GUILayout.Label(visibilityRadius.ToString("F0"));
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
         }
     }
 }

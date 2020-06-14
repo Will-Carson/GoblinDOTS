@@ -14,17 +14,5 @@ namespace DOTSNET.Examples.Chat
             this.sender = sender;
             this.text = text;
         }
-
-        public bool Serialize(ref SegmentWriter writer)
-        {
-            return writer.WriteNativeString32(sender) &&
-                   writer.WriteNativeString128(text);
-        }
-
-        public bool Deserialize(ref SegmentReader reader)
-        {
-            return reader.ReadNativeString32(out sender) &&
-                   reader.ReadNativeString128(out text);
-        }
     }
 }

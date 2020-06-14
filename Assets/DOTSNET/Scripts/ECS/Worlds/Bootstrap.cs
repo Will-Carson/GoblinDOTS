@@ -25,6 +25,12 @@ namespace DOTSNET
         // initialize is called by Unity
         public bool Initialize(string defaultWorldName)
         {
+            // fix: initialize TypeManager before using types.
+            // this seems to be necessary in development builds and on some
+            // systems, otherwise people get this error:
+            // "The TypeManager must be initialized before the TypeManager can be used"
+            TypeManager.Initialize();
+
             // create all worlds
             Debug.Log("DOTSNET Boostrap: creating Worlds");
             CreateAllWorlds(defaultWorldName, out DefaultWorld, out ServerWorld, out ClientWorld);

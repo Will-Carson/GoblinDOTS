@@ -85,7 +85,7 @@ namespace DOTSNET
 
         internal void ConvertSceneObjectPrefabs()
         {
-            Entities.ForEach((Entity entity, ref NetworkEntity networkEntity) =>
+            Entities.ForEach((ref NetworkEntity networkEntity, in Entity entity) =>
             {
                 // log message for debugging (logging 10k each time is too much)
                 //Debug.Log("Converting Scene Object: " + EntityManager.GetName(entity) + " to Entity Prefab in World: " + World);

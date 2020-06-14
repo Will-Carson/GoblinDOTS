@@ -13,15 +13,5 @@ namespace DOTSNET
         {
             this.netId = netId;
         }
-
-        public bool Serialize(ref SegmentWriter writer)
-        {
-            return writer.WriteULong(netId);
-        }
-
-        public bool Deserialize(ref SegmentReader reader)
-        {
-            return reader.ReadULong(out netId);
-        }
     }
 }

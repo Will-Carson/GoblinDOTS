@@ -51,6 +51,8 @@ public class SystemRunPlay : SystemBase
         #endregion
 
         // Update plays as necessary
+
+
         // Send play updates to clients
     }
 
@@ -62,5 +64,5 @@ public class SystemRunPlay : SystemBase
 
 public struct SystemRunningPlay : ISystemStateComponentData
 {
-    public int Value;
+    public DataRunningPlay runningPlay;
 }

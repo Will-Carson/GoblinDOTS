@@ -14,7 +14,16 @@ namespace DOTSNET
     }
 
     // NetworkMessage delegate for clients
-    public delegate void NetworkMessageClientDelegate(NetworkMessage message);
+    public delegate void NetworkMessageClientDelegate<T>(T message)
+        where T : unmanaged, NetworkMessage;
+
+    // message handler delegates are wrapped around another delegate because
+    // the wrapping function still knows the message's type <T>, required for:
+    //   1. Creating new T() before deserializing. we can't create a new
+    //      NetworkMessage interface, only the explicit type.
+    //   2. Knowing <T> when deserializing allows for automated serialization
+    //      in the future.
+    public delegate void NetworkMessageClientDelegateWrapper(SegmentReader reader);
 
     // NetworkClientSystem should be updated AFTER all other client systems.
     // we need a guaranteed update order to avoid race conditions where it might
@@ -63,8 +72,8 @@ namespace DOTSNET
         //    (job)ComponentSystem
         // -> KeyValuePair so that we can deserialize into a copy of Network-
         //    Message of the correct type, before calling the handler
-        Dictionary<ushort, KeyValuePair<NetworkMessage, NetworkMessageClientDelegate>> handlers =
-            new Dictionary<ushort, KeyValuePair<NetworkMessage, NetworkMessageClientDelegate>>();
+        Dictionary<ushort, NetworkMessageClientDelegateWrapper> handlers =
+            new Dictionary<ushort, NetworkMessageClientDelegateWrapper>();
 
         // all spawned NetworkEntities visible to this client.
         // for cases where we need to modify one of them. this way we don't have
@@ -155,23 +164,10 @@ namespace DOTSNET
                 // create a new message of type messageId by copying the
                 // template from the handler. we copy it automatically because
                 // messages are value types, so that's a neat trick here.
-                if (handlers.TryGetValue(messageId, out KeyValuePair<NetworkMessage, NetworkMessageClientDelegate> kvp))
+                if (handlers.TryGetValue(messageId, out NetworkMessageClientDelegateWrapper handler))
                 {
-                    // deserialize message data
-                    // IMPORTANT: remember that segment expires after returning,
-                    //            so if byte[] payloads are needed then copy them
-                    NetworkMessage message = kvp.Key;
-                    if (message.Deserialize(ref reader))
-                    {
-                        // handle it
-                        kvp.Value(message);
-                    }
-                    // invalid message contents are not okay. disconnect.
-                    else
-                    {
-                        Debug.Log("NetworkClientSystem.OnTransportData: deserializing " + message.GetType() + " failed with reader at Position: " + reader.Position + " Remaining: " + reader.Remaining);
-                        Disconnect();
-                    }
+                    // deserialize and handle it
+                    handler(reader);
                 }
                 // unhandled messageIds are not okay. disconnect.
                 else
@@ -205,7 +201,8 @@ namespace DOTSNET
 
         // messages ////////////////////////////////////////////////////////////
         // send a message to the server
-        public void Send<T>(T message) where T : NetworkMessage
+        public unsafe void Send<T>(T message)
+            where T : unmanaged, NetworkMessage
         {
             // make sure that we can use the send buffer
             if (sendBuffer?.Length > 0)
@@ -216,8 +213,18 @@ namespace DOTSNET
                 // write message id
                 if (writer.WriteUShort(message.GetID()))
                 {
-                    // serialize message content
-                    if (message.Serialize(ref writer))
+                    // serialize message content:
+                    // instead of manually serializing every value via
+                    // message.Serialize, we only allow blittable
+                    // messages - which we can just block copy.
+                    //
+                    // that's a giant improvement:
+                    // + no more need to write Serialize functions
+                    // + no more accidentally forgetting a field
+                    // + fastest performance: only one call, instead of
+                    //   several WriteString, WriteInt, etc. calls and
+                    //   checks
+                    if (writer.WriteBlittable(message))
                     {
                         // send to transport.
                         // (it will have to free up the segment immediately)
@@ -242,6 +249,32 @@ namespace DOTSNET
             else Debug.LogError("NetworkClientSystem.Send: sendBuffer not initialized or 0 length: " + sendBuffer);
         }
 
+        // wrap handlers with 'new T()' and deserialization.
+        // (see NetworkMessageClientDelegateWrapper comments)
+        NetworkMessageClientDelegateWrapper WrapHandler<T>(NetworkMessageClientDelegate<T> handler)
+            where T : unmanaged, NetworkMessage
+        {
+            return delegate(SegmentReader reader)
+            {
+                // deserialize
+                // -> we do this in WrapHandler because in here we still
+                //    know <T>
+                // -> later on we only know NetworkMessage
+                // -> knowing <T> allows for automated serialization
+                if (reader.ReadBlittable(out T message))
+                {
+                    // call it
+                    handler(message);
+                }
+                // invalid message contents are not okay. disconnect.
+                else
+                {
+                    Debug.Log("NetworkClientSystem: failed to deserialize " + typeof(T) + " for reader with Position: " + reader.Position + " Remaining: " + reader.Remaining);
+                    Disconnect();
+                }
+            };
+        }
+
         // register handler for a message.
         // we use 'where NetworkMessage' to make sure it only works for them,
         // and we use 'where new()' so we can create the type at runtime
@@ -249,8 +282,8 @@ namespace DOTSNET
         //    NetworkMessage template each time. it's just cleaner this way.
         //
         // usage: RegisterHandler<TestMessage>(func);
-        public bool RegisterHandler<T>(NetworkMessageClientDelegate handler)
-            where T : NetworkMessage, new()
+        public bool RegisterHandler<T>(NetworkMessageClientDelegate<T> handler)
+            where T : unmanaged, NetworkMessage
         {
             // create a message template to get id and to copy from
             T template = default;
@@ -259,7 +292,7 @@ namespace DOTSNET
             // (might happen in case of duplicate messageIds etc.)
             if (!handlers.ContainsKey(template.GetID()))
             {
-                handlers[template.GetID()] = new KeyValuePair<NetworkMessage, NetworkMessageClientDelegate>(template, handler);
+                handlers[template.GetID()] = WrapHandler(handler);
                 return true;
             }
 
@@ -271,23 +304,10 @@ namespace DOTSNET
             return false;
         }
 
-        // get a handler. this is useful for testing.
-        // => we use <T> generics so we don't have to pass messageId  each time.
-        //
-        // usage: GetHandler<TestMessage>();
-        public NetworkMessageClientDelegate GetHandler<T>()
-            where T : NetworkMessage, new()
-        {
-            // create a message template to get id
-            T template = default;
-            handlers.TryGetValue(template.GetID(), out KeyValuePair<NetworkMessage, NetworkMessageClientDelegate> kvp);
-            return kvp.Value;
-        }
-
         // unregister a handler.
         // => we use <T> generics so we don't have to pass messageId  each time.
         public bool UnregisterHandler<T>()
-            where T : NetworkMessage, new()
+            where T : unmanaged, NetworkMessage
         {
             // create a message template to get id
             T template = default;

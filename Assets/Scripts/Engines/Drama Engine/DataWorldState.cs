@@ -28,6 +28,11 @@ public struct BufferFullRelationship : IBufferElementData
 
 public struct RunningPlay : IComponentData
 {
+    public DataRunningPlay runningPlay;
+}
+
+public struct DataRunningPlay
+{
     public int stageId;
     public int playId;
     public int subjectX;

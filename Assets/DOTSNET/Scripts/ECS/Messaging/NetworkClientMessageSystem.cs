@@ -10,16 +10,10 @@ namespace DOTSNET
     [ClientWorld]
     [UpdateInGroup(typeof(ClientConnectedSimulationSystemGroup))]
     public abstract class NetworkClientMessageSystem<T> : SystemBase
-        where T : NetworkMessage, new()
+        where T : unmanaged, NetworkMessage
     {
         // dependencies
         [AutoAssign] protected NetworkClientSystem client;
-
-        // wrapper function to convert NetworkMessage back to type T
-        void OnMessageInternal(NetworkMessage message)
-        {
-            OnMessage((T)message);
-        }
 
         // the handler function
         protected abstract void OnMessage(T message);
@@ -30,7 +24,7 @@ namespace DOTSNET
         protected override void OnStartRunning()
         {
             // register handler
-            if (client.RegisterHandler<T>(OnMessageInternal))
+            if (client.RegisterHandler<T>(OnMessage))
             {
                 Debug.Log("NetworkClientMessage/System Registered for: " + typeof(T));
             }

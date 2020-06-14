@@ -8,6 +8,7 @@
 // - etc.
 //
 // So we need a base class for all of them.
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
 
@@ -23,6 +24,22 @@ namespace DOTSNET
     {
         // dependencies
         [AutoAssign] protected NetworkServerSystem server;
+
+        // cache messages so we can ForEach with Burst and send them afterwards
+        protected NativeMultiHashMap<int, SpawnMessage> spawnMessages;
+        protected NativeMultiHashMap<int, UnspawnMessage> unspawnMessages;
+
+        protected override void OnCreate()
+        {
+            spawnMessages = new NativeMultiHashMap<int, SpawnMessage>(1000, Allocator.Persistent);
+            unspawnMessages = new NativeMultiHashMap<int, UnspawnMessage>(1000, Allocator.Persistent);
+        }
+
+        protected override void OnDestroy()
+        {
+            spawnMessages.Dispose();
+            unspawnMessages.Dispose();
+        }
 
         // rebuild all areas of interest for everyone once
         //
@@ -53,8 +70,7 @@ namespace DOTSNET
         public abstract void RebuildAll();
 
         // send spawn message when a new observer was added
-        public void SendSpawnMessage(Entity entity,
-                                     Translation translation,
+        public void SendSpawnMessage(Translation translation,
                                      Rotation rotation,
                                      NetworkEntity networkEntity,
                                      int observerConnectionId)
@@ -66,7 +82,7 @@ namespace DOTSNET
             SpawnMessage message = new SpawnMessage(
                 networkEntity.prefabId,
                 networkEntity.netId,
-                owned,
+                (byte)(owned ? 1 : 0),
                 translation.Value,
                 rotation.Value
             );
@@ -90,6 +106,44 @@ namespace DOTSNET
                 // send it
                 server.Send(message, observerConnectionId);
             }
+        }
+
+        // spawn/unspawn all observers that were added/removed from the
+        // implementation's Job
+        // make sure to call this from the implementation after rebuilding.
+        protected void FlushMessages()
+        {
+            // send Unspawn message for each one in the removed buffer
+            // => we send Unspawn before Spawn to have minimum amount of
+            //    Entities on the client.
+            //
+            // see AddNewObservers() comment for the 3 different cases.
+            // it's the same here.
+            server.Send(unspawnMessages);
+            unspawnMessages.Clear();
+
+            // send Spawn message for each one in the removed buffer
+            //
+            // there are three possible cases:
+            //   if we have a monster and a player walks near it:
+            //   -> we add player connectionId to monster observers
+            //   -> we need to send SpawnMessage(Monster) to player
+            //
+            //   if we have playerA and playerB and they walk near:
+            //   -> we add playerB connectionId to playerA observers
+            //      when rebuilding playerA
+            //   -> we need to send SpawnMessage(PlayerB) to playerA
+            //      we do NOT need to send SpawnMessage(PlayerA) to
+            //      playerB because rebuilding playerB will take care of
+            //      it later.
+            //
+            //   if a player first spawns into an empty world:
+            //   -> we will add his own connectionId to his observers
+            //   -> and then send SpawnMessage(Player) to his connection
+            //
+            // => all three cases require the same call:
+            server.Send(spawnMessages);
+            spawnMessages.Clear();
         }
     }
 }

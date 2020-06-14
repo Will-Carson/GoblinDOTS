@@ -172,10 +172,11 @@ namespace DOTSNET
             };
             dstManager.AddComponentData(entity, entityData);
 
-            // add the NetworkObserver dynamic buffer.
+            // add the dynamic buffers.
             // GenerateAuthoring doesn't work for it yet, so we just add it here
             // secretly. the user doesn't need to worry about it.
             dstManager.AddBuffer<NetworkObserver>(entity);
+            dstManager.AddBuffer<RebuildNetworkObserver>(entity);
         }
     }
 }

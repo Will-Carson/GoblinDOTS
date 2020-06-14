@@ -72,7 +72,7 @@ public class SystemFindValidPlay : SystemBase
 
                 for(int j = 0; j < playRequirementsLibrary.Length; j++)
                 {
-                    if (Requirements( out runningPlay, stageData))
+                    if (Requirements(playRequirementsLibrary[j], out runningPlay, stageData))
                     {
                         validPlay = runningPlay;
                     }
@@ -84,16 +84,22 @@ public class SystemFindValidPlay : SystemBase
     }
 
     private static bool Requirements(
-            //PlayRequirement playRequirement,
+            PlayRequirement playRequirement,
             out RunningPlay runningPlay,
             StageData stageData)
     {
-        var playRequirement = new PlayRequirement();
         var fullRelationships = stageData.fullRelationships.ToNativeArray(Allocator.TempJob);
         var valueComponents = stageData.valuesComponents;
         var templateMemories = stageData.templateMemories;
 
-        runningPlay = new RunningPlay() { stageId = stageData.stageId.stageId, playId = playRequirement.playId }; // TODO Set defaults?
+        runningPlay = new RunningPlay()
+        {
+            runningPlay = new DataRunningPlay()
+            {
+                playId = playRequirement.playId,
+                stageId = stageData.stageId.stageId
+            }
+        };
         var validPlays = new NativeList<PlayRequirement>(10, Allocator.TempJob);
 
         // Populate list with items meeting one of the constraints
@@ -158,9 +164,9 @@ public class SystemFindValidPlay : SystemBase
         if (validPlays.Length == 0) return false;
 
         // Set remaining play request data before returning.
-        runningPlay.subjectX = validPlays[0].subjectX;
-        runningPlay.subjectY = validPlays[0].subjectY;
-        runningPlay.subjectZ = validPlays[0].subjectZ;
+        runningPlay.runningPlay.subjectX = validPlays[0].subjectX;
+        runningPlay.runningPlay.subjectY = validPlays[0].subjectY;
+        runningPlay.runningPlay.subjectZ = validPlays[0].subjectZ;
 
         // If all constraints are met and we have any items left over, return true.
         return true;

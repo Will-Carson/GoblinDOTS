@@ -1,5 +1,20 @@
 ﻿// DOTS is fast. this is a simple brute force system for now.
+//
+// Benchmark:  10k Entities, max distance, interval=0, memory transport
+//
+//    ____________________|_System_Time_|
+//    Run() without Burst |  339 ms     |
+//    Run() with    Burst |    5.89 ms  |
+//
+// Job:
+ //  See 'bruteforceinterestmanagement_job_notworking_yet' branch.
+//   Following the 'fire & forget' rule for Jobs, it's not a good idea to
+//   schedule a Job here.
+//   The code gets way more complicated and we get strange race conditions.
+//   The Job wasn't that much faster either. System time goes from 5ms to 1.5-3ms.
+//   The Job makes this way harder to test as well.
 using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -21,131 +36,26 @@ namespace DOTSNET
         public float updateInterval = 1;
         double lastUpdateTime;
 
-        // cache rebuild HashSet so we don't have to recreate it for each entity
-        // each time
-        HashSet<int> rebuildCache = new HashSet<int>();
+        // owned entities per connection cache usable from Jobs
+        NativeList<int> connections;
+        NativeMultiHashMap<int, float3> ownedPerConnection;
 
-        // helper function to check if an Entity is seen by ANY of the
-        // connection's owned objects
-        internal bool IsVisibleToAny(Translation translation, HashSet<Entity> ownedEntities)
+        protected override void OnCreate()
         {
-            foreach (Entity owned in ownedEntities)
-            {
-                // get owned translation
-                Translation ownedTranslation = GetComponent<Translation>(owned);
-
-                // check the distance between the two
-                float distance = math.distance(translation.Value, ownedTranslation.Value);
-                if (distance <= visibilityRadius)
-                {
-                    // return immediately. no need to check all others too.
-                    // we only ever add ONE connectionId to observers.
-                    // we don't add player's and player pet's connectionIds,
-                    // otherwise we would broadcast to the connection twice.
-                    return true;
-                }
-            }
-            return false;
+            base.OnCreate();
+            connections = new NativeList<int>(1000, Allocator.Persistent);
+            ownedPerConnection = new NativeMultiHashMap<int, float3>(1000, Allocator.Persistent);
         }
 
-        // helper function to rebuild observers
-        // -> HashSet is passed so we don't have to reallocate it each time!
-        internal void RebuildFor(Translation translation, HashSet<int> result)
+        protected override void OnDestroy()
         {
-            result.Clear();
-
-            // for each connection
-            foreach (KeyValuePair<int, ConnectionState> kvp in server.connections)
-            {
-                // is it visible to ANY of the connection's owned entities?
-                if (IsVisibleToAny(translation, kvp.Value.ownedEntities))
-                {
-                    //UnityEngine.Debug.LogWarning(EntityManager.GetName(entity) + " is visible to connectionId=" + kvp.Key + " owned objects.");
-                    result.Add(kvp.Key);
-                }
-            }
+            // dispose safely with Dependency in case Job is still running
+            connections.Dispose();
+            ownedPerConnection.Dispose();
+            base.OnDestroy();
         }
 
-        // helper function to remove old observers that aren't in a new rebuild
-        void RemoveOldObservers(Entity entity,
-                                DynamicBuffer<NetworkObserver> observers,
-                                NetworkEntity networkEntity,
-                                HashSet<int> rebuild)
-        {
-            // check which of the previous observers can be removed now
-            // DynamicBuffer foreach allocates. use for.
-            for (int i = 0; i < observers.Length; ++i)
-            {
-                int connectionId = observers[i];
-                if (!rebuild.Contains(connectionId))
-                {
-                    //Debug.LogWarning(EntityManager.GetName(entity) + " old observer found with connectionId=" + connectionId);
-
-                    // remove it from the observers buffer
-                    observers.RemoveAt(i);
-                    --i;
-
-                    // broadcast system needs to send an unspawn message
-                    // see AddNewObservers() comment for the 3 different cases.
-                    // it's the same here.
-                    SendUnspawnMessage(
-                        networkEntity,
-                        connectionId
-                    );
-                }
-            }
-        }
-
-        // helper function to add new rebuild entries to observers
-        void AddNewObservers(Entity entity,
-                             DynamicBuffer<NetworkObserver> observers,
-                             Translation translation,
-                             Rotation rotation,
-                             NetworkEntity networkEntity,
-                             HashSet<int> rebuild)
-        {
-            // check which of the rebuild observers are new
-            foreach (int connectionId in rebuild)
-            {
-                if (!observers.Contains(connectionId))
-                {
-                    //Debug.LogWarning(EntityManager.GetName(entity) + " new observer found with connectionId=" + connectionId);
-
-                    // add it to the observers buffer
-                    observers.Add(connectionId);
-
-                    // broadcast system needs to send a spawn message.
-                    //
-                    // there are three possible cases:
-                    //   if we have a monster and a player walks near it:
-                    //   -> we add player connectionId to monster observers
-                    //   -> we need to send SpawnMessage(Monster) to player
-                    //
-                    //   if we have playerA and playerB and they walk near:
-                    //   -> we add playerB connectionId to playerA observers
-                    //      when rebuilding playerA
-                    //   -> we need to send SpawnMessage(PlayerB) to playerA
-                    //      we do NOT need to send SpawnMessage(PlayerA) to
-                    //      playerB because rebuilding playerB will take care of
-                    //      it later.
-                    //
-                    //   if a player first spawns into an empty world:
-                    //   -> we will add his own connectionId to his observers
-                    //   -> and then send SpawnMessage(Player) to his connection
-                    //
-                    // => all three cases require the same call:
-                    SendSpawnMessage(
-                        entity,
-                        translation,
-                        rotation,
-                        networkEntity,
-                        connectionId
-                    );
-                }
-            }
-        }
-
-        public override void RebuildAll()
+        void RebuildObservers()
         {
             // for each NetworkEntity, we need to check if it's visible from
             // ANY of the player's entities. not just the main player.
@@ -157,23 +67,177 @@ namespace DOTSNET
             // * if we check visibility to all player objects, both the watch-
             //   tower and the main player object would see enemies
 
-            // for each NetworkEntity
-            Entities.ForEach((Entity entity,
-                              DynamicBuffer<NetworkObserver> observers,
-                              Translation translation,
-                              Rotation rotation,
-                              NetworkEntity networkEntity) =>
+            // copy server.connections.ownedEntities into a MultiHashMap usable
+            // from Jobs
+            // -> we need to copy it anyway, so it's okay if server.connections
+            //    is not a NativeCollection
+            ownedPerConnection.Clear();
+            connections.Clear();
+            foreach (KeyValuePair<int, ConnectionState> kvp in server.connections)
             {
-                // rebuild observers for this entity once
-                RebuildFor(translation, rebuildCache);
+                connections.Add(kvp.Key);
+                foreach (Entity entity in kvp.Value.ownedEntities)
+                {
+                    ownedPerConnection.Add(kvp.Key, GetComponent<Translation>(entity).Value);
+                }
+            }
 
-                // remove old observers, add new observers
-                RemoveOldObservers(entity, observers, networkEntity, rebuildCache);
-                AddNewObservers(entity, observers, translation, rotation, networkEntity, rebuildCache);
+            // Rebuild observers and store result in Rebuild buffer
+            float _visibilityRadius = visibilityRadius;
+            NativeList<int> _connections = connections;
+            NativeMultiHashMap<int, float3> _ownedPerConnection = ownedPerConnection;
+            Entities.ForEach((DynamicBuffer<NetworkObserver> observers,
+                              DynamicBuffer<RebuildNetworkObserver> rebuild,
+                              in Translation translation,
+                              in NetworkEntity networkEntity) =>
+            {
+                // clear previous rebuild first
+                rebuild.Clear();
+
+                // it would be enough to check distance with each owned entity
+                // from each server connection's ownedEntities.
+                // BUT we would have to convert those to NativeLists and
+                // NativeMultiMaps, with the latter being difficult to iterate.
+                //
+                // For now, let's brute force check each Entity with each other
+                // Entity.
+                for (int i = 0; i < _connections.Length; ++i)
+                {
+                    int connectionId = _connections[i];
+
+                    // is it visible to ANY of the connection's owned entities?
+                    // note: iterating a NativeMultiHashMap is a bit ugly
+                    if (_ownedPerConnection.TryGetFirstValue(connectionId,
+                        out float3 position,
+                        out NativeMultiHashMapIterator<int> it))
+                    {
+                        // check visibility for first one
+                        float distance = math.distance(translation.Value, position);
+                        if (distance <= _visibilityRadius)
+                        {
+                            // add and stop here. they all have the same
+                            // connectionId anyway
+                            // (we need Contains check because rebuild should
+                            //  act like a HashSet)
+                            if (!rebuild.Contains(connectionId))
+                            {
+                                rebuild.Add(connectionId);
+                            }
+                        }
+                        // otherwise check for the others too
+                        else
+                        {
+                            while (_ownedPerConnection.TryGetNextValue(out position, ref it))
+                            {
+                                // check visibility for everyone else
+                                distance = math.distance(translation.Value, position);
+                                if (distance <= _visibilityRadius)
+                                {
+                                    // add and stop here. they all have the same
+                                    // connectionId anyway
+                                    // (we need Contains check because rebuild should
+                                    //  act like a HashSet)
+                                    if (!rebuild.Contains(connectionId))
+                                    {
+                                        rebuild.Add(connectionId);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             })
-            .WithoutBurst()
             .Run();
         }
+
+        void RemoveOldObservers()
+        {
+            // remove old observers and add unspawn message
+            NativeMultiHashMap<int, UnspawnMessage> _unspawnMessages = unspawnMessages;
+            Entities.ForEach((DynamicBuffer<NetworkObserver> observers,
+                              DynamicBuffer<RebuildNetworkObserver> rebuild,
+                              in NetworkEntity networkEntity) =>
+            {
+                // DynamicBuffer foreach allocates. use for.
+                for (int i = 0; i < observers.Length; ++i)
+                {
+                    int connectionId = observers[i];
+                    if (!rebuild.Contains(connectionId))
+                    {
+                        //Debug.LogWarning(EntityManager.GetName(entity) + " old observer found with connectionId=" + connectionId);
+
+                        // add to unspawn messages so we can run ForEach with
+                        // Burst(!) and send it later.
+
+                        UnspawnMessage message = new UnspawnMessage(networkEntity.netId);
+                        _unspawnMessages.Add(connectionId, message);
+
+                        // remove it from the observers buffer
+                        observers.RemoveAt(i);
+                        --i;
+                    }
+                }
+            })
+            .Run();
+        }
+
+        void AddNewObservers()
+        {
+            // add new observers and add spawn messages
+            NativeMultiHashMap<int, SpawnMessage> _spawnMessages = spawnMessages;
+            Entities.ForEach((DynamicBuffer<NetworkObserver> observers,
+                              DynamicBuffer<RebuildNetworkObserver> rebuild,
+                              in NetworkEntity networkEntity,
+                              in Translation translation,
+                              in Rotation rotation) =>
+            {
+                // DynamicBuffer foreach allocates. use for.
+                // (foreach also gives "Invalid IL Code")
+                for (int i = 0; i < rebuild.Length; ++i)
+                {
+                    int connectionId = rebuild[i];
+                    if (!observers.Contains(connectionId))
+                    {
+                        //Debug.LogWarning(EntityManager.GetName(entity) + " new observer found with connectionId=" + connectionId);
+
+                        // is the entity owned by the observer connection?
+                        bool owned = networkEntity.connectionId == connectionId;
+
+                        // add to spawn messages so we can run ForEach with
+                        // Burst(!) and send it later.
+                        SpawnMessage message = new SpawnMessage(
+                            networkEntity.prefabId,
+                            networkEntity.netId,
+                            (byte)(owned ? 1 : 0),
+                            translation.Value,
+                            rotation.Value
+                        );
+                        _spawnMessages.Add(connectionId, message);
+
+                        // add it to the observers buffer
+                        observers.Add(connectionId);
+                    }
+                }
+            })
+            .Run();
+        }
+
+
+        public override void RebuildAll()
+        {
+            // ForEach calls split into separate functions to avoid a ECS bug
+            // where the Editor crashes when using NativeMultiMap in a function
+            // that has multiple ForEach calls.
+            // (see also: interestmanagement_messagebuffers_EDITORCRASH branch)
+            RebuildObservers();
+            RemoveOldObservers();
+            AddNewObservers();
+
+            // send all un/spawn messages
+            FlushMessages();
+        }
+
 
         // update rebuilds every couple of seconds
         protected override void OnUpdate()

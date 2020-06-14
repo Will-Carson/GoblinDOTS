@@ -7,7 +7,7 @@
         {
             client.Spawn(message.prefabId,
                          message.netId,
-                         message.owned,
+                         message.owned != 0,
                          message.position,
                          message.rotation);
         }

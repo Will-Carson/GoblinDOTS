@@ -5,7 +5,5 @@ namespace DOTSNET
     public struct DisconnectMessage : NetworkMessage
     {
         public ushort GetID() { return 0x0002; }
-        public bool Serialize(ref SegmentWriter writer) { return true; }
-        public bool Deserialize(ref SegmentReader reader) { return true; }
     }
 }
