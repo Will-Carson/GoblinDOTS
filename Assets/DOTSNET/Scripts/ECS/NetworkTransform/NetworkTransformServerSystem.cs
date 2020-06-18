@@ -68,6 +68,7 @@ namespace DOTSNET
                     }
                 }
             })
+            .WithBurst()
             .Run();
 
             // send after the ForEach. this way we can run ForEach with Burst(!)

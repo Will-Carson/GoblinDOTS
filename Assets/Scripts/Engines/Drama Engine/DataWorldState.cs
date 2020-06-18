@@ -1,5 +1,6 @@
 ﻿using Unity.Entities;
 using Unity.Collections;
+using DOTSNET;
 using System;
 
 public struct StageId : IComponentData
@@ -38,6 +39,9 @@ public struct DataRunningPlay
     public int subjectX;
     public int subjectY;
     public int subjectZ;
+    public int currentLineId;
+    public float lastUpdated;
+    public int lastLineId;
 }
 
 public struct DataValues
@@ -91,4 +95,56 @@ public struct ValueRequirement
 {
     public DataValues minValues;
     public DataValues maxValues;
+}
+
+public struct StartPlayRequest : IComponentData
+{
+    public int stageId;
+    public int playId;
+}
+
+public struct ContinuePlayRequest : IComponentData
+{
+    public int stageId;
+    public int playId;
+    public int nextLine;
+}
+
+public struct EndPlayRequest : IComponentData
+{
+    public int stageId;
+}
+
+public struct LineServerData
+{
+    // Maximum time the line can last
+    public int id;
+    public float life;
+    public int childLineAId;
+    public int childLineBId;
+    public int childLineCId;
+    public int childLineDId;
+}
+
+public struct StartPlayServerMessage : NetworkMessage
+{
+    public ulong netId;
+    public int stageId;
+    public int playId;
+    public ushort GetID() { return 0x1001; }
+}
+
+public struct ContinuePlayServerMessage : NetworkMessage
+{
+    public ulong netId;
+    public int stageId;
+    public int nextLineId;
+    public ushort GetID() { return 0x1002; }
+}
+
+public struct EndPlayServerMessage : NetworkMessage
+{
+    public ulong netId;
+    public int stageId;
+    public ushort GetID() { return 0x1003; }
 }

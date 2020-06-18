@@ -19,6 +19,12 @@ public class SystemFindValidPlay : SystemBase
     private NativeArray<PlayRequirement> PlayRequirementsLibrary = new NativeArray<PlayRequirement>(G.numberOfPlays, Allocator.Persistent);
     private EntityQueryDesc QueryDesc;
 
+    protected override void OnDestroy()
+    {
+        Dependency.Complete();
+        PlayRequirementsLibrary.Dispose();
+    }
+
     protected override void OnCreate()
     {
         QueryDesc = new EntityQueryDesc()
@@ -37,7 +43,7 @@ public class SystemFindValidPlay : SystemBase
         };
         PlayRequirementsLibrary[0] = new PlayRequirement();
     }
-    
+
     [BurstCompile]
     public struct FindValidPlays : IJobChunk
     {
@@ -79,6 +85,12 @@ public class SystemFindValidPlay : SystemBase
                 }
 
                 buffer.SetComponent(chunkIndex, chunkEntities[i], validPlay);
+                buffer.AddComponent(chunkIndex, chunkEntities[i], 
+                    new StartPlayRequest()
+                    {
+                        playId = validPlay.runningPlay.playId,
+                        stageId = validPlay.runningPlay.stageId
+                    });
             }
         }
     }
@@ -199,11 +211,5 @@ public class SystemFindValidPlay : SystemBase
         Dependency.Complete();
 
         ESECBS.AddJobHandleForProducer(Dependency);
-    }
-
-    protected override void OnDestroy()
-    {
-        Dependency.Complete();
-        PlayRequirementsLibrary.Dispose();
     }
 }
