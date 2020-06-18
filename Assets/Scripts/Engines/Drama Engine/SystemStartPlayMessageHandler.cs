@@ -32,6 +32,7 @@ public class SystemStartPlayMessageHandler : NetworkClientMessageSystem<StartPla
                 {
                     runningPlay = new DataRunningPlay()
                     {
+                        // TODO update subjects
                         currentLineId = 0,
                         lastLineId = 0,
                         lastUpdated = 0,
@@ -44,6 +45,8 @@ public class SystemStartPlayMessageHandler : NetworkClientMessageSystem<StartPla
                 };
                 buffer.AddComponent(entity, c);
             }
-        });
+        })
+        .WithBurst()
+        .Run();
     }
 }
