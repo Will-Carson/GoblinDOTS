@@ -38,7 +38,7 @@ public class SystemFindValidPlay : SystemBase
             },
             None = new ComponentType[]
             {
-                typeof(RunningPlay)
+                typeof(PlayDataComponent)
             }
         };
         PlayRequirementsLibrary[0] = new PlayRequirement();
@@ -65,7 +65,7 @@ public class SystemFindValidPlay : SystemBase
 
             for (int i = 0; i < chunk.Count; i++)
             {
-                var runningPlay = new RunningPlay();
+                var runningPlay = new PlayDataComponent();
 
                 var stageData = new StageData()
                 {
@@ -74,7 +74,7 @@ public class SystemFindValidPlay : SystemBase
                     valuesComponents = valuesComponentBuffers[i]
                 };
 
-                var validPlay = new RunningPlay();
+                var validPlay = new PlayDataComponent();
 
                 for(int j = 0; j < playRequirementsLibrary.Length; j++)
                 {
@@ -85,11 +85,21 @@ public class SystemFindValidPlay : SystemBase
                 }
 
                 buffer.SetComponent(chunkIndex, chunkEntities[i], validPlay);
-                buffer.AddComponent(chunkIndex, chunkEntities[i], 
-                    new StartPlayRequest()
+                buffer.AddComponent(chunkIndex, chunkEntities[i],
+                    new UpdatePlayRequest()
                     {
-                        playId = validPlay.runningPlay.playId,
-                        stageId = validPlay.runningPlay.stageId
+                        data = new DataRunningPlay()
+                        {
+                            // TODO possibly adjust "lastUpdated" value
+                            currentLineId = 0,
+                            lastLineId = 0,
+                            lastUpdated = 0,
+                            playId = validPlay.data.playId,
+                            stageId = validPlay.data.stageId,
+                            subjectX = validPlay.data.subjectX,
+                            subjectY = validPlay.data.subjectY,
+                            subjectZ = validPlay.data.subjectZ
+                        }
                     });
             }
         }
@@ -97,16 +107,16 @@ public class SystemFindValidPlay : SystemBase
 
     private static bool Requirements(
             PlayRequirement playRequirement,
-            out RunningPlay runningPlay,
+            out PlayDataComponent runningPlay,
             StageData stageData)
     {
         var fullRelationships = stageData.fullRelationships.ToNativeArray(Allocator.TempJob);
         var valueComponents = stageData.valuesComponents;
         var templateMemories = stageData.templateMemories;
 
-        runningPlay = new RunningPlay()
+        runningPlay = new PlayDataComponent()
         {
-            runningPlay = new DataRunningPlay()
+            data = new DataRunningPlay()
             {
                 playId = playRequirement.playId,
                 stageId = stageData.stageId.stageId
@@ -164,7 +174,7 @@ public class SystemFindValidPlay : SystemBase
             for (var j = 0; j < templateMemories.Length; j++)
             {
                 var newValidPlay = new PlayRequirement();
-                if (PlayRequirement.CheckValidMemory(templateMemories[j].value, playRequirement.templateMemory, validPlays[i], out newValidPlay))
+                if (PlayRequirement.CheckValidMemory(templateMemories[j].memory, playRequirement.templateMemory, validPlays[i], out newValidPlay))
                 {
                     test = true;
                     validPlays[i] = newValidPlay;
@@ -176,9 +186,9 @@ public class SystemFindValidPlay : SystemBase
         if (validPlays.Length == 0) return false;
 
         // Set remaining play request data before returning.
-        runningPlay.runningPlay.subjectX = validPlays[0].subjectX;
-        runningPlay.runningPlay.subjectY = validPlays[0].subjectY;
-        runningPlay.runningPlay.subjectZ = validPlays[0].subjectZ;
+        runningPlay.data.subjectX = validPlays[0].subjectX;
+        runningPlay.data.subjectY = validPlays[0].subjectY;
+        runningPlay.data.subjectZ = validPlays[0].subjectZ;
 
         // If all constraints are met and we have any items left over, return true.
         return true;

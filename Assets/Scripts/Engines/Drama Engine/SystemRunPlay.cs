@@ -40,7 +40,7 @@ public class SystemRunPlay : SystemBase
         #region Track running play objects with system 
         Entities
             .WithNone<SystemDataRunningPlay>()
-            .ForEach((Entity entity, in RunningPlay runningPlay, in StageId stageId) =>
+            .ForEach((Entity entity, in PlayDataComponent runningPlay, in StageId stageId) =>
             {
                 var s = new SystemDataRunningPlay() { /*set values*/ };
                 buffer.AddComponent<SystemDataRunningPlay>(entity);
@@ -51,7 +51,7 @@ public class SystemRunPlay : SystemBase
             .Schedule();
 
         Entities
-            .WithNone<RunningPlay>()
+            .WithNone<PlayDataComponent>()
             .ForEach((Entity entity, in SystemDataRunningPlay system, in StageId stageId) =>
             {
                 buffer.RemoveComponent<SystemDataRunningPlay>(entity);
@@ -80,28 +80,25 @@ public class SystemRunPlay : SystemBase
                     break;
                 }
             }
-            
-            // If the running play is on it's last line, remove it.
-            // TODO possibly create an "EndPlay" request to send an end-play message to clients.
-            if (runningPlayData.currentLineId == runningPlayData.lastLineId)
-            {
-                var endRequest = new EndPlayRequest()
-                {
-                    stageId = runningPlayData.stageId
-                };
-                buffer.AddComponent(buffer.CreateEntity(), endRequest);
-            }
 
             // If the running play is ready for the next line, create a continue play request
             if (runningPlayData.lastUpdated + currentLine.life <= time)
             {
-                var continueRequest = new ContinuePlayRequest()
+                var updateRequest = new UpdatePlayRequest()
                 {
-                    stageId = runningPlayData.stageId,
-                    playId = runningPlayData.playId,
-                    nextLine = currentLine.childLineAId
+                    data = new DataRunningPlay()
+                    {
+                        stageId = runningPlayData.stageId,
+                        playId = runningPlayData.playId,
+                        currentLineId = currentLine.childLineAId,
+                        lastLineId = runningPlayData.currentLineId,
+                        lastUpdated = time,
+                        subjectX = runningPlayData.subjectX,
+                        subjectY = runningPlayData.subjectY,
+                        subjectZ = runningPlayData.subjectZ,
+                    }
                 };
-                buffer.AddComponent(buffer.CreateEntity(), continueRequest);
+                buffer.AddComponent(buffer.CreateEntity(), updateRequest);
             }
         }
     }

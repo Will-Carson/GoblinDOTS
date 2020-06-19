@@ -1,14 +1,13 @@
 ﻿using Unity.Entities;
 using Unity.Collections;
 using DOTSNET;
-using System;
 
 public struct StageId : IComponentData
 {
     public int stageId;
 }
 
-public struct FullRelationship// : IEquatable<FullRelationship>
+public struct FullRelationship
 {
     public int subjectX;
     public int subjectY;
@@ -27,9 +26,9 @@ public struct BufferFullRelationship : IBufferElementData
     public FullRelationship value;
 }
 
-public struct RunningPlay : IComponentData
+public struct PlayDataComponent : IComponentData
 {
-    public DataRunningPlay runningPlay;
+    public DataRunningPlay data;
 }
 
 public struct DataRunningPlay
@@ -88,31 +87,13 @@ public struct TemplateMemory
 
 public struct BufferTemplateMemory : IBufferElementData
 {
-    public TemplateMemory value;
+    public TemplateMemory memory;
 }
 
 public struct ValueRequirement
 {
     public DataValues minValues;
     public DataValues maxValues;
-}
-
-public struct StartPlayRequest : IComponentData
-{
-    public int stageId;
-    public int playId;
-}
-
-public struct ContinuePlayRequest : IComponentData
-{
-    public int stageId;
-    public int playId;
-    public int nextLine;
-}
-
-public struct EndPlayRequest : IComponentData
-{
-    public int stageId;
 }
 
 public struct LineServerData
@@ -126,25 +107,14 @@ public struct LineServerData
     public int childLineDId;
 }
 
-public struct StartPlayServerMessage : NetworkMessage
+public struct UpdatePlayRequest : IComponentData
+{
+    public DataRunningPlay data;
+}
+
+public struct UpdatePlayServerMessage : NetworkMessage
 {
     public ulong netId;
-    public int stageId;
-    public int playId;
+    public DataRunningPlay data;
     public ushort GetID() { return 0x1001; }
-}
-
-public struct ContinuePlayServerMessage : NetworkMessage
-{
-    public ulong netId;
-    public int stageId;
-    public int nextLineId;
-    public ushort GetID() { return 0x1002; }
-}
-
-public struct EndPlayServerMessage : NetworkMessage
-{
-    public ulong netId;
-    public int stageId;
-    public ushort GetID() { return 0x1003; }
 }

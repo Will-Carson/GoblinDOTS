@@ -6,12 +6,12 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using DOTSNET;
 
-public class SystemStartPlayMessageHandler : NetworkClientMessageSystem<StartPlayServerMessage>
+public class SystemUpdatePlayMessageHandler : NetworkClientMessageSystem<UpdatePlayServerMessage>
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
-    NativeHashMap<ulong, StartPlayServerMessage> messages = new NativeHashMap<ulong, StartPlayServerMessage>(1000, Allocator.Persistent);
+    NativeHashMap<ulong, UpdatePlayServerMessage> messages = new NativeHashMap<ulong, UpdatePlayServerMessage>(1000, Allocator.Persistent);
 
-    protected override void OnMessage(StartPlayServerMessage message)
+    protected override void OnMessage(UpdatePlayServerMessage message)
     {
         messages[message.netId] = message;
     }
@@ -28,19 +28,19 @@ public class SystemStartPlayMessageHandler : NetworkClientMessageSystem<StartPla
             if (_messages.ContainsKey(networkEntity.netId))
             {
                 var message = _messages[networkEntity.netId];
-                var c = new RunningPlay()
+                var c = new PlayDataComponent()
                 {
-                    runningPlay = new DataRunningPlay()
+                    data = new DataRunningPlay()
                     {
                         // TODO update subjects
-                        currentLineId = 0,
-                        lastLineId = 0,
-                        lastUpdated = 0,
-                        playId = message.playId,
-                        stageId = stageId.stageId,
-                        subjectX = 0,
-                        subjectY = 0,
-                        subjectZ = 0
+                        currentLineId = message.data.currentLineId,
+                        lastLineId = message.data.lastLineId,
+                        lastUpdated = message.data.lastUpdated,
+                        playId = message.data.playId,
+                        stageId = message.data.stageId,
+                        subjectX = message.data.subjectX,
+                        subjectY = message.data.subjectY,
+                        subjectZ = message.data.subjectZ
                     }
                 };
                 buffer.AddComponent(entity, c);

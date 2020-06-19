@@ -13,104 +13,49 @@ public class SystemPlayServerMessager : NetworkBroadcastSystem
 {
     // NativeMultiMap so we can run most of it with Burst enabled
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
-
-    NativeMultiHashMap<int, StartPlayServerMessage> startMessages
-        = new NativeMultiHashMap<int, StartPlayServerMessage>(1000, Allocator.Persistent);
-    NativeMultiHashMap<int, ContinuePlayServerMessage> continueMessages
-        = new NativeMultiHashMap<int, ContinuePlayServerMessage>(1000, Allocator.Persistent);
-    NativeMultiHashMap<int, EndPlayServerMessage> endMessages
-        = new NativeMultiHashMap<int, EndPlayServerMessage>(1000, Allocator.Persistent);
+    
+    NativeMultiHashMap<int, UpdatePlayServerMessage> updateMessages
+        = new NativeMultiHashMap<int, UpdatePlayServerMessage>(1000, Allocator.Persistent);
 
     protected override void OnDestroy()
     {
-        startMessages.Dispose();
-        continueMessages.Dispose();
-        endMessages.Dispose();
+        updateMessages.Dispose();
     }
 
     protected override void Broadcast()
     {
         var buffer = ESECBS.CreateCommandBuffer();
         var time = Time.DeltaTime;
-        #region Send messages to play observers
 
-        NativeMultiHashMap<int, StartPlayServerMessage> _startMessages = startMessages;
-        NativeMultiHashMap<int, ContinuePlayServerMessage> _continueMessages = continueMessages;
-        NativeMultiHashMap<int, EndPlayServerMessage> _endMessages = endMessages;
+        #region Prepare messages for play observers
 
-        // Send start play updates to clients
+        NativeMultiHashMap<int, UpdatePlayServerMessage> _updateMessages = updateMessages;
+
+        // Prepare play update messages to be sent
         Entities
             .ForEach((Entity entity,
-                      in StartPlayRequest startPlayRequest,
+                      in UpdatePlayRequest updateRequest,
                       in DynamicBuffer<NetworkObserver> observers,
                       in NetworkEntity networkEntity) =>
             {
-                var message = new StartPlayServerMessage();
+                var message = new UpdatePlayServerMessage();
+
                 message.netId = networkEntity.netId;
-                message.stageId = startPlayRequest.stageId;
-                message.playId = startPlayRequest.playId;
+                message.data = updateRequest.data;
 
                 for (var i = 0; i < observers.Length; i++)
                 {
                     int connectionId = observers[i];
-                    _startMessages.Add(connectionId, message);
+                    _updateMessages.Add(connectionId, message);
                 }
-                buffer.RemoveComponent(entity, (typeof(StartPlayRequest)));
-            })
-            .WithBurst()
-            .Run();
-
-        // Send continue play updates to clients
-        Entities
-            .ForEach((Entity entity,
-                      in ContinuePlayRequest continueRequest,
-                      in DynamicBuffer<NetworkObserver> observers,
-                      in NetworkEntity networkEntity) =>
-            {
-                var message = new ContinuePlayServerMessage();
-                message.netId = networkEntity.netId;
-                message.stageId = continueRequest.stageId;
-                message.nextLineId = continueRequest.nextLine;
-
-                for (var i = 0; i < observers.Length; i++)
-                {
-                    int connectionId = observers[i];
-                    _continueMessages.Add(connectionId, message);
-                }
-                buffer.RemoveComponent(entity, (typeof(ContinuePlayRequest)));
-            })
-            .WithBurst()
-            .Run();
-
-        // Send end play updates to clients
-        Entities
-            .ForEach((Entity entity,
-                      in EndPlayRequest endPlayRequest,
-                      in DynamicBuffer<NetworkObserver> observers,
-                      in NetworkEntity networkEntity) =>
-            {
-                var message = new EndPlayServerMessage();
-                message.netId = networkEntity.netId;
-                message.stageId = endPlayRequest.stageId;
-
-                for (var i = 0; i < observers.Length; i++)
-                {
-                    int connectionId = observers[i];
-                    _endMessages.Add(connectionId, message);
-                }
-                buffer.RemoveComponent(entity, (typeof(EndPlayRequest)));
+                buffer.RemoveComponent(entity, (typeof(UpdatePlayRequest)));
             })
             .WithBurst()
             .Run();
 
         #endregion
-
-        server.Send(startMessages);
-        server.Send(continueMessages);
-        server.Send(endMessages);
-
-        startMessages.Clear();
-        continueMessages.Clear();
-        endMessages.Clear();
+        
+        server.Send(updateMessages);
+        updateMessages.Clear();
     }
 }
