@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -22,17 +21,49 @@ namespace Apathy
         volatile bool _Connected;
         public bool Connected => _Connected;
 
-        // 'N' content buffers. this allows us to process messages without
-        // allocations via ArraySegment
-        protected byte[][] contentBuffers;
+        // receive buffer of size MaxMessageSize
+        protected byte[] messageBuffer;
 
-        // get next messages (can be more than one per tick)
-        // -> pass queue so we don't need to create a new one each time!
+        // Connected/Data/Disconnected events.
+        // Called on the same thread at all times.
+        //
+        // Initially we used a GetNextMessages approach, but it didn't scale:
+        // - Server may send a lot of messages, and the client needs to receive
+        //   more than one message per tick to not lag behind.
+        // - With GetNextMessages, we need 'MaxMessagesPerTick' receive buffers,
+        //   each of 'MaxMessageSize' bytes.
+        // - DOTSNET can easily reach 10k or 100k messages per tick, which means
+        //   that we would need 64KB * 100k = Gigabytes of buffers per
+        //   connection. This takes a lot of time to create, and would not scale
+        //   unless we buy a lot of RAM.
+        //
+        // With events:
+        // + We only need one 'MaxMessageSize' buffer (64KB instead of few GB).
+        // + The code is easier & way less computations (no extra queue step).
+        // + We initialize the events so that we can always call them without
+        //   null checks and we get log messages if they weren't set up.
+        //
+        // NOTE: if necessary, the caller can use the OnData event to convert
+        //       to a NetworkMessage struct and then cache + batch process them.
+        //       (This is what DOTSNET does. It's way better than doing any kind
+        //        of buffering here, because we would need to allocate byte[]
+        //        instead of stack allocated NetworkMessage structs!)
+        //
+        public Action OnConnected =
+            () => { Debug.LogWarning("Apathy.Client.OnConnected"); };
+
+        public Action<ArraySegment<byte>> OnData =
+            (segment) => { Debug.LogWarning("Apathy.Client.OnData: " + BitConverter.ToString(segment.Array, segment.Offset, segment.Count)); };
+
+        public Action OnDisconnected =
+            () => { Debug.LogWarning("Apathy.Client.OnDisconnected"); };
+
+        // Update should be called once per tick to process events.
         // IMPORTANT: NOT THREAD SAFE! otherwise header/content reading will be
         //            corrupted.
         bool triedToConnect;
         int contentSize;
-        public void GetNextMessages(Queue<Message> messages)
+        public void Update()
         {
             // tried to connect, and not connecting anymore?
             // in other words, is a result message expected now?
@@ -41,15 +72,15 @@ namespace Apathy
                 // connect succeeded
                 if (Connected)
                 {
-                    // add connected message
-                    messages.Enqueue(new Message(0, EventType.Connected, new ArraySegment<byte>()));
+                    // call connected event
+                    OnConnected();
                 }
                 // connect failed
                 else
                 {
-                    // add disconnected message and close properly
-                    messages.Enqueue(new Message(0, EventType.Disconnected, new ArraySegment<byte>()));
+                    // clean up properly, then call disconnected event
                     CloseSocketAndCleanUp();
+                    OnDisconnected();
                 }
 
                 // the connection attempt was definitely finished and handled
@@ -62,25 +93,19 @@ namespace Apathy
                 // connected and detected a disconnect?
                 if (socket == -1 || WasDisconnected(socket))
                 {
-                    // add disconnected message and close properly
-                    messages.Enqueue(new Message(0, EventType.Disconnected, new ArraySegment<byte>()));
+                    // clean up properly, then call disconnected event
                     CloseSocketAndCleanUp();
+                    OnDisconnected();
                 }
                 // still connected? then read a few messages
                 else
                 {
                     // IMPORTANT: read a few (not just one) messages per tick(!)
-                    // see Server.GetNextMessages for in-depth explanation!
-                    // (applies to client too. we don't want to use 100 frames to
-                    //  process 100 spawn messages)
-                    //
-                    // NOTE: we use 'contentBuffers.Length' instead of
-                    //       'MaxReceivesPerTickPerConnection' so that runtime
-                    //       changes of 'MaxReceivesPerTickPerConnection' won't
-                    //       cause NullReferenceExceptions. we only create the
-                    //       buffer once.
+                    // server usually sends a lot of messages, and if we were to
+                    // only process one per tick then we would lag behind and
+                    // see ever growing latencies/buffers.
                     int i;
-                    for (i = 0; i < contentBuffers.Length; ++i)
+                    for (i = 0; i < MaxReceivesPerTickPerConnection; ++i)
                     {
                         // header not read yet? then read if available
                         if (contentSize == 0)
@@ -98,39 +123,37 @@ namespace Apathy
                         // try to read content
                         if (contentSize > 0)
                         {
-                            // get a pointer to a content buffer. we read up
-                            // to 'n' messages per tick, so use the n-th one
-                            byte[] contentBuffer = contentBuffers[i];
-
                             // protect against allocation attacks. an attacker might send
                             // multiple fake '2GB header' packets in a row, causing the server
                             // to allocate multiple 2GB byte arrays and run out of memory.
                             if (contentSize <= MaxMessageSize)
                             {
                                 // read it
-                                if (ReadIfAvailable(socket, contentSize, contentBuffer))
+                                if (ReadIfAvailable(socket, contentSize, messageBuffer))
                                 {
                                     // create ArraySegment from read content
-                                    ArraySegment<byte> segment = new ArraySegment<byte>(contentBuffer, 0, contentSize);
-                                    messages.Enqueue(new Message(0, EventType.Data, segment));
+                                    ArraySegment<byte> segment = new ArraySegment<byte>(messageBuffer, 0, contentSize);
 
                                     // reset contentSize for next time
                                     contentSize = 0;
+
+                                    // call OnData event
+                                    OnData(segment);
                                 }
                                 // can't fully read it yet. try again next frame.
                                 else break;
                             }
                             else
                             {
-                                Debug.LogWarning("[Client] possible allocation attack with a header of: " + contentSize + " bytes > MaxMessageSize=" + MaxMessageSize);
+                                Debug.LogWarning("[Client] possible allocation attack with a header of: " + contentSize + " bytes > MaxMessageSize=" + MaxMessageSize + ". Note that this might happen if server completely fills the send buffer with multiple writes. Anything beyond MaxUsableBufferSize is usually corrupted.");
 
-                                // add disconnected message and close properly
-                                // -> DO NOT wait for next GetNextMessage to
+                                // clean up properly, then call disconnected event
+                                // -> DO NOT wait for next Update to
                                 //    detect a closed client. otherwise Mirror
                                 //    would think we are still connected until
                                 //    next frame!
-                                messages.Enqueue(new Message(0, EventType.Disconnected, new ArraySegment<byte>()));
                                 CloseSocketAndCleanUp();
+                                OnDisconnected();
 
                                 // no need to receive any more messages
                                 break;
@@ -191,13 +214,8 @@ namespace Apathy
             // not if already started
             if (Connecting || Connected) return;
 
-            // create 'N' content buffers
-            contentBuffers = new byte[MaxReceivesPerTickPerConnection][];
-            for (int i = 0; i < contentBuffers.Length; ++i)
-            {
-                // create content buffer depending on configured MaxMessageSize
-                contentBuffers[i] = new byte[MaxMessageSize];
-            }
+            // create receive buffer
+            messageBuffer = new byte[MaxMessageSize];
 
             // reset state
             contentSize = 0;

@@ -201,7 +201,7 @@ namespace DOTSNET
 
         // messages ////////////////////////////////////////////////////////////
         // send a message to the server
-        public unsafe void Send<T>(T message)
+        public void Send<T>(T message, Channel channel = Channel.Reliable)
             where T : unmanaged, NetworkMessage
         {
             // make sure that we can use the send buffer
@@ -228,7 +228,7 @@ namespace DOTSNET
                     {
                         // send to transport.
                         // (it will have to free up the segment immediately)
-                        if (!transport.Send(writer.segment))
+                        if (!transport.Send(writer.segment, channel))
                         {
                             // send can fail if the transport has issues
                             // like full buffers, broken pipes, etc.
@@ -247,6 +247,19 @@ namespace DOTSNET
                 else Debug.LogWarning("NetworkClientSystem.Send: writing messageId of type " + typeof(T) + " failed. Maybe the id is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
             }
             else Debug.LogError("NetworkClientSystem.Send: sendBuffer not initialized or 0 length: " + sendBuffer);
+        }
+
+        // convenience function to send a whole NativeList of messages to the
+        // server, useful for Jobs/Burst.
+        public void Send<T>(NativeList<T> messages)
+            where T : unmanaged, NetworkMessage
+        {
+            // send each one
+            // note: could optimize like server.Send(NativeMultiMap) later
+            for (int i = 0; i < messages.Length; ++i)
+            {
+                Send(messages[i]);
+            }
         }
 
         // wrap handlers with 'new T()' and deserialization.

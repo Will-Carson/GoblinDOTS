@@ -5,6 +5,8 @@ using Unity.Transforms;
 
 namespace DOTSNET
 {
+    // use SelectiveAuthoring to create/inherit it selectively
+    [DisableAutoCreation]
     public class TransformServerMessageSystem : NetworkServerMessageSystem<TransformMessage>
     {
         protected override void OnUpdate() {}

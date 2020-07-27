@@ -40,7 +40,7 @@ namespace DOTSNET.MemoryTransport
                 connected = true;
             }
         }
-        public override bool Send(ArraySegment<byte> segment)
+        public override bool Send(ArraySegment<byte> segment, Channel channel)
         {
             // only  if client connected
             if (connected)

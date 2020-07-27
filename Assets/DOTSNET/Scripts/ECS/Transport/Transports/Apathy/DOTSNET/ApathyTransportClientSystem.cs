@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Unity.Entities;
 using UnityEngine;
 using DOTSNET;
@@ -16,18 +15,11 @@ namespace Apathy
         // NoDelay disabled by default because DOTS will have large amounts of
         // messages and TCP's internal send interval buffering might be helpful.
         public bool NoDelay = false;
-        // Apathy default MaxSize is 16 KB. let's do 64 because we combine
-        // messages.
-        public int MaxMessageSize = 64 * 1024;
         // for large ECS worlds, 1k/tick is not enough:
         public int MaxReceivesPerTick = 100000;
 
         // client
         internal Client client = new Client();
-
-        // cache GetNextMessages queue to avoid allocations
-        // -> with capacity to avoid rescaling as long as possible!
-        Queue<Message> queue = new Queue<Message>(1000);
 
         // overrides ///////////////////////////////////////////////////////////
         public override bool Available()
@@ -39,10 +31,10 @@ namespace Apathy
                    Application.platform == RuntimePlatform.LinuxEditor ||
                    Application.platform == RuntimePlatform.LinuxPlayer;
         }
-        public override int GetMaxPacketSize() => MaxMessageSize;
+        public override int GetMaxPacketSize() => Common.MaxMessageSize;
         public override bool IsConnected() => client.Connected;
         public override void Connect(string address) => client.Connect(address, Port);
-        public override bool Send(ArraySegment<byte> segment) => client.Send(segment);
+        public override bool Send(ArraySegment<byte> segment, Channel channel) => client.Send(segment);
         public override void Disconnect() => client.Disconnect();
 
         // ECS /////////////////////////////////////////////////////////////////
@@ -52,36 +44,27 @@ namespace Apathy
         {
             // configure
             client.NoDelay = NoDelay;
-            client.MaxMessageSize = MaxMessageSize;
             client.MaxReceivesPerTickPerConnection = MaxReceivesPerTick;
+
+            // set up events
+            client.OnConnected = OnConnected;
+            client.OnData = (message) =>
+            {
+                // server combines multiple messages, so handle each one
+                SegmentReader reader = new SegmentReader(message);
+                while (reader.ReadBytesAndSize(out ArraySegment<byte> segment))
+                {
+                    OnData(segment);
+                }
+            };
+            client.OnDisconnected = OnDisconnected;
+
             Debug.Log("ApathyTransportClientSystem initialized!");
         }
 
         protected override void OnUpdate()
         {
-            // process incoming messages
-            client.GetNextMessages(queue);
-            while (queue.Count > 0)
-            {
-                Message message = queue.Dequeue();
-                switch (message.eventType)
-                {
-                    case EventType.Connected:
-                        OnConnected();
-                        break; // breaks switch, not while
-                    case EventType.Data:
-                        // server combines multiple messages, so handle each one
-                        SegmentReader reader = new SegmentReader(message.data);
-                        while (reader.ReadBytesAndSize(out ArraySegment<byte> segment))
-                        {
-                            OnData(segment);
-                        }
-                        break; // breaks switch, not while
-                    case EventType.Disconnected:
-                        OnDisconnected();
-                        break; // breaks switch, not while
-                }
-            }
+            client.Update();
         }
 
         protected override void OnDestroy()

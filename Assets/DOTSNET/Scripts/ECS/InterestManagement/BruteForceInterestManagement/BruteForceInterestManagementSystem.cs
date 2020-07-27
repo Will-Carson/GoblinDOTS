@@ -42,7 +42,10 @@ namespace DOTSNET
 
         protected override void OnCreate()
         {
+            // call base because it might be implemented.
             base.OnCreate();
+
+            // create collections
             connections = new NativeList<int>(1000, Allocator.Persistent);
             ownedPerConnection = new NativeMultiHashMap<int, float3>(1000, Allocator.Persistent);
         }
@@ -52,6 +55,8 @@ namespace DOTSNET
             // dispose safely with Dependency in case Job is still running
             connections.Dispose();
             ownedPerConnection.Dispose();
+
+            // call base because it might be implemented.
             base.OnDestroy();
         }
 
@@ -106,12 +111,10 @@ namespace DOTSNET
                     int connectionId = _connections[i];
 
                     // is it visible to ANY of the connection's owned entities?
-                    // note: iterating a NativeMultiHashMap is a bit ugly
-                    if (_ownedPerConnection.TryGetFirstValue(connectionId,
-                        out float3 position,
-                        out NativeMultiHashMapIterator<int> it))
+                    NativeMultiHashMapIterator<int>? it = default;
+                    while (_ownedPerConnection.TryIterate(connectionId, out float3 position, ref it))
                     {
-                        // check visibility for first one
+                        // check visibility
                         float distance = math.distance(translation.Value, position);
                         if (distance <= _visibilityRadius)
                         {
@@ -123,27 +126,7 @@ namespace DOTSNET
                             {
                                 rebuild.Add(connectionId);
                             }
-                        }
-                        // otherwise check for the others too
-                        else
-                        {
-                            while (_ownedPerConnection.TryGetNextValue(out position, ref it))
-                            {
-                                // check visibility for everyone else
-                                distance = math.distance(translation.Value, position);
-                                if (distance <= _visibilityRadius)
-                                {
-                                    // add and stop here. they all have the same
-                                    // connectionId anyway
-                                    // (we need Contains check because rebuild should
-                                    //  act like a HashSet)
-                                    if (!rebuild.Contains(connectionId))
-                                    {
-                                        rebuild.Add(connectionId);
-                                    }
-                                    break;
-                                }
-                            }
+                            break;
                         }
                     }
                 }
@@ -223,7 +206,6 @@ namespace DOTSNET
             .Run();
         }
 
-
         public override void RebuildAll()
         {
             // ForEach calls split into separate functions to avoid a ECS bug
@@ -237,7 +219,6 @@ namespace DOTSNET
             // send all un/spawn messages
             FlushMessages();
         }
-
 
         // update rebuilds every couple of seconds
         protected override void OnUpdate()

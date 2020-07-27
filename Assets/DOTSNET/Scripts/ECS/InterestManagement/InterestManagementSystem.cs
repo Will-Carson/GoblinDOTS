@@ -10,7 +10,6 @@
 // So we need a base class for all of them.
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Transforms;
 
 namespace DOTSNET
 {
@@ -69,49 +68,8 @@ namespace DOTSNET
         //   we already need to handle that case. (dis)connect is no different.
         public abstract void RebuildAll();
 
-        // send spawn message when a new observer was added
-        public void SendSpawnMessage(Translation translation,
-                                     Rotation rotation,
-                                     NetworkEntity networkEntity,
-                                     int observerConnectionId)
-        {
-            // is the entity owned by the observer connection?
-            bool owned = networkEntity.connectionId == observerConnectionId;
-
-            // create the spawn message
-            SpawnMessage message = new SpawnMessage(
-                networkEntity.prefabId,
-                networkEntity.netId,
-                (byte)(owned ? 1 : 0),
-                translation.Value,
-                rotation.Value
-            );
-
-            // send it
-            //Debug.LogWarning("Spawning " + EntityManager.GetName(entity) + " with netId=" + networkEntity.netId + " on client with connectionId=" + observerConnectionId);
-            server.Send(message, observerConnectionId);
-        }
-
-        // send unspawn message when an observer was removed
-        public void SendUnspawnMessage(NetworkEntity networkEntity, int observerConnectionId)
-        {
-            // only if the connection still exists.
-            // we don't need to send an unspawn message to this connection if
-            // the observer was removed because the connection disconnected.
-            if (server.connections.ContainsKey(observerConnectionId))
-            {
-                // create the unspawn message
-                UnspawnMessage message = new UnspawnMessage(networkEntity.netId);
-
-                // send it
-                server.Send(message, observerConnectionId);
-            }
-        }
-
-        // spawn/unspawn all observers that were added/removed from the
-        // implementation's Job
-        // make sure to call this from the implementation after rebuilding.
-        protected void FlushMessages()
+        // flush all unspawn messages
+        void FlushUnspawnMessages()
         {
             // send Unspawn message for each one in the removed buffer
             // => we send Unspawn before Spawn to have minimum amount of
@@ -121,7 +79,11 @@ namespace DOTSNET
             // it's the same here.
             server.Send(unspawnMessages);
             unspawnMessages.Clear();
+        }
 
+        // flush all spawn messages
+        void FlushSpawnMessages()
+        {
             // send Spawn message for each one in the removed buffer
             //
             // there are three possible cases:
@@ -144,6 +106,15 @@ namespace DOTSNET
             // => all three cases require the same call:
             server.Send(spawnMessages);
             spawnMessages.Clear();
+        }
+
+        // spawn/unspawn all observers that were added/removed from the
+        // implementation's Job
+        // make sure to call this from the implementation after rebuilding.
+        protected void FlushMessages()
+        {
+            FlushUnspawnMessages();
+            FlushSpawnMessages();
         }
     }
 }

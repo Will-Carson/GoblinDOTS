@@ -1,0 +1,1 @@
+Try setting the Surface Mesh property to the cube_sphere mesh found in the Models directory.

@@ -23,22 +23,15 @@ namespace Apathy
             // header content size
             public int contentSize;
 
-            // 'N' content buffers per connection. this allows us to process
-            // messages without allocations via ArraySegment
-            // ('N' per connection so that we can process multiple clients per
-            //  tick, with 'N' message per client at max)
-            public byte[][] contentBuffers;
+            // receive buffer of size MaxMessageSize
+            public byte[] messageBuffer;
 
-            public ClientToken(long socket, int maxMessageSize, int maxMessagesPerTick)
+            public ClientToken(long socket, int MaxMessageSize)
             {
                 this.socket = socket;
 
-                // create 'N' content buffers
-                contentBuffers = new byte[maxMessagesPerTick][];
-                for (int i = 0; i < contentBuffers.Length; ++i)
-                {
-                    contentBuffers[i] = new byte[maxMessageSize];
-                }
+                // create receive buffer
+                messageBuffer = new byte[MaxMessageSize];
             }
         }
         // clients with <connectionId, ClientToken>
@@ -51,9 +44,46 @@ namespace Apathy
         // cache RemoveIds for GetNextMessages to avoid allocations
         List<int> removeIds = new List<int>();
 
+        // Connected/Data/Disconnected events.
+        // Called on the same thread at all times.
+        //
+        // Initially we used a GetNextMessages approach, but it didn't scale:
+        // - Server may send a lot of messages, and the client needs to receive
+        //   more than one message per tick to not lag behind.
+        // - With GetNextMessages, we need 'MaxMessagesPerTick' receive buffers,
+        //   each of 'MaxMessageSize' bytes.
+        // - DOTSNET can easily reach 10k or 100k messages per tick, which means
+        //   that we would need 64KB * 100k = Gigabytes of buffers per
+        //   connection. This takes a lot of time to create, and would not scale
+        //   unless we buy a lot of RAM.
+        // - Storing messages in a queue first and then calling Events adds zero
+        //   value over calling events directly. It's the same end result.
+        //
+        // With events:
+        // + We only need one 'MaxMessageSize' buffer (64KB instead of few GB).
+        // + The code is easier & way less computations (no extra queue step).
+        // + We initialize the events so that we can always call them without
+        //   null checks and we get log messages if they weren't set up.
+        //
+        // NOTE: if necessary, the caller can use the OnData event to convert
+        //       to a NetworkMessage struct and then cache + batch process them.
+        //       (This is what DOTSNET does. It's way better than doing any kind
+        //        of buffering here, because we would need to allocate byte[]
+        //        instead of stack allocated NetworkMessage structs!)
+        //
+        public Action<int> OnConnected =
+            (connectionId) => { Debug.LogWarning("Apathy.Server.OnServerConnected: " + connectionId); };
+
+        public Action<int, ArraySegment<byte>> OnData =
+            (connectionId, segment) => { Debug.LogWarning("Apathy.Server.OnServerData: " + connectionId + " => " + BitConverter.ToString(segment.Array, segment.Offset, segment.Count)); };
+
+        public Action<int> OnDisconnected =
+            (connectionId) => { Debug.LogWarning("Apathy.Server.OnServerDisconnected: " + connectionId); };
+
         // ideally call this once per frame in main loop.
-        // -> pass queue so we don't need to create a new one each time!
-        public void GetNextMessages(Queue<Message> messages)
+        // IMPORTANT: NOT THREAD SAFE! otherwise header/content reading will be
+        //            corrupted.
+        public void Update()
         {
             // only if server is active
             if (!Active) return;
@@ -66,7 +96,7 @@ namespace Apathy
 
                 // add client with next connection id ('++' because it should
                 // start at '1' for Mirror. '0' is reserved for local player)
-                clients[++nextConnectionId] = new ClientToken(accepted, MaxMessageSize, MaxReceivesPerTickPerConnection);
+                clients[++nextConnectionId] = new ClientToken(accepted, MaxMessageSize);
             }
 
             // check all clients for incoming data
@@ -76,8 +106,9 @@ namespace Apathy
                 // first of all: did the client just connect?
                 if (!kvp.Value.connectProcessed)
                 {
-                    messages.Enqueue(new Message(kvp.Key, EventType.Connected, new ArraySegment<byte>()));
+                    // call connected event
                     kvp.Value.connectProcessed = true;
+                    OnConnected(kvp.Key);
                 }
                 // closed the handle at some point (e.g. in Send)?
                 // or detected a disconnect?
@@ -119,14 +150,8 @@ namespace Apathy
                     //       latency and hope for it to recover later. after all
                     //       the server doesn't really care too much about ONE
                     //       client's latency!
-                    //
-                    // NOTE: we use 'contentBuffers.Length' instead of
-                    //       'MaxReceivesPerTickPerConnection' so that runtime
-                    //       changes of 'MaxReceivesPerTickPerConnection' won't
-                    //       cause NullReferenceExceptions. we only create the
-                    //       buffer once.
                     int i;
-                    for (i = 0; i < kvp.Value.contentBuffers.Length; ++i)
+                    for (i = 0; i < MaxReceivesPerTickPerConnection; ++i)
                     {
                         // header not read yet, but can read it now?
                         if (kvp.Value.contentSize == 0)
@@ -150,18 +175,16 @@ namespace Apathy
                             // arrays and run out of memory.
                             if (kvp.Value.contentSize <= MaxMessageSize)
                             {
-                                // get a pointer to a content buffer. we read up
-                                // to 'n' messages per tick, so use the n-th one
-                                byte[] contentBuffer = kvp.Value.contentBuffers[i];
-
-                                if (ReadIfAvailable(kvp.Value.socket, kvp.Value.contentSize, contentBuffer))
+                                if (ReadIfAvailable(kvp.Value.socket, kvp.Value.contentSize, kvp.Value.messageBuffer))
                                 {
                                     // create ArraySegment from read content
-                                    ArraySegment<byte> segment = new ArraySegment<byte>(contentBuffer, 0, kvp.Value.contentSize);
-                                    messages.Enqueue(new Message(kvp.Key, EventType.Data, segment));
+                                    ArraySegment<byte> segment = new ArraySegment<byte>(kvp.Value.messageBuffer, 0, kvp.Value.contentSize);
 
                                     // reset contentSize for next time
                                     kvp.Value.contentSize = 0;
+
+                                    // call OnData event
+                                    OnData(kvp.Key, segment);
                                 }
                                 // can't fully read it yet. try again next frame.
                                 else break;
@@ -169,7 +192,7 @@ namespace Apathy
                             else
                             {
                                 // remove it when done
-                                Debug.LogWarning("[Server]: possible allocation attack with a header of: " + kvp.Value.contentSize + " bytes > MaxMessageSize=" + MaxMessageSize + " from connectionId: " + kvp.Key + " IP: " + GetClientAddress(kvp.Key));
+                                Debug.LogWarning("[Server]: possible allocation attack with a header of: " + kvp.Value.contentSize + " bytes > MaxMessageSize=" + MaxMessageSize + " from connectionId: " + kvp.Key + " IP: " + GetClientAddress(kvp.Key) + ". Note that this might happen if client completely fills the send buffer with multiple writes. Anything beyond MaxUsableBufferSize is usually corrupted.");
                                 removeIds.Add(kvp.Key);
 
                                 // no need to receive any more messages
@@ -201,17 +224,15 @@ namespace Apathy
                     }
                 }
 
-                // add 'Disconnected' message after disconnecting properly.
+                // remove from clients, then call disconnected event
                 // -> always AFTER closing the connection, because that's when
                 //    it's truly disconnected.
-                // -> enqueue Disconnected message in this GetNextMessages call
+                // -> call Disconnected event in this GetNextMessages call
                 //    don't just close and add the message later, otherwise the
                 //    server might assume a player is still online for one more
                 //    tick.
-                messages.Enqueue(new Message(connectionId, EventType.Disconnected, new ArraySegment<byte>()));
-
-                // remove from clients
                 clients.Remove(connectionId);
+                OnDisconnected(connectionId);
             }
         }
 

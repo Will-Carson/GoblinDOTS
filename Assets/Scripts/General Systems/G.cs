@@ -38,4 +38,5 @@
     public readonly static int maxRelationshipValues = maxTotalPopulation * relationshipValues;
     public readonly static float arrousalImportance = .2f;
     public readonly static float traitAlignmentImportance = .2f;
+    public readonly static int linesPerPlay = 32;
 }

@@ -281,6 +281,9 @@ namespace DOTSNET
         // read Bytes510 struct
         public bool ReadBytes510(out Bytes510 value) => ReadBlittable(out value);
 
+        // read Bytes4094 struct
+        public bool ReadBytes4094(out Bytes4094 value) => ReadBlittable(out value);
+
         // read NativeString32
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header

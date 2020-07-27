@@ -35,9 +35,6 @@ namespace DOTSNET
             Debug.Log("DOTSNET Boostrap: creating Worlds");
             CreateAllWorlds(defaultWorldName, out DefaultWorld, out ServerWorld, out ClientWorld);
 
-            // inject dependencies in all worlds
-            DependencyInjection.InjectDependenciesInAllWorlds();
-
             // set default injection world and start updating
             World.DefaultGameObjectInjectionWorld = DefaultWorld;
             ScriptBehaviourUpdateOrder.UpdatePlayerLoop(DefaultWorld);
@@ -119,30 +116,38 @@ namespace DOTSNET
         public static World CreateDefaultWorld(string defaultWorldName, List<Type> unitySystems, List<Type> regularSystems)
         {
             World defaultWorld = new World(defaultWorldName);
+
+            // add unity systems
             DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(defaultWorld, unitySystems);
-            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(defaultWorld, regularSystems);
+            // add regular systems with OnCreate dependency injection
+            DependencyInjection.AddSystemsToRootLevelSystemGroupsAndInjectDependencies(defaultWorld, regularSystems);
+
             return defaultWorld;
         }
 
         // create the ServerWorld
-        public static World CreateServerWorld(string worldName, List<Type> unitySystems, List<Type> serverSystems, World defaultWorld)
+        public static World CreateServerWorld(string worldName, List<Type> unitySystems, List<Type> serverSystems, World defaultWorld, bool addToDefaultUpdateList)
         {
             // create a new world
             World serverWorld = new World(worldName);
 
-            // add unity and server systems
-            // -> no regular systems without [ServerWorld] attribute
+            // add unity systems
             DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(serverWorld, unitySystems);
-            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(serverWorld, serverSystems);
+            // add server systems with OnCreate dependency injection
+            // -> no regular systems without [ServerWorld] attribute
+            DependencyInjection.AddSystemsToRootLevelSystemGroupsAndInjectDependencies(serverWorld, serverSystems);
 
             // add hooks in DefaultWorld to update ServerWorld
-            InitializationSystemGroup initializationGroup = serverWorld.GetExistingSystem<InitializationSystemGroup>();
-            defaultWorld.GetExistingSystem<InitializationSystemGroup>().AddSystemToUpdateList(initializationGroup);
-            SimulationSystemGroup simulationGroup = serverWorld.GetExistingSystem<SimulationSystemGroup>();
-            defaultWorld.GetExistingSystem<SimulationSystemGroup>().AddSystemToUpdateList(simulationGroup);
-            // no rendering in ServerWorld
-            //PresentationSystemGroup presentationGroup = clientWorld.GetExistingSystem<PresentationSystemGroup>();
-            //defaultWorld.GetExistingSystem<PresentationSystemGroup>().AddSystemToUpdateList(presentationGroup);
+            if (addToDefaultUpdateList)
+            {
+                InitializationSystemGroup initializationGroup = serverWorld.GetExistingSystem<InitializationSystemGroup>();
+                defaultWorld.GetExistingSystem<InitializationSystemGroup>().AddSystemToUpdateList(initializationGroup);
+                SimulationSystemGroup simulationGroup = serverWorld.GetExistingSystem<SimulationSystemGroup>();
+                defaultWorld.GetExistingSystem<SimulationSystemGroup>().AddSystemToUpdateList(simulationGroup);
+                // no rendering in ServerWorld
+                //PresentationSystemGroup presentationGroup = clientWorld.GetExistingSystem<PresentationSystemGroup>();
+                //defaultWorld.GetExistingSystem<PresentationSystemGroup>().AddSystemToUpdateList(presentationGroup);
+            }
 
             // done
             Debug.Log("Created ServerWorld with " + serverSystems.Count + " systems");
@@ -150,23 +155,27 @@ namespace DOTSNET
         }
 
         // create the ClientWorld
-        public static World CreateClientWorld(string worldName, List<Type> unitySystems, List<Type> clientSystems, World defaultWorld)
+        public static World CreateClientWorld(string worldName, List<Type> unitySystems, List<Type> clientSystems, World defaultWorld, bool addToDefaultUpdateList)
         {
             // create a new world
             World clientWorld = new World(worldName);
 
-            // add unity and client systems
-            // -> no regular systems without [ClientWorld] attribute
+            // add unity systems
             DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(clientWorld, unitySystems);
-            DefaultWorldInitialization.AddSystemsToRootLevelSystemGroups(clientWorld, clientSystems);
+            // add client systems with OnCreate dependency injection
+            // -> no regular systems without [ClientWorld] attribute
+            DependencyInjection.AddSystemsToRootLevelSystemGroupsAndInjectDependencies(clientWorld, clientSystems);
 
             // add hooks in DefaultWorld to update ServerWorld
-            InitializationSystemGroup initializationGroup = clientWorld.GetExistingSystem<InitializationSystemGroup>();
-            defaultWorld.GetExistingSystem<InitializationSystemGroup>().AddSystemToUpdateList(initializationGroup);
-            SimulationSystemGroup simulationGroup = clientWorld.GetExistingSystem<SimulationSystemGroup>();
-            defaultWorld.GetExistingSystem<SimulationSystemGroup>().AddSystemToUpdateList(simulationGroup);
-            PresentationSystemGroup presentationGroup = clientWorld.GetExistingSystem<PresentationSystemGroup>();
-            defaultWorld.GetExistingSystem<PresentationSystemGroup>().AddSystemToUpdateList(presentationGroup);
+            if (addToDefaultUpdateList)
+            {
+                InitializationSystemGroup initializationGroup = clientWorld.GetExistingSystem<InitializationSystemGroup>();
+                defaultWorld.GetExistingSystem<InitializationSystemGroup>().AddSystemToUpdateList(initializationGroup);
+                SimulationSystemGroup simulationGroup = clientWorld.GetExistingSystem<SimulationSystemGroup>();
+                defaultWorld.GetExistingSystem<SimulationSystemGroup>().AddSystemToUpdateList(simulationGroup);
+                PresentationSystemGroup presentationGroup = clientWorld.GetExistingSystem<PresentationSystemGroup>();
+                defaultWorld.GetExistingSystem<PresentationSystemGroup>().AddSystemToUpdateList(presentationGroup);
+            }
 
             // done
             Debug.Log("Created ClientWorld with " + clientSystems.Count + " systems");
@@ -226,8 +235,8 @@ namespace DOTSNET
 
             // create all worlds
             defaultWorld = CreateDefaultWorld(defaultWorldName, unitySystems, regularSystems);
-            serverWorld = CreateServerWorld(ServerWorldName, unitySystems, serverSystems, defaultWorld);
-            clientWorld = CreateClientWorld(ClientWorldName, unitySystems, clientSystems, defaultWorld);
+            serverWorld = CreateServerWorld(ServerWorldName, unitySystems, serverSystems, defaultWorld, true);
+            clientWorld = CreateClientWorld(ClientWorldName, unitySystems, clientSystems, defaultWorld, true);
         }
     }
 }

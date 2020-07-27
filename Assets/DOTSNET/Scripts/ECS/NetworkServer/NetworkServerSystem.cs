@@ -300,8 +300,10 @@ namespace DOTSNET
         }
 
         // messages ////////////////////////////////////////////////////////////
-        // send a message to a connectionId
-        public void Send<T>(T message, int connectionId)
+        // send a message to a connectionId over the specified channel.
+        // (connectionId, message parameter order for consistency with transport
+        //  and with Send(NativeMultiMap)
+        public void Send<T>(int connectionId, T message, Channel channel = Channel.Reliable)
             where T : unmanaged, NetworkMessage
         {
             // valid connectionId?
@@ -349,7 +351,7 @@ namespace DOTSNET
                             {
                                 // send to transport.
                                 // (it will have to free up the segment immediately)
-                                if (!transport.Send(connectionId, writer.segment))
+                                if (!transport.Send(connectionId, writer.segment, channel))
                                 {
                                     // send can fail if the transport has issues
                                     // like full buffers, broken pipes, etc.
@@ -392,29 +394,128 @@ namespace DOTSNET
 
         // convenience function to send a whole NativeMultiMap of messages to
         // connections, useful for Job systems.
-        public void Send<T>(NativeMultiHashMap<int, T> messages)
+        //
+        // PERFORMANCE: reusing Send(message, connectionId) is cleaner, but
+        //              having the redundant code optimized to reuse writer and
+        //              write messageId only once is significantly faster.
+        //
+        //              50k Entities @ no camera:
+        //                              | NetworkTransformSystem ms | FPS
+        //                reusing Send  |           6-11 ms         | 36-41 FPS
+        //                optimized     |           4-8 ms          | 43-45 FPS
+        //
+        //              => NetworkTransformSystem runs almost twice as fast!
+        //
+        // DO NOT REUSE this function in Send(connectionId). this function here
+        //              iterates all connections on the server. reusing would be
+        //              slower.
+        public void Send<T>(NativeMultiHashMap<int, T> messages, Channel channel = Channel.Reliable)
             where T : unmanaged, NetworkMessage
         {
-            // messages.GetKeyArray allocates.
-            // -> BroadcastSystems send to each connection anyway
-            // -> we need a connections.ContainsKey check anyway
-            // --> so we might as well iterate all known connections and only
-            //     send to the ones that are in messages (which are usually all)
-            foreach (int connectionId in connections.Keys)
+            // make sure that we can use the send buffer
+            if (sendBuffer?.Length > 0)
             {
-                // iterate all messages for this connectionId
-                // (NativeMultiHashMap iteration is a bit ugly)
-                if (messages.TryGetFirstValue(connectionId,
-                    out T message,
-                    out NativeMultiHashMapIterator<int> it))
+                // create the segment writer only once
+                SegmentWriter writer = new SegmentWriter(sendBuffer);
+
+                // write message id only once
+                if (writer.WriteUShort(new T().GetID()))
                 {
-                    Send(message, connectionId);
-                    while (messages.TryGetNextValue(out message, ref it))
+                    // reset writer position each time instead of creating a new
+                    // one and writing the header again
+                    int writerPosition = writer.Position;
+
+                    // messages.GetKeyArray allocates.
+                    // -> BroadcastSystems send to each connection anyway
+                    // -> we need a connections.ContainsKey check anyway
+                    // --> so we might as well iterate all known connections and only
+                    //     send to the ones that are in messages (which are usually all)
+                    foreach (KeyValuePair<int, ConnectionState> kvp in connections)
                     {
-                        Send(message, connectionId);
+                        // unroll KeyValuePair for ease of use
+                        int connectionId = kvp.Key;
+                        ConnectionState connection = kvp.Value;
+
+                        // do nothing if the connection is broken.
+                        // we already logged a Send failed warning, and it will be
+                        // removed after the next transport update.
+                        // otherwise we might log 10k 'send failed' messages in-between
+                        // a failed send and the next transport update, which would
+                        // slow down the server and spam the logs.
+                        // -> for example, if we set the visibility radius very high in
+                        //    the 10k demo, DOTS will just send messages so fast that
+                        //    the Apathy transport buffers get full. this is to be
+                        //    expected, but previously the server would freeze for a few
+                        //    seconds because we logged thousands of "send failed"
+                        //    messages.
+                        if (!connection.broken)
+                        {
+                            // iterate all messages for this connectionId
+                            NativeMultiHashMapIterator<int>? it = default;
+                            while (messages.TryIterate(connectionId, out T message, ref it))
+                            {
+                                // reset writer position to after message id
+                                writer.Position = writerPosition;
+
+                                // serialize message content:
+                                // instead of manually serializing every value via
+                                // message.Serialize, we only allow blittable
+                                // messages - which we can just block copy.
+                                //
+                                // that's a giant improvement:
+                                // + no more need to write Serialize functions
+                                // + no more accidentally forgetting a field
+                                // + fastest performance: only one call, instead of
+                                //   several WriteString, WriteInt, etc. calls and
+                                //   checks
+                                if (writer.WriteBlittable(message))
+                                {
+                                    // send to transport.
+                                    // (it will have to free up the segment immediately)
+                                    if (!transport.Send(connectionId, writer.segment, channel))
+                                    {
+                                        // send can fail if the transport has issues
+                                        // like full buffers, broken pipes, etc.
+                                        // so if Send gets called before the next
+                                        // transport update removes the broken
+                                        // connection, then we will see a warning.
+                                        Debug.LogWarning("NetworkServerSystem.Send: failed to send message of type " + typeof(T) + " to connectionId: " + connectionId + ". This can happen if the connection is broken before the next transport update removes it. The connection has been flagged as broken and no more sends will be attempted for this connection until the next transport update cleans it up.");
+
+                                        // if Send fails only once, we will flag the
+                                        // connection as broken to avoid possibly
+                                        // logging thousands of 'Send Message failed'
+                                        // warnings in between the time send failed, and
+                                        // transport update removes the connection.
+                                        // it would just slow down the server
+                                        // significantly, and spam the logs.
+                                        connection.broken = true;
+
+                                        // the transport is supposed to disconnect
+                                        // the connection in case of send errors,
+                                        // but to be 100% sure we call disconnect
+                                        // here too.
+                                        // we don't want a situation where broken
+                                        // connections keep idling around because
+                                        // the transport implementation forgot to
+                                        // disconnect them.
+                                        Disconnect(connectionId);
+
+                                        // no need to keep iterating through
+                                        // messages for this connectionId.
+                                        // we would just more warnings.
+                                        break;
+                                    }
+                                }
+                                else Debug.LogWarning("NetworkServerSystem.Send: serializing message of type " + typeof(T) + " failed. Maybe the message is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
+                            }
+                        }
+                        // for debugging:
+                        //else Debug.Log("NetworkServerSystem.Send: skipped send to broken connectionId=" + connectionId);
                     }
                 }
+                else Debug.LogWarning("NetworkServerSystem.Send: writing message id of type " + typeof(T) + " failed. Maybe the id is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
             }
+            else Debug.LogError("NetworkServerSystem.Send: sendBuffer not initialized or 0 length: " + sendBuffer);
         }
 
         // we need to check authentication before calling handlers.
@@ -636,7 +737,14 @@ namespace DOTSNET
                             //Debug.Log("Unspawning " +                       entity  + " for observerConnectionId=" + observerConnectionId);
 #endif
 
-                            interestManagement.SendUnspawnMessage(networkEntity, observerConnectionId);
+                            // only if the connection still exists.
+                            // we don't need to send an unspawn message to this connection if
+                            // the observer was removed because the connection disconnected.
+                            if (connections.ContainsKey(observerConnectionId))
+                            {
+                                // send it
+                                Send(observerConnectionId, new UnspawnMessage(networkEntity.netId));
+                            }
                         }
 
                         // note: we don't rebuild observers after an Entity

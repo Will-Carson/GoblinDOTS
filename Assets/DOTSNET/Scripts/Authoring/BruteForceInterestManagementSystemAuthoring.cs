@@ -5,7 +5,9 @@ namespace DOTSNET
 {
     public class BruteForceInterestManagementSystemAuthoring : MonoBehaviour, SelectiveSystemAuthoring
     {
-        // find BruteForceInterestManagementSystem in ECS world
+        // find systems in ECS world
+        NetworkServerSystem server =>
+            Bootstrap.ServerWorld.GetExistingSystem<NetworkServerSystem>();
         BruteForceInterestManagementSystem bruteForceSystem =>
             Bootstrap.ServerWorld.GetExistingSystem<BruteForceInterestManagementSystem>();
 
@@ -35,6 +37,9 @@ namespace DOTSNET
         void OnGUI()
         {
             if (!showSlider) return;
+
+            // only show while server is running. not on client, etc.
+            if (server.state != ServerState.ACTIVE) return;
 
             int height = 30;
             int width = 250;

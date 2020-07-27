@@ -27,7 +27,7 @@ namespace DOTSNET.MemoryTransport
         public override int GetMaxPacketSize() => 16 * 1024 * 1024;
         public override bool IsActive() => active;
         public override void Start() { active = true; }
-        public override bool Send(int connectionId, ArraySegment<byte> segment)
+        public override bool Send(int connectionId, ArraySegment<byte> segment, Channel channel)
         {
             // only if server is running and client is connected
             if (active && clientTransport.IsConnected())

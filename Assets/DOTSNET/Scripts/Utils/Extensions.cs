@@ -1,4 +1,6 @@
-﻿using Unity.Entities;
+﻿using System;
+using Unity.Collections;
+using Unity.Entities;
 
 namespace DOTSNET
 {
@@ -34,6 +36,58 @@ namespace DOTSNET
                 if (buffer[i].GetHashCode() == value.GetHashCode())
                     return true;
             return false;
+        }
+
+        // NativeMultiMap has .GetValuesForKeyArray Enumerator, but using C#'s
+        // 'foreach (...)' in Burst/Jobs causes an Invalid IL code exception:
+        // https://forum.unity.com/threads/invalidprogramexception-invalid-il-code-because-of-ecs-generated-code-in-a-foreach-query.914387/
+        // So we need our own iterator.
+        //
+        // Using .TryGetFirstValue + .TryGetNextValue works, but it's way too
+        // cumbersome.
+        //
+        // This causes redundant code like 'Send()' in this example:
+        //    if (messages.TryGetFirstValue(connectionId, out message,
+        //        out NativeMultiHashMapIterator<int> it))
+        //    {
+        //        Send(message, connectionId);
+        //        while (messages.TryGetNextValue(out message, ref it))
+        //        {
+        //            Send(message, connectionId);
+        //        }
+        //    }
+        //
+        // Making it really difficult to do more abstractions/optimizations.
+        //
+        // So let's create a helper function so it's easier to use:
+        //    NativeMultiHashMapIterator<T>? iterator = default;
+        //    while (messages.TryIterate(connectionId, out message, ref iterator))
+        //    {
+        //        Send(message, connectionId);
+        //    }
+        public static bool TryIterate<TKey, TValue>(
+            this NativeMultiHashMap<TKey, TValue> map,
+            TKey key,
+            out TValue value,
+            ref NativeMultiHashMapIterator<TKey>? it)
+                where TKey : struct, IEquatable<TKey>
+                where TValue : struct
+        {
+            // get first value if iterator not initialized yet & assign iterator
+            if (!it.HasValue)
+            {
+                bool result = map.TryGetFirstValue(key, out value, out NativeMultiHashMapIterator<TKey> temp);
+                it = temp;
+                return result;
+            }
+            // otherwise get next value & assign iterator
+            else
+            {
+                NativeMultiHashMapIterator<TKey> temp = it.Value;
+                bool result = map.TryGetNextValue(out value, ref temp);
+                it = temp;
+                return result;
+            }
         }
     }
 }

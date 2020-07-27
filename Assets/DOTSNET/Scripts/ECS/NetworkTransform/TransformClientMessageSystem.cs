@@ -6,6 +6,8 @@ using Unity.Transforms;
 
 namespace DOTSNET
 {
+    // use SelectiveAuthoring to create/inherit it selectively
+    [DisableAutoCreation]
     public class TransformClientMessageSystem : NetworkClientMessageSystem<TransformMessage>
     {
         // cache new messages <netId, message> to apply all at once in OnUpdate.
@@ -16,6 +18,10 @@ namespace DOTSNET
 
         protected override void OnCreate()
         {
+            // call base because it might be implemented.
+            base.OnCreate();
+
+            // create messages HashMap
             messages = new NativeHashMap<ulong, TransformMessage>(1000, Allocator.Persistent);
         }
 
@@ -23,6 +29,9 @@ namespace DOTSNET
         {
             // dispose with Dependency in case it's used in a Job
             messages.Dispose(Dependency);
+
+            // call base because it might be implemented.
+            base.OnDestroy();
         }
 
         protected override void OnMessage(TransformMessage message)
@@ -38,7 +47,7 @@ namespace DOTSNET
         protected override void OnUpdate()
         {
             // copy messages to local variable so we can use Burst
-            NativeHashMap<ulong, TransformMessage> msgs = messages;
+            NativeHashMap<ulong, TransformMessage> _messages = messages;
 
             // we assume large amounts of entities, so we go through all of them
             // and apply their NetworkTransform message (if any).
@@ -47,9 +56,9 @@ namespace DOTSNET
                               in NetworkEntity networkEntity) =>
             {
                 // do we have a message for this netId?
-                if (msgs.ContainsKey(networkEntity.netId))
+                if (_messages.ContainsKey(networkEntity.netId))
                 {
-                    TransformMessage message = msgs[networkEntity.netId];
+                    TransformMessage message = _messages[networkEntity.netId];
                     translation.Value = message.position;
                     rotation.Value = message.rotation;
                 }

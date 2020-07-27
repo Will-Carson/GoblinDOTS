@@ -12,6 +12,8 @@ using Unity.Transforms;
 
 namespace DOTSNET
 {
+    // use SelectiveAuthoring to create/inherit it selectively
+    [DisableAutoCreation]
     public class NetworkTransformServerSystem : NetworkBroadcastSystem
     {
         // NativeMultiMap so we can run most of it with Burst enabled
@@ -19,13 +21,19 @@ namespace DOTSNET
 
         protected override void OnCreate()
         {
+            // call base because it might be implemented.
             base.OnCreate();
+
+            // allocate
             messages = new NativeMultiHashMap<int, TransformMessage>(1000, Allocator.Persistent);
         }
 
         protected override void OnDestroy()
         {
+            // dispose
             messages.Dispose();
+
+            // call base because it might be implemented.
             base.OnDestroy();
         }
 
@@ -39,6 +47,14 @@ namespace DOTSNET
                               in NetworkEntity networkEntity,
                               in NetworkTransform networkTransform) =>
             {
+                // TransformMessage is the same one for each observer.
+                // let's create it only once, which is faster.
+                TransformMessage message = new TransformMessage(
+                    networkEntity.netId,
+                    translation.Value,
+                    rotation.Value
+                );
+
                 // send state to each observer connection
                 // DynamicBuffer foreach allocates. use for.
                 for (int i = 0; i < observers.Length; ++i)
@@ -56,23 +72,16 @@ namespace DOTSNET
                     // we do is broadcast to everyone but the owner.
                     if (!owner || networkTransform.syncDirection == SyncDirection.SERVER_TO_CLIENT)
                     {
-                        // create the message
-                        TransformMessage message = new TransformMessage(
-                            networkEntity.netId,
-                            translation.Value,
-                            rotation.Value
-                        );
-
                         // add to messages and send afterwards without burst
                         _messages.Add(connectionId, message);
                     }
                 }
             })
-            .WithBurst()
             .Run();
 
             // send after the ForEach. this way we can run ForEach with Burst(!)
-            server.Send(_messages);
+            // => send unreliable if possible since we'll send again next time.
+            server.Send(_messages, Channel.Unreliable);
             messages.Clear();
         }
     }

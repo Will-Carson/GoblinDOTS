@@ -31,7 +31,7 @@ namespace DOTSNET.Examples.Chat
                 // broadcast to all clients that joined with a name
                 foreach (int clientConnectionId in chatServer.names.Keys)
                 {
-                    server.Send(message, clientConnectionId);
+                    server.Send(clientConnectionId, message);
                 }
             }
             else

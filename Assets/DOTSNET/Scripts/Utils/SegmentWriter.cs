@@ -260,6 +260,9 @@ namespace DOTSNET
         // write Bytes510 struct
         public bool WriteBytes510(Bytes510 value) => WriteBlittable(value);
 
+        // write Bytes4094 struct
+        public bool WriteBytes4094(Bytes4094 value) => WriteBlittable(value);
+
         // write NativeString32 struct
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header

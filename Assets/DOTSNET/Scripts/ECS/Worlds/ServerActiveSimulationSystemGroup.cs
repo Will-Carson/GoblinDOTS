@@ -20,13 +20,11 @@ namespace DOTSNET
     [UpdateInGroup(typeof(ApplyPhysicsGroup))]
     public class ServerActiveSimulationSystemGroup : ComponentSystemGroup
     {
+        // dependencies
+        [AutoAssign] protected NetworkServerSystem server;
+
         protected override void OnUpdate()
         {
-            // get server system only once every frame.
-            // if we would make this a property then we would get this ONCE PER
-            // SYSTEM in our foreach loop.
-            NetworkServerSystem server = World.GetExistingSystem<NetworkServerSystem>();
-
             // enable/disable systems based on server state
             // IMPORTANT: we need to set .Enabled to false after StopServer,
             //            otherwise OnStopRunning is never called in the group's
@@ -34,7 +32,10 @@ namespace DOTSNET
             //            would not call OnStopRunning after StopServer.
             foreach (ComponentSystemBase system in m_systemsToUpdate)
             {
-                system.Enabled = server.state == ServerState.ACTIVE;
+                // with ?. null check to disable all systems if there is no
+                // server. someone might not have a dotsnet scene open, or
+                // someone might be working on a client-only addon.
+                system.Enabled = server?.state == ServerState.ACTIVE;
             }
 
             // always call base OnUpdate, otherwise nothing is updated again

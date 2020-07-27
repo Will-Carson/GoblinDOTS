@@ -16,18 +16,11 @@ namespace Apathy
         // NoDelay disabled by default because DOTS will have large amounts of
         // messages and TCP's internal send interval buffering might be helpful.
         public bool NoDelay = false;
-        // Apathy default MaxSize is 16 KB. let's do 64 because we combine
-        // messages.
-        public int MaxMessageSize = 64 * 1024;
         // for large ECS worlds, 100/tick is not enough:
         public int MaxReceivesPerTickPerConnection = 1000;
 
         // server
         internal Server server = new Server();
-
-        // cache GetNextMessages queue to avoid allocations
-        // -> with capacity to avoid rescaling as long as possible!
-        Queue<Message> queue = new Queue<Message>(1000);
 
         // queue messages to be sent out in OnUpdate
         // -> 20x faster than sending each messages separately
@@ -60,10 +53,10 @@ namespace Apathy
                    Application.platform == RuntimePlatform.LinuxPlayer;
         }
 
-        public override int GetMaxPacketSize() => MaxMessageSize;
+        public override int GetMaxPacketSize() => Common.MaxMessageSize;
         public override bool IsActive() => server.Active;
         public override void Start() => server.Start(Port);
-        public override bool Send(int connectionId, ArraySegment<byte> segment)
+        public override bool Send(int connectionId, ArraySegment<byte> segment, Channel channel)
         {
             // write message to send queue and send it in OnUpdate later
             if (sendQueue.TryGetValue(connectionId, out SegmentWriterWrapped wrapper))
@@ -90,7 +83,7 @@ namespace Apathy
                             return true;
                         }
                         // it can return false if segment > MaxMessageSize
-                        else Debug.LogError("ApathyTransportServerSystem: failed to send segment of size " + segment.Count + " to connectionId=" + connectionId + " because it's bigger than MaxMessageSize=" + MaxMessageSize);
+                        else Debug.LogError("ApathyTransportServerSystem: failed to send segment of size " + segment.Count + " to connectionId=" + connectionId + " because it's bigger than MaxMessageSize=" + Common.MaxMessageSize);
                     }
                 }
             }
@@ -111,8 +104,22 @@ namespace Apathy
         {
             // configure
             server.NoDelay = NoDelay;
-            server.MaxMessageSize = MaxMessageSize;
             server.MaxReceivesPerTickPerConnection = MaxReceivesPerTickPerConnection;
+
+            // set up events
+            server.OnConnected = (connectionId) =>
+            {
+                SegmentWriter writer = new SegmentWriter(new byte[Common.MaxMessageSize]);
+                sendQueue[connectionId] = new SegmentWriterWrapped(writer);
+                OnConnected(connectionId);
+            };
+            server.OnData = OnData;
+            server.OnDisconnected = (connectionId) =>
+            {
+                OnDisconnected(connectionId);
+                sendQueue.Remove(connectionId);
+            };
+
             Debug.Log("ApathyTransportServerSystem initialized!");
         }
 
@@ -143,29 +150,6 @@ namespace Apathy
             }
         }
 
-        void ProcessIncomingMessages()
-        {
-            server.GetNextMessages(queue);
-            while (queue.Count > 0)
-            {
-                Message message = queue.Dequeue();
-                switch (message.eventType)
-                {
-                    case EventType.Connected:
-                        sendQueue[message.connectionId] = new SegmentWriterWrapped(new SegmentWriter(new byte[MaxMessageSize]));
-                        OnConnected(message.connectionId);
-                        break; // breaks switch, not while
-                    case EventType.Data:
-                        OnData(message.connectionId, message.data);
-                        break; // breaks switch, not while
-                    case EventType.Disconnected:
-                        OnDisconnected(message.connectionId);
-                        sendQueue.Remove(message.connectionId);
-                        break; // breaks switch, not while
-                }
-            }
-        }
-
         protected override void OnUpdate()
         {
             if (server.Active)
@@ -181,7 +165,7 @@ namespace Apathy
                 ProcessOutgoingMessages();
 
                 // process incoming messages
-                ProcessIncomingMessages();
+                server.Update();
             }
         }
 

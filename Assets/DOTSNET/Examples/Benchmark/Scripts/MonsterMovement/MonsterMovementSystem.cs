@@ -36,11 +36,13 @@ namespace DOTSNET.Examples.Benchmark
 
         protected override void OnUpdate()
         {
-            // copy to local variables
-            float deltaTime = Time.DeltaTime;
-            Random random = new Random((uint)Time.ElapsedTime);
+            // new random for each update
+            // (time+1 because seed must be non-zero to avoid exceptions)
+            uint seed = 1 + (uint)Time.ElapsedTime;
+            Random random = new Random(seed);
 
             // foreach
+            float deltaTime = Time.DeltaTime;
             Entities.ForEach((ref Translation translation,
                               ref MonsterMovementData movement) =>
             {

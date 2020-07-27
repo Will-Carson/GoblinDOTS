@@ -25,7 +25,7 @@ namespace DOTSNET.Examples.Chat
             if (!chatServer.names.ContainsKey(connectionId))
             {
                 chatServer.names[connectionId] = message.name;
-                server.Send(new JoinedMessage(), connectionId);
+                server.Send(connectionId, new JoinedMessage());
             }
             // don't allow joining twice
             else

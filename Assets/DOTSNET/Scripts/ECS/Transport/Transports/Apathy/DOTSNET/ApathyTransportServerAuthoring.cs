@@ -13,7 +13,6 @@ namespace Apathy
         // common
         public ushort Port = 7777;
         public bool NoDelay = false;
-        public int MaxMessageSize = 64 * 1024;
         public int MaxReceivesPerTickPerConnection = 100;
 
         // add to selectively created systems before Bootstrap is called
@@ -24,7 +23,6 @@ namespace Apathy
         {
             server.Port = Port;
             server.NoDelay = NoDelay;
-            server.MaxMessageSize = MaxMessageSize;
             server.MaxReceivesPerTickPerConnection = MaxReceivesPerTickPerConnection;
         }
     }

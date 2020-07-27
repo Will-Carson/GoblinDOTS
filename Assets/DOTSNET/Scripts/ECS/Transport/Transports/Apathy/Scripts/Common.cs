@@ -6,11 +6,23 @@ namespace Apathy
     public abstract class Common
     {
         // we use large buffers instead of threads and queues (= TCP for games)
-        // 7MB per client should be okay. if the send buffer gets full and we
-        // cached 7MB of packets then it's time to drop the connection.
-        // (7MB is the maximum on OSX before ENOBUFS errors appear)
-        public int ReceiveBufferSize = 1024 * 1024 * 7;
-        public int SendBufferSize = 1024 * 1024 * 7;
+        // * on mac, we can use around 7MB
+        // * on linux, the limit is 416KB (=425984 bytes)
+        //
+        // we use the minimum that we can expect to work on windows/mac/linux
+        // and don't allow anyone to modify it to prevent problems.
+        public const int MaxBufferSize = 416 * 1024;
+
+        // actual max usable buffer size is a bit smaller on Linux.
+        // sending 416KB buffer and comparing received values fails after 316KB.
+        //
+        // when using a 416KB receive buffer, we can send 363KB on Linux.
+        // if we send anything bigger, the data is cut off / zeroed out.
+        // (see send_receive_nonblocking_max test)
+        public const int MaxUsableBufferSize = 316 * 1024;
+
+        // max allowed message size is MaxUsable - 4 for header
+        public const int MaxMessageSize = MaxUsableBufferSize - 4;
 
         // NoDelay disables nagle algorithm. lowers CPU% and latency but
         // increases bandwidth
@@ -19,16 +31,9 @@ namespace Apathy
         // cache buffers to avoid allocations
         // -> header: 4 bytes for 1 integer
         protected byte[] headerBuffer = new byte[4];
-        // -> payload: MaxMessageSize + header size
-        protected byte[] payloadBuffer;
-
-        // Prevent allocation attacks. Each packet is prefixed with a length
-        // header, so an attacker could send a fake packet with length=2GB,
-        // causing the server to allocate 2GB and run out of memory quickly.
-        // -> simply increase max packet size if you want to send around bigger
-        //    files!
-        // -> 16KB per message should be more than enough.
-        public int MaxMessageSize = 16 * 1024;
+        // -> payload: MaxMessageSize + header size aka MaxUsableBufferSize
+        //    (size is const so it's ok to create it once without rescaling)
+        protected byte[] payloadBuffer = new byte[MaxUsableBufferSize];
 
         // Client tick rate is often higher than server tick rate, especially if
         // server is under heavy load or limited to 20Hz or similar. Server
@@ -62,15 +67,49 @@ namespace Apathy
         {
             int error = 0;
 
+            // set non blocking
             if (NativeBindings.network_set_nonblocking(socket, ref error) != 0)
                 Debug.LogError("network_set_nonblocking failed: " + (NativeError)error);
 
-            if (NativeBindings.network_set_send_buffer_size(socket, SendBufferSize, ref error) != 0)
+            // set send buffer
+            // (linux might not return an error but still set a smaller size
+            //  internally, so we need to double check if it worked)
+            if (NativeBindings.network_set_send_buffer_size(socket, MaxBufferSize, ref error) != 0)
                 Debug.LogError("network_set_send_buffer_size failed: " + (NativeError)error);
+            int actualSendBufferSize = 0;
+            if (NativeBindings.network_get_send_buffer_size(socket, ref actualSendBufferSize, ref error) != 0)
+                Debug.LogError("network_get_send_buffer_size failed: " + (NativeError)error);
+#if UNITY_EDITOR_LINUX
+            // linux doubles the buffer size internally
+            // see also: https://linux.die.net/man/7/socket (SO_RCVBUF)
+            // -> it doesn't exactly double all values, e.g. odd numbers
+            // -> the only thing we can assume that it's greater than size.
+            if (actualSendBufferSize < MaxBufferSize)
+#else
+            if (actualSendBufferSize != MaxBufferSize)
+#endif
+                Debug.LogError("Failed to set send buffer size. OS has chosen " + actualSendBufferSize + " instead of " + MaxBufferSize + " internally.");
 
-            if (NativeBindings.network_set_receive_buffer_size(socket, ReceiveBufferSize, ref error) != 0)
+            // set receive buffer
+            // (linux might not return an error but still set a smaller size
+            //  internally, so we need to double check if it worked)
+            if (NativeBindings.network_set_receive_buffer_size(socket, MaxBufferSize, ref error) != 0)
                 Debug.LogError("network_set_receive_buffer_size failed: " + (NativeError)error);
+            int actualReceiveBufferSize = 0;
+            if (NativeBindings.network_get_receive_buffer_size(socket, ref actualReceiveBufferSize, ref error) != 0)
+                Debug.LogError("network_get_receive_buffer_size failed: " + (NativeError)error);
+#if UNITY_EDITOR_LINUX
+            // linux doubles the buffer size internally
+            // see also: https://linux.die.net/man/7/socket (SO_RCVBUF)
+            // -> it doesn't exactly double all values, e.g. odd numbers
+            // -> the only thing we can assume that it's greater than size.
+            if (actualReceiveBufferSize < MaxBufferSize)
+#else
+            if (actualReceiveBufferSize != MaxBufferSize)
+#endif
+                Debug.LogError("Failed to set receive buffer size. OS has chosen " + actualReceiveBufferSize + " instead of " + MaxBufferSize + " internally.");
 
+            // set no delay
             if (NativeBindings.network_set_nodelay(socket, NoDelay ? 1 : 0, ref error) != 0)
                 Debug.LogError("network_set_nodelay failed: " + (NativeError)error);
 
@@ -113,16 +152,9 @@ namespace Apathy
 
         // send bytes if send buffer not full (in which case we should
         // disconnect because the receiving end pretty much timed out)
-        protected unsafe bool SendIfNotFull(long socket, ArraySegment<byte> data)
+        // (internal for tests where we need to send without the max size check)
+        internal unsafe bool SendIfNotFull(long socket, ArraySegment<byte> data)
         {
-            // construct payload if not constructed yet or MaxSize changed
-            // (we do allow changing MaxMessageSize at runtime)
-            int payloadSize = MaxMessageSize + headerBuffer.Length;
-            if (payloadBuffer == null || payloadBuffer.Length != payloadSize)
-            {
-                payloadBuffer = new byte[payloadSize];
-            }
-
             // construct header (size)
             Utils.IntToBytesBigEndianNonAlloc(data.Count, headerBuffer);
 
@@ -155,7 +187,7 @@ namespace Apathy
                     // -> NativeError.EWOULDBLOCK is available on all platforms.
                     if ((NativeError)error == NativeError.EWOULDBLOCK)
                     {
-                        Debug.LogWarning("network_send buffer full, connection was closed for load balancing: socket=" + socket + " error=" + (NativeError)error + ". This is fine because the connection either stopped processing messages, or it's too slow and thousands of messages behind, or the server is under heavy load and sending way more messages than the network can handle. Note that you can intentionally allow higher load by increasing max messages per tick in client & server, or calling GetNextMessages more frequently.");
+                        Debug.LogWarning("network_send buffer full, connection was closed for load balancing: socket=" + socket + " error=" + (NativeError)error + ". This is fine because the connection either stopped processing messages, or it's too slow and thousands of messages behind, or the server is under heavy load and sending way more messages than the network can handle. Note that you can intentionally allow higher load by increasing MaxMessagesPerTick in client & server.");
                     }
                     // other error codes should still be logged as errors.
                     else

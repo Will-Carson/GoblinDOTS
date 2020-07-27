@@ -18,10 +18,13 @@ namespace DOTSNET
         // the handler function
         protected abstract void OnMessage(T message);
 
-        // OnStartRunning registers the message type in the client.
-        // -> need to use OnStartRunning, because OnCreate doesn't necessarily
-        //    find the server yet.
-        protected override void OnStartRunning()
+        // messages NEED to be registered in OnCreate.
+        // we are in the ConnectedSimulationSystemGroup, so OnStartRunning would
+        // only be called after connecting, at which point we might already have
+        // received a message of type T before setting up the handler.
+        // (not using ConnectedGroup wouldn't be ideal. we don't want to do any
+        //  message processing unless connected.)
+        protected override void OnCreate()
         {
             // register handler
             if (client.RegisterHandler<T>(OnMessage))
@@ -31,11 +34,11 @@ namespace DOTSNET
             else Debug.LogError("NetworkClientMessageSystem: failed to register handler for: " + typeof(T) + ". Was a handler for that message type already registered?");
         }
 
-        // OnStopRunning unregisters the message
-        // Otherwise OnStartRunning can't register it again without an error,
+        // OnDestroy unregisters the message
+        // Otherwise OnCreate can't register it again without an error,
         // and we really do want to have a legitimate error there in case
         // someone accidentally registers two handlers for one message.
-        protected override void OnStopRunning()
+        protected override void OnDestroy()
         {
             client.UnregisterHandler<T>();
         }

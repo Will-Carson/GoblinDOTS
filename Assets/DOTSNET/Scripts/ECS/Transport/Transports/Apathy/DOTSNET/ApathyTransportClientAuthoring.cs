@@ -13,7 +13,6 @@ namespace Apathy
         // common
         public ushort Port = 7777;
         public bool NoDelay = false;
-        public int MaxMessageSize = 64 * 1024;
         public int MaxReceivesPerTick = 1000;
 
         // add system if Authoring is used
@@ -24,7 +23,6 @@ namespace Apathy
         {
             client.Port = Port;
             client.NoDelay = NoDelay;
-            client.MaxMessageSize = MaxMessageSize;
             client.MaxReceivesPerTick = MaxReceivesPerTick;
         }
     }
