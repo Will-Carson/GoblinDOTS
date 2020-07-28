@@ -7,16 +7,18 @@ using DOTSNET;
 public class SystemBuildSituationRequestHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
-    private EntityArchetype situationBuilder;
+    private EntityArchetype SituationBuilder;
 
     protected override void OnCreate()
     {
-        situationBuilder = EntityManager.CreateArchetype(new ComponentType[]
+        Buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        SituationBuilder = EntityManager.CreateArchetype(new ComponentType[]
         {
             typeof(PartialSituation),
-            typeof(ParameterBuffer),
+            typeof(StageParameters),
             typeof(NeedsNumberOfActors),
-            typeof(NeedsRelationshipType)
+            typeof(NeedsRelationshipType),
+            typeof(PlayActorCombos)
         });
     }
 
@@ -25,11 +27,12 @@ public class SystemBuildSituationRequestHandler : SystemBase
 
     }
 
-    private EntityCommandBuffer.Concurrent buffer;
+    private EntityCommandBuffer.Concurrent Buffer;
 
     protected override void OnUpdate()
     {
-        buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var buffer = Buffer;
+        var situationBuilder = SituationBuilder;
 
         // Not sure if entityInQueryIndex will work for jobchunk id.
         Entities.ForEach((Entity entity, int entityInQueryIndex, BuildSituationRequest request) =>

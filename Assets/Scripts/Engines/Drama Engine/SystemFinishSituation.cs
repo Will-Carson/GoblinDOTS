@@ -8,19 +8,24 @@ public class SystemFinishSituation : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
-    private EntityCommandBuffer.Concurrent buffer;
+    private EntityCommandBuffer.Concurrent Buffer;
+
+    protected override void OnCreate()
+    {
+        Buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+    }
 
     protected override void OnUpdate()
     {
-        buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var buffer = Buffer;
         
         Entities.WithNone<NeedsNumberOfActors, NeedsRelationshipType>().
-        ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, DynamicBuffer<ParameterBuffer> parameters) =>
+        ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, DynamicBuffer<StageParameters> parameters) =>
         {
             buffer.RemoveComponent(entityInQueryIndex, entity, typeof(PartialSituation));
             buffer.AddComponent(entityInQueryIndex, entity, typeof(Situation));
             buffer.AddComponent(entityInQueryIndex, entity, typeof(ValidPlayId));
-            buffer.AddComponent(entityInQueryIndex, entity, typeof(ParameterBuffer));
+            buffer.AddComponent(entityInQueryIndex, entity, typeof(StageParameters));
         })
         .WithBurst()
         .Schedule();

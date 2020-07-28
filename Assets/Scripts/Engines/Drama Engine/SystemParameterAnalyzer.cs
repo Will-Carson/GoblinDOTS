@@ -24,7 +24,7 @@ public class SystemParameterAnalyzer : SystemBase
     {
         var plays = Plays;
 
-        Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<ParameterBuffer> parameters, DynamicBuffer<ValidPlayId> validPlays) =>
+        Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<StageParameters> parameters, DynamicBuffer<ValidPlayId> validPlays) =>
         {
             for (int j = 0; j < plays.Count(); j++)
             {
@@ -153,9 +153,10 @@ public struct Parameter
     public Operator op;
     public int value1;
     public int value2;
+    public int value3;
 }
 
-public struct ParameterBuffer : IBufferElementData { public Parameter param; }
+public struct StageParameters : IBufferElementData { public Parameter param; }
 
 public struct ValidPlayId : IBufferElementData { public int value; }
 
