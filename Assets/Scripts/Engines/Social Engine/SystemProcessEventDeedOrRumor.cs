@@ -15,20 +15,16 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
     public NativeArray<DataDeed> DeedLibrary 
         = new NativeArray<DataDeed>(G.numberOfDeeds, Allocator.Persistent);
 
-    public TestMe TestMe;
-
     protected override void OnCreate()
     {
         // Add deed example
         DeedLibrary[0] = new DataDeed() { values = new DataValues() { /* Define deed here */ } };
-        TestMe.func = () => 10 > 1;
     }
 
     protected override void OnUpdate()
     {
         var buffer = ESECBS.CreateCommandBuffer();
         var deedLibrary = DeedLibrary;
-        var testMe = TestMe;
 
         Entities
             .ForEach((Entity entity, FactionMember factionMember, Faction faction, DynamicBuffer<Relationship> relationships, DynamicBuffer<Memory> memories, DynamicBuffer<EventWitness> eventsWitness) =>
@@ -201,18 +197,11 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     eventWitness.needsEvaluation = false;
                 }
 
-                if (testMe.func())
-                {
-
-                }
-
                 // Wipe buffer after going through all elements
                 buffer.SetBuffer<EventWitness>(entity);
             })
             .WithBurst()
             .Schedule();
-
-        Debug.Log(testMe.func());
     }
     
     private static float GetPowerCurve(float x)
@@ -227,9 +216,4 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
     {
         DeedLibrary.Dispose();
     }
-}
-
-public struct TestMe
-{
-    public Func<bool> func;
 }

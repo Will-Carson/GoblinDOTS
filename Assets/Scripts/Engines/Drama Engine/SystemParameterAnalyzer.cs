@@ -3,164 +3,161 @@ using Unity.Entities;
 using Unity.Jobs;
 using DOTSNET;
 
-namespace ECSDrama
+[ServerWorld]
+public class SystemParameterAnalyzer : SystemBase
 {
-    [ServerWorld]
-    public class SystemParameterAnalyzer : SystemBase
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+
+    private NativeMultiHashMap<int, Parameter> Plays = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
+
+    protected override void OnCreate()
     {
-        [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+        Plays.Add(0, new Parameter()); // Example play added
+    }
 
-        private NativeMultiHashMap<int, Parameter> Plays = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
+    protected override void OnDestroy()
+    {
+        Plays.Dispose();
+    }
 
-        protected override void OnCreate()
+    protected override void OnUpdate()
+    {
+        var plays = Plays;
+
+        Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<ParameterBuffer> parameters, DynamicBuffer<ValidPlayId> validPlays) =>
         {
-            Plays.Add(0, new Parameter()); // Example play added
-        }
-
-        protected override void OnDestroy()
-        {
-            Plays.Dispose();
-        }
-
-        protected override void OnUpdate()
-        {
-            var plays = Plays;
-
-            Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<ParameterBuffer> parameters, DynamicBuffer<ValidPlayId> validPlays) =>
+            for (int j = 0; j < plays.Count(); j++)
             {
-                for (int j = 0; j < plays.Count(); j++)
+                var play = plays.GetValuesForKey(j);
+                var playIsValid = true;
+
+                while (play.MoveNext())
                 {
-                    var play = plays.GetValuesForKey(j);
-                    var playIsValid = true;
-
-                    while (play.MoveNext())
+                    var parameterMet = false;
+                    switch (play.Current.op)
                     {
-                        var parameterMet = false;
-                        switch (play.Current.op)
-                        {
-                            case Operator.Equal:
-                                for (int i = 0; i < parameters.Length; i++)
+                        case Operator.Equal:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (parameters[i].param.Equals(play.Current))
                                 {
-                                    if (parameters[i].param.Equals(play.Current))
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
+                                    parameterMet = true;
+                                    break;
                                 }
-                                break;
-                            case Operator.NotEqual:
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (!parameters[i].param.Equals(play.Current))
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
-                                }
-                                break;
-                            case Operator.GreaterThan:
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (play.Current.value1 > parameters[i].param.value1)
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
-                                }
-                                break;
-                            case Operator.LessThan:
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (play.Current.value1 < parameters[i].param.value1)
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
-                                }
-                                break;
-                            case Operator.GreaterOrEqual:
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (play.Current.value1 >= parameters[i].param.value1)
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
-                                }
-                                break;
-                            case Operator.LessOrEqual:
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (play.Current.value1 <= parameters[i].param.value1)
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
-                                }
-                                break;
-                            case Operator.Between:
-                                for (int i = 0; i < parameters.Length; i++)
-                                {
-                                    if (play.Current.value1 < parameters[i].param.value1 && play.Current.value2 > parameters[i].param.value1)
-                                    {
-                                        parameterMet = true;
-                                        break;
-                                    }
-                                }
-                                break;
-                        }
-
-                        if (!parameterMet)
-                        {
-                            playIsValid = false;
+                            }
                             break;
-                        }
+                        case Operator.NotEqual:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (!parameters[i].param.Equals(play.Current))
+                                {
+                                    parameterMet = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        case Operator.GreaterThan:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (play.Current.value1 > parameters[i].param.value1)
+                                {
+                                    parameterMet = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        case Operator.LessThan:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (play.Current.value1 < parameters[i].param.value1)
+                                {
+                                    parameterMet = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        case Operator.GreaterOrEqual:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (play.Current.value1 >= parameters[i].param.value1)
+                                {
+                                    parameterMet = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        case Operator.LessOrEqual:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (play.Current.value1 <= parameters[i].param.value1)
+                                {
+                                    parameterMet = true;
+                                    break;
+                                }
+                            }
+                            break;
+                        case Operator.Between:
+                            for (int i = 0; i < parameters.Length; i++)
+                            {
+                                if (play.Current.value1 < parameters[i].param.value1 && play.Current.value2 > parameters[i].param.value1)
+                                {
+                                    parameterMet = true;
+                                    break;
+                                }
+                            }
+                            break;
                     }
 
-                    if (playIsValid)
+                    if (!parameterMet)
                     {
-                        var pid = new ValidPlayId();
-                        pid.value = j;
-                        validPlays.Add(pid);
+                        playIsValid = false;
+                        break;
                     }
                 }
-            })
-            .WithBurst()
-            .Schedule();
-        }
+
+                if (playIsValid)
+                {
+                    var pid = new ValidPlayId();
+                    pid.value = j;
+                    validPlays.Add(pid);
+                }
+            }
+        })
+        .WithBurst()
+        .Schedule();
     }
-
-    public enum Operator
-    {
-        Equal = default,
-        NotEqual,
-        GreaterThan,
-        LessThan,
-        GreaterOrEqual,
-        LessOrEqual,
-        Between
-    }
-
-    public enum ParameterType
-    {
-        NumberOfActors,
-        RelationshipType
-    }
-
-    public struct Situation : IComponentData { public int stageId; }
-
-    public struct Parameter
-    {
-        public ParameterType type;
-        public Operator op;
-        public int value1;
-        public int value2;
-    }
-
-    public struct ParameterBuffer : IBufferElementData { public Parameter param; }
-
-    public struct ValidPlayId : IBufferElementData { public int value; }
-
-    public struct PlayRequirement { public Parameter param; }
 }
+
+public enum Operator
+{
+    Equal = default,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterOrEqual,
+    LessOrEqual,
+    Between
+}
+
+public enum ParameterType
+{
+    NumberOfActors,
+    RelationshipType
+}
+
+public struct Situation : IComponentData { public int stageId; }
+
+public struct Parameter
+{
+    public ParameterType type;
+    public Operator op;
+    public int value1;
+    public int value2;
+}
+
+public struct ParameterBuffer : IBufferElementData { public Parameter param; }
+
+public struct ValidPlayId : IBufferElementData { public int value; }
+
+public struct PlayRequirement { public Parameter param; }
 
