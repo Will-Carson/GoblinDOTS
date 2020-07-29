@@ -17,8 +17,7 @@ public class SystemBuildSituationRequestHandler : SystemBase
             typeof(PartialSituation),
             typeof(StageParameters),
             typeof(NeedsNumberOfActors),
-            typeof(NeedsRelationshipType),
-            typeof(PlayActorCombos)
+            typeof(NeedsRelationshipType)
         });
     }
 

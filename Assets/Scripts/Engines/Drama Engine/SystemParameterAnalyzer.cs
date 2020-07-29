@@ -24,7 +24,7 @@ public class SystemParameterAnalyzer : SystemBase
     {
         var plays = Plays;
 
-        Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<StageParameters> parameters, DynamicBuffer<ValidPlayId> validPlays) =>
+        Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<StageParameters> parameters, DynamicBuffer<PotentialPlay> validPlays) =>
         {
             for (int j = 0; j < plays.Count(); j++)
             {
@@ -117,8 +117,8 @@ public class SystemParameterAnalyzer : SystemBase
 
                 if (playIsValid)
                 {
-                    var pid = new ValidPlayId();
-                    pid.value = j;
+                    var pid = new PotentialPlay();
+                    pid.playId = j;
                     validPlays.Add(pid);
                 }
             }
@@ -158,7 +158,7 @@ public struct Parameter
 
 public struct StageParameters : IBufferElementData { public Parameter param; }
 
-public struct ValidPlayId : IBufferElementData { public int value; }
+public struct PotentialPlay : IBufferElementData { public int playId; public int drama; }
 
 public struct PlayRequirement { public Parameter param; }
 

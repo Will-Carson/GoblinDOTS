@@ -24,7 +24,7 @@ public class SystemFinishSituation : SystemBase
         {
             buffer.RemoveComponent(entityInQueryIndex, entity, typeof(PartialSituation));
             buffer.AddComponent(entityInQueryIndex, entity, typeof(Situation));
-            buffer.AddComponent(entityInQueryIndex, entity, typeof(ValidPlayId));
+            buffer.AddComponent(entityInQueryIndex, entity, typeof(PotentialPlay));
             buffer.AddComponent(entityInQueryIndex, entity, typeof(StageParameters));
         })
         .WithBurst()
