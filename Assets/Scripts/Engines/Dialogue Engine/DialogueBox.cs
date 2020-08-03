@@ -1,18 +1,19 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class DialogueBox : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    private TextMesh textBox;
+
+    private void Start()
     {
-        
+        textBox = GetComponent<TextMesh>();
     }
 
-    // Update is called once per frame
-    void Update()
+    internal void PlayDialogue(DialogueContent dialogueContent)
     {
-        
+        textBox.text = dialogueContent.line;
     }
 }

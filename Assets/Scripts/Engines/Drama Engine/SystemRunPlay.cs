@@ -2,42 +2,26 @@
 using Unity.Entities;
 using Unity.Jobs;
 using DOTSNET;
+using UnityEngine;
 
 [ServerWorld]
 public class SystemRunPlay : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
-    private NativeMultiHashMap<int, Line> PlayLibrary = new NativeMultiHashMap<int, Line>(G.numberOfPlays * G.linesPerPlay, Allocator.Persistent);
-    private NativeHashMap<int, PlayRunner> PlayRunners;
-
-    protected override void OnCreate()
-    {
-        EntityQuery query = GetEntityQuery(typeof(PlayRunner));
-        var queryResult = query.ToComponentDataArray<PlayRunner>(Allocator.Persistent);
-        PlayRunners = new NativeHashMap<int, PlayRunner>(G.numberOfStages, Allocator.Persistent);
-
-        for (int i = 0; i < queryResult.Length; i++)
-        {
-            PlayRunners.Add(queryResult[i].stageId, queryResult[i]);
-        }
-        queryResult.Dispose();
-    }
+    public NativeMultiHashMap<int, Line> PlayLibrary = new NativeMultiHashMap<int, Line>(G.numberOfPlays * G.linesPerPlay, Allocator.Persistent);
 
     protected override void OnDestroy()
     {
-
+        PlayLibrary.Dispose();
     }
-
-    private EntityCommandBuffer.Concurrent Buffer;
 
     protected override void OnUpdate()
     {
-        var buffer = Buffer;
+        var buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
         var playLibrary = PlayLibrary;
-        var playRunners = PlayRunners;
 
-        var bestPlays = new NativeHashMap<int, PotentialPlay>(G.numberOfStages, Allocator.Temp);
+        var bestPlays = new NativeHashMap<int, PotentialPlay>(G.numberOfStages, Allocator.TempJob);
 
         // Build list of best plays per stage
         Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<PotentialPlay> validPlays) =>
@@ -61,8 +45,9 @@ public class SystemRunPlay : SystemBase
         .Schedule();
 
         // Start a play on a stage 
-        Entities.WithNone<Line>().
-        ForEach((Entity entity, int entityInQueryIndex, PlayRunner playRunner) =>
+        Entities
+        .WithNone<Line>()
+        .ForEach((Entity entity, int entityInQueryIndex, PlayRunner playRunner) =>
         {
             var newPlayRunner = new PlayRunner
             {
@@ -77,6 +62,7 @@ public class SystemRunPlay : SystemBase
 
         var time = Time.DeltaTime;
 
+        // Increment lines and generate step requests
         Entities.ForEach((Entity entity, int entityInQueryIndex, PlayRunner playRunner) =>
         {
             // increment play line time
@@ -97,15 +83,16 @@ public class SystemRunPlay : SystemBase
         .WithBurst()
         .Schedule();
 
+        // Process step requests, release stages for new plays, create dialogue requests
         Entities.ForEach((Entity entity, int entityInQueryIndex, PlayRunner playRunner, Line playingLine, PlayLineRequest newLine, PlayActorIds actors) =>
         {
+            // process play step requests
             var newPlayRunner = new PlayRunner();
             if (newLine.newLine == 0) { newPlayRunner.lineId = playingLine.childA; }
             if (newLine.newLine == 1) { newPlayRunner.lineId = playingLine.childB; }
             if (newLine.newLine == 2) { newPlayRunner.lineId = playingLine.childC; }
             if (newLine.newLine == 3) { newPlayRunner.lineId = playingLine.childD; }
 
-            // process play step requests
             var playLines = playLibrary.GetValuesForKey(playRunner.playId);
 
             var nextLine = new Line();
@@ -146,12 +133,17 @@ public class SystemRunPlay : SystemBase
                     actorId = nextLine.speaker,
                     dialogueId = nextLine.dialogueId
                 };
-
-                buffer.AddComponent(entityInQueryIndex, e, dr);
+                
+                buffer.AppendToBuffer(entityInQueryIndex, e, dr);
             }
         })
         .WithBurst()
         .Schedule();
+
+        ESECBS.AddJobHandleForProducer(Dependency);
+
+        Dependency.Complete();
+        bestPlays.Dispose();
     }
 }
 
@@ -180,10 +172,4 @@ public struct Line : IComponentData
 public struct PlayLineRequest : IComponentData
 {
     public int newLine;
-}
-
-public struct DialogueRequest : IComponentData
-{
-    public int actorId;
-    public int dialogueId;
 }

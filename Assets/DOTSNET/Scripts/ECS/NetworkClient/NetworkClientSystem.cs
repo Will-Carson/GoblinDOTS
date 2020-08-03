@@ -23,7 +23,7 @@ namespace DOTSNET
     //      NetworkMessage interface, only the explicit type.
     //   2. Knowing <T> when deserializing allows for automated serialization
     //      in the future.
-    public delegate void NetworkMessageClientDelegateWrapper(SegmentReader reader);
+    public delegate void NetworkMessageClientDelegateWrapper(int amount, SegmentReader reader);
 
     // NetworkClientSystem should be updated AFTER all other client systems.
     // we need a guaranteed update order to avoid race conditions where it might
@@ -151,23 +151,27 @@ namespace DOTSNET
         }
 
         // segment's array is only valid until returning
+        //
+        // server->client protocol: <<messageId:2, amount:4, messages:amount>>
+        // (saves bandwidth, improves performance)
         void OnTransportData(ArraySegment<byte> segment)
         {
             //Debug.Log("NetworkClientSystem.OnTransportData: " + BitConverter.ToString(segment.Array, segment.Offset, segment.Count));
 
             // try to read the message id
             SegmentReader reader = new SegmentReader(segment);
-            if (reader.ReadUShort(out ushort messageId))
+            if (reader.ReadUShort(out ushort messageId) &&
+                reader.ReadUInt(out uint amount))
             {
-                //Debug.Log("NetworkClientSystem.OnTransportData messageId: 0x" + messageId.ToString("X4"));
+                //Debug.Log("NetworkClientSystem.OnTransportData messageId: 0x" + messageId.ToString("X4") + " amount: " + amount);
 
                 // create a new message of type messageId by copying the
                 // template from the handler. we copy it automatically because
                 // messages are value types, so that's a neat trick here.
                 if (handlers.TryGetValue(messageId, out NetworkMessageClientDelegateWrapper handler))
                 {
-                    // deserialize and handle it
-                    handler(reader);
+                    // deserialize and handle the messages
+                    handler((int)amount, reader);
                 }
                 // unhandled messageIds are not okay. disconnect.
                 else
@@ -175,12 +179,11 @@ namespace DOTSNET
                     Debug.Log("NetworkClientSystem.OnTransportData: unhandled messageId: 0x" + messageId.ToString("X4"));
                     Disconnect();
                 }
-
             }
             // partial message ids are not okay. disconnect.
             else
             {
-                Debug.Log("NetworkClientSystem.OnTransportData: failed to fully read messageId for segment with offset: " + segment.Offset + " length: " + segment.Count);
+                Debug.Log("NetworkClientSystem.OnTransportData: failed to fully read message header for segment with offset: " + segment.Offset + " length: " + segment.Count);
                 Disconnect();
             }
         }
@@ -267,23 +270,29 @@ namespace DOTSNET
         NetworkMessageClientDelegateWrapper WrapHandler<T>(NetworkMessageClientDelegate<T> handler)
             where T : unmanaged, NetworkMessage
         {
-            return delegate(SegmentReader reader)
+            return delegate(int amount, SegmentReader reader)
             {
-                // deserialize
-                // -> we do this in WrapHandler because in here we still
-                //    know <T>
-                // -> later on we only know NetworkMessage
-                // -> knowing <T> allows for automated serialization
-                if (reader.ReadBlittable(out T message))
+                // deserialize 'amount' messages
+                // TODO cast to NativeArray later for performance and faster
+                //      batch/burst processing!
+                for (int i = 0; i < amount; ++i)
                 {
-                    // call it
-                    handler(message);
-                }
-                // invalid message contents are not okay. disconnect.
-                else
-                {
-                    Debug.Log("NetworkClientSystem: failed to deserialize " + typeof(T) + " for reader with Position: " + reader.Position + " Remaining: " + reader.Remaining);
-                    Disconnect();
+                    // -> we do this in WrapHandler because in here we still
+                    //    know <T>
+                    // -> later on we only know NetworkMessage
+                    // -> knowing <T> allows for automated serialization
+                    if (reader.ReadBlittable(out T message))
+                    {
+                        // call it
+                        handler(message);
+                    }
+                    // invalid message contents are not okay. disconnect.
+                    else
+                    {
+                        Debug.Log("NetworkClientSystem: failed to deserialize " + typeof(T) + " for reader with Position: " + reader.Position + " Remaining: " + reader.Remaining);
+                        Disconnect();
+                        break;
+                    }
                 }
             };
         }

@@ -48,14 +48,14 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     float deedTargetAffinity = 0;
                     float deedDoerAffinity = 0;
 
-                    foreach (var relationship in relationships)
+                    for (int j = 0; j < relationships.Length; j++)
                     {
-                        if (relationship.targetFaction.id == eventWitness.rumorSpreaderfactionMember.faction.id)
-                            gossipAffinity = relationship.affinity;
-                        if (relationship.targetFaction.id == eventWitness.deedTargetfactionMember.faction.id)
-                            deedTargetAffinity = relationship.affinity;
-                        if (relationship.targetFaction.id == eventWitness.deedDoerfactionMember.faction.id)
-                            deedDoerAffinity = relationship.affinity;
+                        if (relationships[j].targetFaction.id == eventWitness.rumorSpreaderfactionMember.faction.id)
+                            gossipAffinity = relationships[j].affinity;
+                        if (relationships[j].targetFaction.id == eventWitness.deedTargetfactionMember.faction.id)
+                            deedTargetAffinity = relationships[j].affinity;
+                        if (relationships[j].targetFaction.id == eventWitness.deedDoerfactionMember.faction.id)
+                            deedDoerAffinity = relationships[j].affinity;
                     }
 
                     var deedData = deedLibrary[(int)newMemory.type];
@@ -201,7 +201,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                 buffer.SetBuffer<EventWitness>(entity);
             })
             .WithBurst()
-            .Schedule();
+            .Run();
     }
     
     private static float GetPowerCurve(float x)

@@ -22,12 +22,12 @@ public class SystemFinishSituation : SystemBase
         Entities.WithNone<NeedsNumberOfActors, NeedsRelationshipType>().
         ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, DynamicBuffer<StageParameters> parameters) =>
         {
-            buffer.RemoveComponent(entityInQueryIndex, entity, typeof(PartialSituation));
-            buffer.AddComponent(entityInQueryIndex, entity, typeof(Situation));
-            buffer.AddComponent(entityInQueryIndex, entity, typeof(PotentialPlay));
-            buffer.AddComponent(entityInQueryIndex, entity, typeof(StageParameters));
+            buffer.RemoveComponent<PartialSituation>(entityInQueryIndex, entity);
+            buffer.AddComponent<Situation>(entityInQueryIndex, entity);
+            buffer.AddBuffer<PotentialPlay>(entityInQueryIndex, entity);
+            buffer.AddBuffer<StageParameters>(entityInQueryIndex, entity);
         })
         .WithBurst()
-        .Schedule();
+        .Run();
     }
 }

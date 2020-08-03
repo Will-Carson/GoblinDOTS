@@ -24,9 +24,9 @@ namespace Apathy
         // max allowed message size is MaxUsable - 4 for header
         public const int MaxMessageSize = MaxUsableBufferSize - 4;
 
-        // NoDelay disables nagle algorithm. lowers CPU% and latency but
-        // increases bandwidth
-        public bool NoDelay = false;
+        // Apathy is buffer limited. NoDelay should always be true to empty
+        // buffers ASAP!
+        public bool NoDelay = true;
 
         // cache buffers to avoid allocations
         // -> header: 4 bytes for 1 integer

@@ -76,6 +76,34 @@ namespace Apathy
 #else
         const string dllName = "network.bindings";
 #endif
+
+// iOS is not supported atm, and the external calls will fail to resolve.
+// we add empty placeholders to avoid xcode build errors:
+// https://github.com/vis2k/uMMORPG_CE/issues/22
+#if UNITY_IOS && !UNITY_EDITOR
+        public static int network_initialize() => 0;
+        public static int network_terminate() => 0;
+        public static int network_create_socket(ref long sock, ref NetworkEndPoint address, ref int error) => 0;
+        public static int network_close(long sock, ref int error) => 0;
+        public static int network_set_dualmode(long sock, int enabled, ref int error) => 0;
+        public static int network_set_nonblocking(long sock, ref int error) => 0;
+        public static int network_set_send_buffer_size(long sock, int size, ref int error) => 0;
+        public static int network_set_receive_buffer_size(long sock, int size, ref int error) => 0;
+        public static int network_set_nodelay(long sock, int enabled, ref int error) => 0;
+        public static int network_set_keepalive(long sock, int enabled, ref int error) => 0;
+        public static int network_get_send_buffer_size(long sock, ref int size, ref int error) => 0;
+        public static int network_get_receive_buffer_size(long sock, ref int size, ref int error) => 0;
+        public static int network_get_error(long sock) => 0;
+        public static int network_connect(long sock, ref NetworkEndPoint address, ref int error) => 0;
+        public static int network_bind(long sock, ref NetworkEndPoint address, ref int error) => 0;
+        public static int network_listen(long sock, ref int error) => 0;
+        public static int network_accept(long sock, ref long client_sock, ref NetworkEndPoint client_address, ref int error) => 0;
+        public static int network_get_peer_address(long sock, ref NetworkEndPoint address, ref int error) => 0;
+        public static int network_disconnected(long sock) => 0;
+        public static int network_available(long sock, ref int error) => 0;
+        public static int network_recv(long sock, void* buffer, int len, ref int error) => 0;
+        public static int network_send(long sock, void* buffer, int len, ref int error) => 0;
+#else
         // initialize & terminate //////////////////////////////////////////////
         [DllImport(dllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int network_initialize();
@@ -133,5 +161,6 @@ namespace Apathy
         public static extern int network_recv(long sock, void* buffer, int len, ref int error);
         [DllImport(dllName, CallingConvention = CallingConvention.Cdecl)]
         public static extern int network_send(long sock, void* buffer, int len, ref int error);
+#endif
     }
 }

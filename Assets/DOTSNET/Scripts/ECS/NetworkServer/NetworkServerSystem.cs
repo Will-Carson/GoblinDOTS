@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -213,6 +215,9 @@ namespace DOTSNET
         }
 
         // segment's array is only valid until returning
+        //
+        // client->server protocol: <<messageId, message>>
+        // (amount not worth it, clients usually send one message of type T)
         void OnTransportData(int connectionId, ArraySegment<byte> segment)
         {
             //Debug.Log("NetworkServerSystem.OnTransportData: " + connectionId + " => " + BitConverter.ToString(segment.Array, segment.Offset, segment.Count));
@@ -303,6 +308,9 @@ namespace DOTSNET
         // send a message to a connectionId over the specified channel.
         // (connectionId, message parameter order for consistency with transport
         //  and with Send(NativeMultiMap)
+        //
+        // server->client protocol: <<messageId:2, amount:4, messages:amount>>
+        // (saves bandwidth, improves performance)
         public void Send<T>(int connectionId, T message, Channel channel = Channel.Reliable)
             where T : unmanaged, NetworkMessage
         {
@@ -328,13 +336,15 @@ namespace DOTSNET
                 if (!connection.broken)
                 {
                     // make sure that we can use the send buffer
-                    if (sendBuffer?.Length > 0)
+                    // (requires at least 6 bytes for header!)
+                    if (sendBuffer?.Length > 6)
                     {
                         // create the segment writer
                         SegmentWriter writer = new SegmentWriter(sendBuffer);
 
-                        // write message id
-                        if (writer.WriteUShort(message.GetID()))
+                        // write message id & amount
+                        if (writer.WriteUShort(message.GetID()) &&
+                            writer.WriteUInt(1))
                         {
                             // serialize message content:
                             // instead of manually serializing every value via
@@ -382,7 +392,7 @@ namespace DOTSNET
                             }
                             else Debug.LogWarning("NetworkServerSystem.Send: serializing message of type " + typeof(T) + " failed. Maybe the message is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
                         }
-                        else Debug.LogWarning("NetworkServerSystem.Send: writing message id of type " + typeof(T) + " failed. Maybe the id is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
+                        else Debug.LogWarning("NetworkServerSystem.Send: writing message header of type " + typeof(T) + " failed. Maybe the id+amount is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
                     }
                     else Debug.LogError("NetworkServerSystem.Send: sendBuffer not initialized or 0 length: " + sendBuffer);
                 }
@@ -409,17 +419,24 @@ namespace DOTSNET
         // DO NOT REUSE this function in Send(connectionId). this function here
         //              iterates all connections on the server. reusing would be
         //              slower.
+        //
+        // server->client protocol: <<messageId:2, amount:4, messages:amount>>
+        // (saves bandwidth, improves performance)
+        [Obsolete("Use Send(connectionId, NativeList) instead. See NetworkTransformServerSystem for example. This function might be removed soon.")]
         public void Send<T>(NativeMultiHashMap<int, T> messages, Channel channel = Channel.Reliable)
             where T : unmanaged, NetworkMessage
         {
             // make sure that we can use the send buffer
-            if (sendBuffer?.Length > 0)
+            // (requires at least 6 bytes for header!)
+            if (sendBuffer?.Length > 6)
             {
                 // create the segment writer only once
                 SegmentWriter writer = new SegmentWriter(sendBuffer);
 
-                // write message id only once
-                if (writer.WriteUShort(new T().GetID()))
+                // write message id & amount only once
+                // TODO actually send more than one each time later
+                if (writer.WriteUShort(new T().GetID()) &&
+                    writer.WriteUInt(1))
                 {
                     // reset writer position each time instead of creating a new
                     // one and writing the header again
@@ -513,9 +530,179 @@ namespace DOTSNET
                         //else Debug.Log("NetworkServerSystem.Send: skipped send to broken connectionId=" + connectionId);
                     }
                 }
-                else Debug.LogWarning("NetworkServerSystem.Send: writing message id of type " + typeof(T) + " failed. Maybe the id is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
+                else Debug.LogWarning("NetworkServerSystem.Send: writing message header of type " + typeof(T) + " failed. Maybe the header is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
             }
             else Debug.LogError("NetworkServerSystem.Send: sendBuffer not initialized or 0 length: " + sendBuffer);
+        }
+
+        // chunk math
+        public static int CalculateMessagesPerChunk(int bufferSize, int messageSize)
+        {
+            // what fits into payload after writing <<messageId:2, amount:4>> header?
+            int spaceAfterHeader = bufferSize - 6;
+
+            // so how many fit into one chunk?
+            return spaceAfterHeader / messageSize;
+        }
+
+        // batch send messages to a connectionId.
+        // => we send messages in MaxMessageSize chunks with <<messageId, amount, messages>
+        // => DOTSNET automatically chunks them so Transports don't need to.
+        //
+        // benefits:
+        // + save lots of bandwidth by only sending amount once
+        // + free serialization: we just reinterpret the NativeList memory
+        // + less transport.Send calls are always a good idea
+        public void Send<T>(int connectionId, NativeList<T> messages, Channel channel = Channel.Reliable)
+            where T : unmanaged, NetworkMessage
+        {
+            // do nothing if messages are empty. we don't want Transports to try
+            // and send empty buffers.
+            if (messages.Length == 0)
+                return;
+
+            // valid connectionId?
+            // Checking is technically not needed, but this way we get a nice
+            // warning message and don't attempt a transport call with an
+            // invalid connectionId, which is harder to debug because it simply
+            // returns false in case of Apathy.
+            if (connections.TryGetValue(connectionId, out ConnectionState connection))
+            {
+                // do nothing if the connection is broken.
+                // we already logged a Send failed warning, and it will be
+                // removed after the next transport update.
+                // otherwise we might log 10k 'send failed' messages in-between
+                // a failed send and the next transport update, which would
+                // slow down the server and spam the logs.
+                // -> for example, if we set the visibility radius very high in
+                //    the 10k demo, DOTS will just send messages so fast that
+                //    the Apathy transport buffers get full. this is to be
+                //    expected, but previously the server would freeze for a few
+                //    seconds because we logged thousands of "send failed"
+                //    messages.
+                if (!connection.broken)
+                {
+                    // make sure that we can use the send buffer
+                    // (requires at least 6 bytes for header!)
+                    if (sendBuffer?.Length > 6)
+                    {
+                        // get the list's underlying buffer so we have free
+                        // message serialization
+                        NativeArray<T> array = messages.AsArray();
+
+                        // create the segment writer
+                        SegmentWriter writer = new SegmentWriter(sendBuffer);
+
+                        // send in MaxMessageSize chunks.
+                        // we can't just send the whole thing at once, because
+                        // different transports support different messages sizes.
+                        // -> TCP can pack large amounts into send buffer
+                        // -> UDP can usually pack into MTU=1400 bytes
+                        //    (which still allows for some smaller chunks!)
+
+                        // how many messages can we put into each chunk?
+                        // SegmentWriter.NativeArray uses UnsafeUtility.SizeOf,
+                        // so we use it here too.
+                        int messageSize = UnsafeUtility.SizeOf<T>();
+                        int messagesPerChunk = CalculateMessagesPerChunk(sendBuffer.Length, messageSize);
+                        if (messagesPerChunk > 0)
+                        {
+                            //Debug.Log("Sending " + math.ceil(messages.Length / (float)messagesPerChunk) + " chunks for type " + typeof(T));
+
+                            // serialize all messages:
+                            // instead of manually serializing every value via
+                            // message.Serialize, we only allow blittable
+                            // messages - which we can just block copy.
+                            //
+                            // that's a giant improvement:
+                            // + no more need to write Serialize functions
+                            // + no more accidentally forgetting a field
+                            // + fastest performance: only one call, instead of
+                            //   several WriteString, WriteInt, etc. calls and
+                            //   checks
+                            for (int i = 0; i < messages.Length; i+= messagesPerChunk)
+                            {
+                                // calculate amount of messages of this chunk
+                                // => messagesPerChunk or whatever is remaining
+                                int amount = math.min(messagesPerChunk, messages.Length - i);
+                                //Debug.Log("Sending " + amount + "/" + messagesPerChunk + " messages of type " + typeof(T));
+
+                                // reset writer
+                                writer.Position = 0;
+
+                                // put up to 'messagesPerChunk' messages into a chunk
+                                // write message id, amount, chunk
+                                if (writer.WriteUShort(new T().GetID()) &&
+                                    writer.WriteUInt((uint)amount) &&
+                                    writer.WriteNativeArray(array, i, amount))
+                                {
+                                    // send to transport.
+                                    // (it will have to free up the segment immediately)
+                                    if (!transport.Send(connectionId, writer.segment, channel))
+                                    {
+                                        // send can fail if the transport has issues
+                                        // like full buffers, broken pipes, etc.
+                                        // so if Send gets called before the next
+                                        // transport update removes the broken
+                                        // connection, then we will see a warning.
+                                        Debug.LogWarning("NetworkServerSystem.Send: failed to send message of type " + typeof(T) + " to connectionId: " + connectionId + ". This can happen if the connection is broken before the next transport update removes it. The connection has been flagged as broken and no more sends will be attempted for this connection until the next transport update cleans it up.");
+
+                                        // if Send fails only once, we will flag the
+                                        // connection as broken to avoid possibly
+                                        // logging thousands of 'Send Message failed'
+                                        // warnings in between the time send failed, and
+                                        // transport update removes the connection.
+                                        // it would just slow down the server
+                                        // significantly, and spam the logs.
+                                        connection.broken = true;
+
+                                        // the transport is supposed to disconnect
+                                        // the connection in case of send errors,
+                                        // but to be 100% sure we call disconnect
+                                        // here too.
+                                        // we don't want a situation where broken
+                                        // connections keep idling around because
+                                        // the transport implementation forgot to
+                                        // disconnect them.
+                                        Disconnect(connectionId);
+
+                                        return;
+                                    }
+                                }
+                                else
+                                {
+                                    Debug.LogWarning("NetworkServerSystem.Send: writing chunk of type " + typeof(T) + " failed. Maybe the id+amount+chunk is bigger than sendBuffer " + sendBuffer.Length + " bytes?");
+
+                                    // if Send fails only once, we will flag the
+                                    // connection as broken to avoid possibly
+                                    // logging thousands of 'Send Message failed'
+                                    // warnings in between the time send failed, and
+                                    // transport update removes the connection.
+                                    // it would just slow down the server
+                                    // significantly, and spam the logs.
+                                    connection.broken = true;
+
+                                    // the transport is supposed to disconnect
+                                    // the connection in case of send errors,
+                                    // but to be 100% sure we call disconnect
+                                    // here too.
+                                    // we don't want a situation where broken
+                                    // connections keep idling around because
+                                    // the transport implementation forgot to
+                                    // disconnect them.
+                                    Disconnect(connectionId);
+
+                                    return;
+                                }
+                            }
+                        } else Debug.LogWarning("NetworkServerSystem.Send: send buffer size = " + sendBuffer.Length + " too small to pack even one message of type " + typeof(T) + " into a chunk.");
+                    }
+                    else Debug.LogError("NetworkServerSystem.Send: sendBuffer not initialized or 0 length: " + sendBuffer);
+                }
+                // for debugging:
+                //else Debug.Log("NetworkServerSystem.Send: skipped send to broken connectionId=" + connectionId);
+            }
+            else Debug.LogWarning("NetworkServerSystem.Send: invalid connectionId=" + connectionId);
         }
 
         // we need to check authentication before calling handlers.
@@ -873,9 +1060,21 @@ namespace DOTSNET
         // destroy all NetworkEntities to clean up
         void DestroyAllNetworkEntities()
         {
-            // the query does NOT include prefabs
+            // IMPORTANT: EntityManager.DestroyEntity(query) does NOT work for
+            //            Entities with LinkedEntityGroup. We would get an error
+            //            about LinkedEntities needing to be destroyed first:
+            //            https://github.com/vis2k/DOTSNET/issues/11
+            //
+            //            The solution is to use Destroy(NativeArray), which
+            //            destroys linked entities too:
+            //            https://forum.unity.com/threads/how-to-destroy-all-linked-entities.714890/#post-4777796
+            //
+            //            See NetworkServerSystemTests:
+            //            StopDestroysAllNetworkEntitiesWithLinkedEntityGroup()
             EntityQuery networkEntities = GetEntityQuery(typeof(NetworkEntity));
-            EntityManager.DestroyEntity(networkEntities);
+            NativeArray<Entity> array = networkEntities.ToEntityArray(Allocator.TempJob);
+            EntityManager.DestroyEntity(array);
+            array.Dispose();
         }
 
         // join world //////////////////////////////////////////////////////////

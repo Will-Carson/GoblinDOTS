@@ -2,40 +2,27 @@
 using Unity.Entities;
 using Unity.Jobs;
 using DOTSNET;
+using UnityEngine;
 
 [ServerWorld]
 public class SystemSituationNumberOfActorsHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
-    private NativeHashMap<int, int> StageData = new NativeHashMap<int, int>(G.maxNPCPopulation, Allocator.TempJob);
-
-    protected override void OnCreate()
-    {
-        Buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
-    }
-
-    protected override void OnDestroy()
-    {
-        StageData.Dispose();
-    }
-
-    private EntityCommandBuffer.Concurrent Buffer;
-
     protected override void OnUpdate()
     {
-        var buffer = Buffer;
-        var stageData = StageData;
+        var buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var stageData = new NativeHashMap<int, int>(G.maxNPCPopulation, Allocator.Persistent);
 
         Entities.ForEach((Entity entity, StageId stageId, DynamicBuffer<Occupant> occupants) => {
-            stageData.Add(stageId.value, occupants.Length);
+            stageData.TryAdd(stageId.value, occupants.Length);
         })
         .WithBurst()
-        .Schedule();
+        .Run();
 
         Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsNumberOfActors need, DynamicBuffer<StageParameters> parameters) =>
         {
-            buffer.RemoveComponent(entityInQueryIndex, entity, need.GetType());
+            buffer.RemoveComponent<NeedsNumberOfActors>(entityInQueryIndex, entity);
             int v;
             stageData.TryGetValue(situation.stageId, out v);
 
@@ -54,7 +41,10 @@ public class SystemSituationNumberOfActorsHandler : SystemBase
         .WithBurst()
         .Schedule();
 
-        stageData.Clear();
+        ESECBS.AddJobHandleForProducer(Dependency);
+
+        Dependency.Complete();
+        stageData.Dispose();
     }
 }
 

@@ -12,8 +12,9 @@ namespace Apathy
 
         // common
         public ushort Port = 7777;
-        public bool NoDelay = false;
         public int MaxReceivesPerTick = 1000;
+        // Apathy is buffer limited. NoDelay should always be enabled.
+        //public bool NoDelay = true;
 
         // add system if Authoring is used
         public Type GetSystemType() => typeof(ApathyTransportClientSystem);
@@ -22,7 +23,7 @@ namespace Apathy
         void Awake()
         {
             client.Port = Port;
-            client.NoDelay = NoDelay;
+            //client.NoDelay = NoDelay;
             client.MaxReceivesPerTick = MaxReceivesPerTick;
         }
     }

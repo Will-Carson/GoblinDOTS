@@ -28,9 +28,12 @@ namespace DOTSNET.LiteNetLib
 
         public override int GetMaxPacketSize()
         {
-            // TODO this assumes unreliable
-            // TODO use Host.FirstPeer.Mtu later. for now, 1400 should do.
-            return 1400;
+            // LiteNetLib NetPeer construct calls SetMTU(0), which sets it to
+            // NetConstants.PossibleMtu[0] which is 576-68.
+            // (bigger values will cause TooBigPacketException even on loopback)
+            //
+            // see also: https://github.com/RevenantX/LiteNetLib/issues/388
+            return NetConstants.PossibleMtu[0];
         }
 
         public override bool IsConnected() => client != null && connected;

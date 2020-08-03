@@ -106,7 +106,7 @@ namespace DOTSNET
             // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices
             int size = sizeof(T);
 
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= size)
             {
@@ -147,6 +147,21 @@ namespace DOTSNET
         // write 4 bytes int, grow segment
         public bool WriteInt(int value) => WriteBlittable(value);
 
+        // write 4 bytes int big endian for message headers, grow segment
+        public bool WriteIntBigEndian(int value)
+        {
+            if (buffer != null && Space >= 4)
+            {
+                buffer[Position + 0] = (byte)(value >> 24);
+                buffer[Position + 1] = (byte)(value >> 16);
+                buffer[Position + 2] = (byte)(value >> 8);
+                buffer[Position + 3] = (byte)value;
+                Position += 4;
+                return true;
+            }
+            return false;
+        }
+
         // write 8 bytes int2, grow segment
         public bool WriteInt2(int2 value) => WriteBlittable(value);
 
@@ -165,7 +180,7 @@ namespace DOTSNET
         // write byte array as ArraySegment, grow segment
         public unsafe bool WriteBytes(ArraySegment<byte> value)
         {
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= value.Count)
             {
@@ -195,7 +210,7 @@ namespace DOTSNET
         // write size, byte array as ArraySegment, grow segment
         public bool WriteBytesAndSize(ArraySegment<byte> value)
         {
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= 4 + value.Count)
             {
@@ -208,6 +223,28 @@ namespace DOTSNET
                 // -> ArraySegment.Array can't be null, so we don't have to
                 //    handle that case.
                 return WriteInt(value.Count) &&
+                       WriteBytes(value);
+            }
+            // not enough space to write
+            return false;
+        }
+
+        // write size, byte array as ArraySegment, grow segment
+        public bool WriteBytesAndSizeBigEndian(ArraySegment<byte> value)
+        {
+            // enough space in buffer?
+            // => check total size before any writes to make it atomic!
+            if (buffer != null && Space >= 4 + value.Count)
+            {
+                // writes size header first
+                // -> ReadBytes and ArraySegment constructor both use 'int', so we
+                //    use 'int' here too. that's the max we can support. if we would
+                //    use 'uint' then we would have to use a 'checked' conversion to
+                //    int, which means that an attacker could trigger an Overflow-
+                //    Exception. using int is big enough and fail safe.
+                // -> ArraySegment.Array can't be null, so we don't have to
+                //    handle that case.
+                return WriteIntBigEndian(value.Count) &&
                        WriteBytes(value);
             }
             // not enough space to write
@@ -269,7 +306,7 @@ namespace DOTSNET
         // -> no need to worry about encoding, we can use .Bytes directly!
         public bool WriteNativeString32(NativeString32 value)
         {
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= 32)
             {
@@ -287,7 +324,7 @@ namespace DOTSNET
         // -> no need to worry about encoding, we can use .Bytes directly!
         public bool WriteNativeString64(NativeString64 value)
         {
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= 64)
             {
@@ -305,7 +342,7 @@ namespace DOTSNET
         // -> no need to worry about encoding, we can use .Bytes directly!
         public bool WriteNativeString128(NativeString128 value)
         {
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= 128)
             {
@@ -323,7 +360,7 @@ namespace DOTSNET
         // -> no need to worry about encoding, we can use .Bytes directly!
         public bool WriteNativeString512(NativeString512 value)
         {
-            // enough space in array?
+            // enough space in buffer?
             // => check total size before any writes to make it atomic!
             if (buffer != null && Space >= 512)
             {
@@ -333,6 +370,57 @@ namespace DOTSNET
             }
             // not enough space to write
             return false;
+        }
+
+        // write NativeArray struct
+        // note: if your NativeArray is of another type, use:
+        //       NativeArray<byte> bytes = array.Reinterpret<byte>(Marshal.SizeOf<T>);
+        public bool WriteNativeArray(NativeArray<byte> array, int start, int length)
+        {
+            // enough space in buffer?
+            // => check total size before any writes to make it atomic!
+            if (buffer != null && Space >= length)
+            {
+                // start+length within array bounds?
+                // if array.length is 2, then:
+                //    start needs to be < 2
+                //    start+length needs to be <= 2, e.g. 0+2
+                if (start < array.Length && start+length <= array.Length)
+                {
+                    // copy 'length' bytes into buffer at Position
+                    NativeArray<byte>.Copy(array, start, buffer, Position, length);
+                    Position += length;
+                    return true;
+                }
+                // invalid array indices
+                return false;
+            }
+            // not enough space to write
+            return false;
+        }
+
+        // write NativeArray struct.
+        // * NativeArray<byte>
+        // * NativeArray<TransformMessage> etc.
+        // indices are adjusted automatically based on size of T.
+        public bool WriteNativeArray<T>(NativeArray<T> array, int start, int length)
+            where T : unmanaged
+        {
+            // note: IsBlittable check not needed because NativeArray only
+            //       works with blittable types.
+
+            // calculate size
+            // NativeArray<T>.Reinterpret uses UnsafeUtility.SizeOf<U>
+            // internally to check expectedSize, so we do it too.
+            int sizeOfT = UnsafeUtility.SizeOf<T>();
+            NativeArray<byte> bytes = array.Reinterpret<byte>(sizeOfT);
+
+            // calculate start, length in bytes
+            int startInBytes = start * sizeOfT;
+            int lengthInBytes = length * sizeOfT;
+
+            // write NativeArray<byte>
+            return WriteNativeArray(bytes, startInBytes, lengthInBytes);
         }
     }
 }

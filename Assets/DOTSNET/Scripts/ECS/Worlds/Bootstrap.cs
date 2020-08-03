@@ -88,17 +88,33 @@ namespace DOTSNET
                     clientSystems.Add(system);
                 }
                 // [ServerWorld]?
-                else if (SystemHasAttribute(system, typeof(ServerWorldAttribute)))
+                else if (SystemHasAttribute(system, typeof(ServerWorldAttribute)))// && !isHybridRendererV2)
                 {
                     serverSystems.Add(system);
                 }
                 // [ClientWorld]?
-                else if (SystemHasAttribute(system, typeof(ClientWorldAttribute)))
+                else if (SystemHasAttribute(system, typeof(ClientWorldAttribute)))// || isHybridRendererV2)
                 {
                     clientSystems.Add(system);
                 }
+#if ENABLE_HYBRID_RENDERER_V2
+                // Hybrid Renderer V2 can only be in one world, not multiple.
+                // otherwise we get 'material was registered twice' errors.
+                else if (system.Namespace != null && system.Namespace.StartsWith("Unity.Rendering"))
+                {
+                    clientSystems.Add(system);
+                }
+#endif
                 // no tag, and in Unity namespace?
-                else if (system.Namespace != null && system.Namespace.StartsWith("Unity."))
+                else if (system.Namespace != null && system.Namespace.StartsWith("Unity"))
+                {
+                    unitySystems.Add(system);
+                }
+                // no tag, and in Companion namespace?
+                // this is needed for some Hybrid systems, see also:
+                // https://github.com/vis2k/DOTSNET/issues/10
+                // (they don't have a namespace, they just contain 'Companion')
+                else if (system.Name.Contains("Companion"))
                 {
                     unitySystems.Add(system);
                 }

@@ -28,16 +28,27 @@ namespace DOTSNET
         protected NativeMultiHashMap<int, SpawnMessage> spawnMessages;
         protected NativeMultiHashMap<int, UnspawnMessage> unspawnMessages;
 
+        // messages lists so we can call Send(NativeList) for max performance
+        NativeList<SpawnMessage> spawnMessagesList;
+        NativeList<UnspawnMessage> unspawnMessagesList;
+
         protected override void OnCreate()
         {
+            // allocate
             spawnMessages = new NativeMultiHashMap<int, SpawnMessage>(1000, Allocator.Persistent);
             unspawnMessages = new NativeMultiHashMap<int, UnspawnMessage>(1000, Allocator.Persistent);
+
+            spawnMessagesList = new NativeList<SpawnMessage>(1000, Allocator.Persistent);
+            unspawnMessagesList = new NativeList<UnspawnMessage>(1000, Allocator.Persistent);
         }
 
         protected override void OnDestroy()
         {
             spawnMessages.Dispose();
             unspawnMessages.Dispose();
+
+            spawnMessagesList.Dispose();
+            unspawnMessagesList.Dispose();
         }
 
         // rebuild all areas of interest for everyone once
@@ -77,7 +88,29 @@ namespace DOTSNET
             //
             // see AddNewObservers() comment for the 3 different cases.
             // it's the same here.
-            server.Send(unspawnMessages);
+            //server.Send(unspawnMessages);
+
+            // for each connectionId:
+            foreach (int connectionId in server.connections.Keys)
+            {
+                // sort messages into NativeList and batch send them.
+                // (NativeMultiMap.GetKeyArray allocates, so we simply iterate each
+                //  connectionId on the server and assume that most of them will
+                //  receive a message anyway)
+                unspawnMessagesList.Clear();
+                NativeMultiHashMapIterator<int>? it = default;
+                while (unspawnMessages.TryIterate(connectionId, out UnspawnMessage message, ref it))
+                {
+                    unspawnMessagesList.Add(message);
+                }
+
+                // send to this connectionId
+                // send after the ForEach. this way we can run ForEach with Burst(!)
+                // => send unreliable if possible since we'll send again next time.
+                server.Send(connectionId, unspawnMessagesList);
+            }
+
+            // clean up
             unspawnMessages.Clear();
         }
 
@@ -104,7 +137,29 @@ namespace DOTSNET
             //   -> and then send SpawnMessage(Player) to his connection
             //
             // => all three cases require the same call:
-            server.Send(spawnMessages);
+            //server.Send(spawnMessages);
+
+            // for each connectionId:
+            foreach (int connectionId in server.connections.Keys)
+            {
+                // sort messages into NativeList and batch send them.
+                // (NativeMultiMap.GetKeyArray allocates, so we simply iterate each
+                //  connectionId on the server and assume that most of them will
+                //  receive a message anyway)
+                spawnMessagesList.Clear();
+                NativeMultiHashMapIterator<int>? it = default;
+                while (spawnMessages.TryIterate(connectionId, out SpawnMessage message, ref it))
+                {
+                    spawnMessagesList.Add(message);
+                }
+
+                // send to this connectionId
+                // send after the ForEach. this way we can run ForEach with Burst(!)
+                // => send unreliable if possible since we'll send again next time.
+                server.Send(connectionId, spawnMessagesList);
+            }
+
+            // clean up
             spawnMessages.Clear();
         }
 

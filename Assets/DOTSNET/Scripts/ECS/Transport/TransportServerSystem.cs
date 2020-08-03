@@ -57,6 +57,7 @@ namespace DOTSNET
         public abstract void Start();
 
         // send ArraySegment to the client with connectionId
+        // note: DOTSNET already packs messages. Transports don't need to.
         public abstract bool Send(int connectionId, ArraySegment<byte> segment, Channel channel);
 
         // disconnect one client from the server

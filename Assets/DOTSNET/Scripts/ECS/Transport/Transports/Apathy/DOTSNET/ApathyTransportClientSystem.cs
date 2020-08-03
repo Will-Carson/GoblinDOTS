@@ -12,9 +12,8 @@ namespace Apathy
     {
         // configuration
         public ushort Port = 7777;
-        // NoDelay disabled by default because DOTS will have large amounts of
-        // messages and TCP's internal send interval buffering might be helpful.
-        public bool NoDelay = false;
+        // Apathy is buffer limited. NoDelay should always be enabled.
+        public bool NoDelay = true;
         // for large ECS worlds, 1k/tick is not enough:
         public int MaxReceivesPerTick = 100000;
 
@@ -48,15 +47,7 @@ namespace Apathy
 
             // set up events
             client.OnConnected = OnConnected;
-            client.OnData = (message) =>
-            {
-                // server combines multiple messages, so handle each one
-                SegmentReader reader = new SegmentReader(message);
-                while (reader.ReadBytesAndSize(out ArraySegment<byte> segment))
-                {
-                    OnData(segment);
-                }
-            };
+            client.OnData = OnData;
             client.OnDisconnected = OnDisconnected;
 
             Debug.Log("ApathyTransportClientSystem initialized!");

@@ -18,6 +18,7 @@ namespace DOTSNET
     {
         // NativeMultiMap so we can run most of it with Burst enabled
         NativeMultiHashMap<int, TransformMessage> messages;
+        NativeList<TransformMessage> messagesList;
 
         protected override void OnCreate()
         {
@@ -26,11 +27,13 @@ namespace DOTSNET
 
             // allocate
             messages = new NativeMultiHashMap<int, TransformMessage>(1000, Allocator.Persistent);
+            messagesList = new NativeList<TransformMessage>(1000, Allocator.Persistent);
         }
 
         protected override void OnDestroy()
         {
             // dispose
+            messagesList.Dispose();
             messages.Dispose();
 
             // call base because it might be implemented.
@@ -79,9 +82,27 @@ namespace DOTSNET
             })
             .Run();
 
-            // send after the ForEach. this way we can run ForEach with Burst(!)
-            // => send unreliable if possible since we'll send again next time.
-            server.Send(_messages, Channel.Unreliable);
+            // for each connectionId:
+            foreach (int connectionId in server.connections.Keys)
+            {
+                // sort messages into NativeList and batch send them.
+                // (NativeMultiMap.GetKeyArray allocates, so we simply iterate each
+                //  connectionId on the server and assume that most of them will
+                //  receive a message anyway)
+                messagesList.Clear();
+                NativeMultiHashMapIterator<int>? it = default;
+                while (messages.TryIterate(connectionId, out TransformMessage message, ref it))
+                {
+                    messagesList.Add(message);
+                }
+
+                // send to this connectionId
+                // send after the ForEach. this way we can run ForEach with Burst(!)
+                // => send unreliable if possible since we'll send again next time.
+                server.Send(connectionId, messagesList, Channel.Unreliable);
+            }
+
+            // clean up
             messages.Clear();
         }
     }

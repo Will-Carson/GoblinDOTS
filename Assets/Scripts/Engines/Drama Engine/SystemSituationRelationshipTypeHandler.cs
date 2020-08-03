@@ -2,16 +2,12 @@
 using Unity.Entities;
 using Unity.Jobs;
 using DOTSNET;
+using UnityEngine;
 
 [ServerWorld]
 public class SystemSituationRelationshipTypeHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
-
-    protected override void OnCreate()
-    {
-        Buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
-    }
 
     protected override void OnDestroy()
     {
@@ -22,8 +18,8 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
 
     protected override void OnUpdate()
     {
-        var buffer = Buffer;
-        var stageIds = new NativeList<int>(Allocator.Temp);
+        var buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var stageIds = new NativeList<int>(Allocator.TempJob);
 
         // Get stage ids
         Entities.ForEach((Entity entity, PartialSituation situation, NeedsRelationshipType need) =>
@@ -34,9 +30,9 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
             }
         })
         .WithBurst()
-        .Run();
+        .Schedule();
 
-        var occupantsHashmap = new NativeMultiHashMap<int, int>(G.maxNPCPopulation / 10, Allocator.Temp);
+        var occupantsByStage = new NativeMultiHashMap<int, int>(G.maxNPCPopulation / 10, Allocator.TempJob);
 
         // Get actors from stage
         Entities.ForEach((Entity entity, StageId stageId, DynamicBuffer<Occupant> occupants) => 
@@ -45,19 +41,19 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
             {
                 for (int i = 0; i < occupants.Length; i++)
                 {
-                    occupantsHashmap.Add(stageId.value, occupants[i].id);
+                    occupantsByStage.Add(stageId.value, occupants[i].id);
                 }
             }
         })
         .WithBurst()
-        .Run();
+        .Schedule();
 
-        var relationshipsPerStage = new NativeMultiHashMap<int, ActorRelationship>(G.maxRelationships / 10, Allocator.Temp);
+        var relationshipsPerStage = new NativeMultiHashMap<int, ActorRelationship>(G.maxRelationships / 10, Allocator.TempJob);
 
         // Get relationships from actors
         Entities.ForEach((Entity entity, int entityInQueryIndex, StageOccupant stageOccupant, DynamicBuffer<ActorRelationship> relationships) =>
         {
-            if (occupantsHashmap.ContainsKey(stageOccupant.stageId))
+            if (occupantsByStage.ContainsKey(stageOccupant.stageId))
             {
                 for (int i = 0; i < relationships.Length; i++)
                 {
@@ -66,29 +62,25 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
             }
         })
         .WithBurst()
-        .Run();
+        .Schedule();
+
+        var occupantsList = new NativeList<int>(Allocator.Persistent);
 
         // Generate various child entities from initial situation. Success!
         Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsRelationshipType need, DynamicBuffer<StageParameters> parameters) =>
         {
-            var occupants = occupantsHashmap.GetValuesForKey(situation.stageId);
+            var occupants = occupantsByStage.GetValuesForKey(situation.stageId);
             var relationships = relationshipsPerStage.GetValuesForKey(situation.stageId);
-            var occupantsList = new NativeList<int>(Allocator.TempJob);
-
-            int x = 0;
-            while (occupants.MoveNext())
-            {
-                occupantsList[x] = occupants.Current;
-                x = x + 1;
-            }
+            
+            while (occupants.MoveNext()) occupantsList.Add(occupants.Current);
 
             var numberOfOccupants = occupantsList.Length;
 
             for (int i = 0; i < numberOfOccupants - 2; i++)
             {
-                for (int j = 0; j < numberOfOccupants - 1; j++)
+                for (int j = 1; j < numberOfOccupants - 1; j++)
                 {
-                    for (int k = 0; k < numberOfOccupants; k++)
+                    for (int k = 2; k < numberOfOccupants; k++)
                     {
                         var roles = new PlayActorIds
                         {
@@ -196,14 +188,19 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                     }
                 }
             }
-            
-            occupantsList.Dispose();
         })
         .WithBurst()
         .Schedule();
 
+        Dependency.Complete();
+        Debug.Log(relationshipsPerStage.CountValuesForKey(0));
+
+        ESECBS.AddJobHandleForProducer(Dependency);
+
+        Dependency.Complete();
         stageIds.Dispose();
-        occupantsHashmap.Dispose();
+        occupantsList.Dispose();
+        occupantsByStage.Dispose();
         relationshipsPerStage.Dispose();
     }
 }
