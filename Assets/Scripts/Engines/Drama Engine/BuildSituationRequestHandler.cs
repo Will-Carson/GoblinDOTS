@@ -5,7 +5,7 @@ using DOTSNET;
 using UnityEngine;
 
 [ServerWorld]
-public class SystemBuildSituationRequestHandler : SystemBase
+public class BuildSituationRequestHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
     private EntityArchetype SituationBuilder;
@@ -16,7 +16,7 @@ public class SystemBuildSituationRequestHandler : SystemBase
         SituationBuilder = EntityManager.CreateArchetype(new ComponentType[]
         {
             typeof(PartialSituation),
-            typeof(StageParameters),
+            typeof(SituationParameters),
             typeof(NeedsNumberOfActors),
             typeof(NeedsRelationshipType)
         });
@@ -44,16 +44,30 @@ public class SystemBuildSituationRequestHandler : SystemBase
         plainBuffer.AddComponent(actor2, stageOccupant);
         plainBuffer.AppendToBuffer(actor2, relationship);
 
+        var actor3 = plainBuffer.CreateEntity();
+        actorId = new ActorId { value = 2 };
+        relationships = plainBuffer.AddBuffer<ActorRelationship>(actor3);
+        //relationship = new ActorRelationship { owner = 1, target = 0, type = 0 };
+        plainBuffer.AddComponent(actor3, actorId);
+        plainBuffer.AddComponent(actor3, stageOccupant);
+        //plainBuffer.AppendToBuffer(actor3, relationship);
+
         e = plainBuffer.CreateEntity();
         var stageId = new StageId { value = 0 };
         plainBuffer.AddComponent(e, stageId);
         var b = plainBuffer.AddBuffer<Occupant>(e);
         var occupant = new Occupant { id = 0, occupant = actor1 };
         plainBuffer.AppendToBuffer(e, occupant);
-        occupant = new Occupant { id = 0, occupant = actor2 };
+        occupant = new Occupant { id = 1, occupant = actor2 };
+        plainBuffer.AppendToBuffer(e, occupant);
+        occupant = new Occupant { id = 2, occupant = actor3 };
         plainBuffer.AppendToBuffer(e, occupant);
         var playRunner = new PlayRunner { stageId = 0 };
         plainBuffer.AddComponent(e, playRunner);
+        var needsPlay = new NeedsPlay();
+        plainBuffer.AddComponent(e, needsPlay);
+        plainBuffer.AddBuffer<DialogueRequest>(e);
+        plainBuffer.AddBuffer<NetworkObserver>(e);
     }
 
     protected override void OnDestroy()
@@ -70,9 +84,8 @@ public class SystemBuildSituationRequestHandler : SystemBase
         Entities.ForEach((Entity entity, int entityInQueryIndex, BuildSituationRequest request) =>
         {
             var e = buffer.CreateEntity(entityInQueryIndex, situationBuilder);
-            var s = new Situation();
+            var s = new PartialSituation();
             s.stageId = request.stageId;
-            buffer.AddComponent(entityInQueryIndex, e, s);
             buffer.SetComponent(entityInQueryIndex, e, s);
             buffer.DestroyEntity(entityInQueryIndex, entity);
         })

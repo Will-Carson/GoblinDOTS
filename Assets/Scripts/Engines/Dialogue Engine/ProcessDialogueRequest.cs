@@ -4,7 +4,7 @@ using Unity.Jobs;
 using DOTSNET;
 
 [ServerWorld]
-public class SystemProcessDialogueRequest : NetworkBroadcastSystem
+public class ProcessDialogueRequest : NetworkBroadcastSystem
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 

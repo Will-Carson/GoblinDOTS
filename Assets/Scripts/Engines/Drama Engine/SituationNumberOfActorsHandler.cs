@@ -5,7 +5,7 @@ using DOTSNET;
 using UnityEngine;
 
 [ServerWorld]
-public class SystemSituationNumberOfActorsHandler : SystemBase
+public class SituationNumberOfActorsHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
@@ -20,13 +20,13 @@ public class SystemSituationNumberOfActorsHandler : SystemBase
         .WithBurst()
         .Run();
 
-        Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsNumberOfActors need, DynamicBuffer<StageParameters> parameters) =>
+        Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsNumberOfActors need, DynamicBuffer<SituationParameters> parameters) =>
         {
             buffer.RemoveComponent<NeedsNumberOfActors>(entityInQueryIndex, entity);
             int v;
             stageData.TryGetValue(situation.stageId, out v);
 
-            var p = new StageParameters()
+            var p = new SituationParameters()
             {
                 param = new Parameter()
                 {

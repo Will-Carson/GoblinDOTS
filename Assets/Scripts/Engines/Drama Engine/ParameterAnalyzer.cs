@@ -5,45 +5,50 @@ using DOTSNET;
 using UnityEngine;
 
 [ServerWorld]
-public class SystemParameterAnalyzer : SystemBase
+public class ParameterAnalyzer : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
-    public NativeMultiHashMap<int, Parameter> Plays = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
+    public NativeMultiHashMap<int, Parameter> PlaysRequirements = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
     public NativeHashMap<int, int> PlayDramaValues = new NativeHashMap<int, int>(G.numberOfPlays, Allocator.Persistent);
 
     protected override void OnDestroy()
     {
-        Plays.Dispose();
+        PlaysRequirements.Dispose();
         PlayDramaValues.Dispose();
     }
 
     protected override void OnUpdate()
     {
-        var plays = Plays;
-        var ps = new NativeList<StageParameters>(Allocator.TempJob);
+        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var playRequirments = PlaysRequirements;
+        var playDramaValues = PlayDramaValues;
+        var ps = new NativeList<SituationParameters>(Allocator.TempJob);
 
-        Entities.ForEach((Entity entity, Situation situation, DynamicBuffer<StageParameters> parameters, DynamicBuffer<PotentialPlay> validPlays) =>
+        Entities
+        .ForEach((Entity entity, int entityInQueryIndex, Situation situation, DynamicBuffer<SituationParameters> situationParameters, DynamicBuffer<PotentialPlay> validPlays) =>
         {
-            for (int j = 0; j < parameters.Length; j++)
+            for (int j = 0; j < situationParameters.Length; j++)
             {
-                ps.Add(parameters[j]);
+                ps.Add(situationParameters[j]);
             }
 
-            for (int j = 0; j < plays.Count(); j++)
+            for (int j = 0; j < playRequirments.Count(); j++)
             {
-                var play = plays.GetValuesForKey(j);
+                var playParameters = playRequirments.GetValuesForKey(j);
                 var playIsValid = true;
 
-                while (play.MoveNext())
+                while (playParameters.MoveNext())
                 {
                     var parameterMet = false;
-                    switch (play.Current.op)
+                    var p = playParameters.Current;
+                    switch (p.op)
                     {
                         case Operator.Equal:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (Same(parameters[i].param, play.Current))
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (Same(situationParameters[i].param, p))
                                 {
                                     parameterMet = true;
                                     break;
@@ -51,9 +56,10 @@ public class SystemParameterAnalyzer : SystemBase
                             }
                             break;
                         case Operator.NotEqual:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (!Same(parameters[i].param, play.Current))
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (!Same(situationParameters[i].param, p))
                                 {
                                     parameterMet = true;
                                     break;
@@ -61,9 +67,10 @@ public class SystemParameterAnalyzer : SystemBase
                             }
                             break;
                         case Operator.GreaterThan:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (play.Current.value1 > parameters[i].param.value1)
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (situationParameters[i].param.value1 > p.value1)
                                 {
                                     parameterMet = true;
                                     break;
@@ -71,9 +78,10 @@ public class SystemParameterAnalyzer : SystemBase
                             }
                             break;
                         case Operator.LessThan:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (play.Current.value1 < parameters[i].param.value1)
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (situationParameters[i].param.value1 < p.value1)
                                 {
                                     parameterMet = true;
                                     break;
@@ -81,9 +89,10 @@ public class SystemParameterAnalyzer : SystemBase
                             }
                             break;
                         case Operator.GreaterOrEqual:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (play.Current.value1 >= parameters[i].param.value1)
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (situationParameters[i].param.value1 >= p.value1)
                                 {
                                     parameterMet = true;
                                     break;
@@ -91,9 +100,10 @@ public class SystemParameterAnalyzer : SystemBase
                             }
                             break;
                         case Operator.LessOrEqual:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (play.Current.value1 <= parameters[i].param.value1)
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (situationParameters[i].param.value1 <= p.value1)
                                 {
                                     parameterMet = true;
                                     break;
@@ -101,9 +111,10 @@ public class SystemParameterAnalyzer : SystemBase
                             }
                             break;
                         case Operator.Between:
-                            for (int i = 0; i < parameters.Length; i++)
+                            for (int i = 0; i < situationParameters.Length; i++)
                             {
-                                if (play.Current.value1 < parameters[i].param.value1 && play.Current.value2 > parameters[i].param.value1)
+                                if (p.type != situationParameters[i].param.type) break;
+                                if (p.value1 < situationParameters[i].param.value1 && p.value2 > situationParameters[i].param.value1)
                                 {
                                     parameterMet = true;
                                     break;
@@ -124,16 +135,17 @@ public class SystemParameterAnalyzer : SystemBase
                     var pid = new PotentialPlay();
                     pid.playId = j;
                     // TODO
-                    pid.drama = 0;
-                    validPlays.Add(pid);
+                    pid.drama = playDramaValues[j];
+                    ecb.AppendToBuffer(entityInQueryIndex, entity, pid);
+                    ecb.RemoveComponent<SituationParameters>(entityInQueryIndex, entity);
                 }
             }
         })
-        .WithoutBurst()
-        .Run();
+        .WithBurst()
+        .Schedule();
 
         Dependency.Complete();
-
+        ESECBS.AddJobHandleForProducer(Dependency);
         ps.Dispose();
     }
     
@@ -176,7 +188,7 @@ public struct Parameter
     public int value3;
 }
 
-public struct StageParameters : IBufferElementData
+public struct SituationParameters : IBufferElementData
 {
     public Parameter param;
 }

@@ -5,7 +5,7 @@ using DOTSNET;
 using UnityEngine;
 
 [ServerWorld]
-public class SystemSituationRelationshipTypeHandler : SystemBase
+public class SituationRelationshipTypeHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
@@ -18,7 +18,7 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
 
     protected override void OnUpdate()
     {
-        var buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
         var stageIds = new NativeList<int>(Allocator.TempJob);
 
         // Get stage ids
@@ -67,36 +67,38 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
         var occupantsList = new NativeList<int>(Allocator.Persistent);
 
         // Generate various child entities from initial situation. Success!
-        Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsRelationshipType need, DynamicBuffer<StageParameters> parameters) =>
+        Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsRelationshipType need, DynamicBuffer<SituationParameters> parameters) =>
         {
             var occupants = occupantsByStage.GetValuesForKey(situation.stageId);
             var relationships = relationshipsPerStage.GetValuesForKey(situation.stageId);
-            
+
             while (occupants.MoveNext()) occupantsList.Add(occupants.Current);
-
-            var numberOfOccupants = occupantsList.Length;
-
-            for (int i = 0; i < numberOfOccupants - 2; i++)
+            for (int i = 0; i < occupantsList.Length; i++)
             {
-                for (int j = 1; j < numberOfOccupants - 1; j++)
+                for (int j = 0; j < occupantsList.Length; j++)
                 {
-                    for (int k = 2; k < numberOfOccupants; k++)
+                    if (j == i) continue;
+                    for (int k = 0; k < occupantsList.Length; k++)
                     {
+                        if (k == i || k == j) continue;
                         var roles = new PlayActorIds
                         {
                             alpha = occupantsList[i],
                             beta = occupantsList[j],
                             gamma = occupantsList[k]
                         };
-                        
-                        var e = buffer.Instantiate(entityInQueryIndex, entity);
-                        buffer.AddComponent(entityInQueryIndex, e, roles);
+
+                        var e = ecb.Instantiate(entityInQueryIndex, entity);
+                        ecb.AddComponent(entityInQueryIndex, e, roles);
+                        ecb.RemoveComponent<NeedsRelationshipType>(entityInQueryIndex, e);
+
+                        relationships.Reset();
                         while (relationships.MoveNext())
                         {
                             var r = relationships.Current;
                             if (r.owner == roles.alpha && r.target == roles.beta)
                             {
-                                var s = new StageParameters
+                                var s = new SituationParameters
                                 {
                                     param = new Parameter
                                     {
@@ -107,11 +109,11 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                                         value3 = roles.beta
                                     }
                                 };
-                                buffer.AppendToBuffer(entityInQueryIndex, entity, s);
+                                ecb.AppendToBuffer(entityInQueryIndex, e, s);
                             }
                             if (r.owner == roles.alpha && r.target == roles.gamma)
                             {
-                                var s = new StageParameters
+                                var s = new SituationParameters
                                 {
                                     param = new Parameter
                                     {
@@ -122,11 +124,11 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                                         value3 = roles.gamma
                                     }
                                 };
-                                buffer.AppendToBuffer(entityInQueryIndex, entity, s);
+                                ecb.AppendToBuffer(entityInQueryIndex, e, s);
                             }
                             if (r.owner == roles.beta && r.target == roles.alpha)
                             {
-                                var s = new StageParameters
+                                var s = new SituationParameters
                                 {
                                     param = new Parameter
                                     {
@@ -137,11 +139,11 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                                         value3 = roles.alpha
                                     }
                                 };
-                                buffer.AppendToBuffer(entityInQueryIndex, entity, s);
+                                ecb.AppendToBuffer(entityInQueryIndex, e, s);
                             }
                             if (r.owner == roles.beta && r.target == roles.gamma)
                             {
-                                var s = new StageParameters
+                                var s = new SituationParameters
                                 {
                                     param = new Parameter
                                     {
@@ -152,11 +154,11 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                                         value3 = roles.gamma
                                     }
                                 };
-                                buffer.AppendToBuffer(entityInQueryIndex, entity, s);
+                                ecb.AppendToBuffer(entityInQueryIndex, e, s);
                             }
                             if (r.owner == roles.gamma && r.target == roles.alpha)
                             {
-                                var s = new StageParameters
+                                var s = new SituationParameters
                                 {
                                     param = new Parameter
                                     {
@@ -167,11 +169,11 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                                         value3 = roles.alpha
                                     }
                                 };
-                                buffer.AppendToBuffer(entityInQueryIndex, entity, s);
+                                ecb.AppendToBuffer(entityInQueryIndex, e, s);
                             }
                             if (r.owner == roles.gamma && r.target == roles.beta)
                             {
-                                var s = new StageParameters
+                                var s = new SituationParameters
                                 {
                                     param = new Parameter
                                     {
@@ -182,18 +184,17 @@ public class SystemSituationRelationshipTypeHandler : SystemBase
                                         value3 = roles.beta
                                     }
                                 };
-                                buffer.AppendToBuffer(entityInQueryIndex, entity, s);
+                                ecb.AppendToBuffer(entityInQueryIndex, e, s);
                             }
                         }
                     }
                 }
             }
+
+            ecb.DestroyEntity(entityInQueryIndex, entity);
         })
         .WithBurst()
         .Schedule();
-
-        Dependency.Complete();
-        Debug.Log(relationshipsPerStage.CountValuesForKey(0));
 
         ESECBS.AddJobHandleForProducer(Dependency);
 

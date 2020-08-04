@@ -26,9 +26,9 @@ public class ServerClientDataSplitter : MonoBehaviour
         var parameters = new List<Parameter>();
         var p = new Parameter
         {
-            op = Operator.LessOrEqual,
+            op = Operator.Equal,
             type = ParameterType.NumberOfActors,
-            value1 = 2
+            value1 = 1
         };
         parameters.Add(p);
 
@@ -50,10 +50,55 @@ public class ServerClientDataSplitter : MonoBehaviour
         };
         lines.Add(l);
 
+        testPlay.drama = 2;
         testPlay.requirements = parameters;
         testPlay.content = contents;
         testPlay.lines = lines;
         fullPlays.Add(testPlay);
+
+        var testPlay1 = new FullPlayData();
+
+        var parameters1 = new List<Parameter>();
+        var p1 = new Parameter
+        {
+            op = Operator.Equal,
+            type = ParameterType.NumberOfActors,
+            value1 = 3
+        };
+        parameters1.Add(p1);
+
+        var contents1 = new List<DialogueContent>();
+        var c1 = new DialogueContent
+        {
+            line = "Dong"
+        };
+        contents1.Add(c1);
+
+        var lines1 = new List<Line>();
+        var l1 = new Line
+        {
+            dialogueId = 0,
+            isEnd = false,
+            life = 10,
+            speaker = 0,
+            childA = 1
+        };
+        var l2 = new Line
+        {
+            dialogueId = 0,
+            isEnd = true,
+            life = 8,
+            speaker = 0
+        };
+        lines1.Add(l1);
+        lines1.Add(l2);
+        lines1.Reverse();
+
+        testPlay1.drama = 2;
+        testPlay1.requirements = parameters1;
+        testPlay1.content = contents1;
+        testPlay1.lines = lines1;
+        fullPlays.Add(testPlay1);
 
         #endregion
 
@@ -72,12 +117,14 @@ public class ServerClientDataSplitter : MonoBehaviour
     private void TryBuildPlayData()
     {
         DialogueManager dialogueManager = null;
-        SystemParameterAnalyzer parameterAnalyzer = null;
-        SystemRunPlay playRunner = null;
+        ParameterAnalyzer parameterAnalyzer = null;
+        StartPlay playStarter = null;
+        RunPlay playRunner = null;
 
         if (isClient) { dialogueManager = FindObjectOfType<DialogueManager>(); }
-        if (isServer) { parameterAnalyzer = server.GetOrCreateSystem<SystemParameterAnalyzer>(); }
-        if (isServer) { playRunner = server.GetOrCreateSystem<SystemRunPlay>(); }
+        if (isServer) { parameterAnalyzer = server.GetOrCreateSystem<ParameterAnalyzer>(); }
+        if (isServer) { playStarter = server.GetOrCreateSystem<StartPlay>(); }
+        if (isServer) { playRunner = server.GetOrCreateSystem<RunPlay>(); }
 
         for (int i = 0; i < fullPlays.Count; i++)
         {
@@ -96,13 +143,12 @@ public class ServerClientDataSplitter : MonoBehaviour
 
             if (isServer)
             {
-                var tempLineCounter = lineCounter;
                 var lineIds = new List<int>();
                 for (int j = 0; j < p.lines.Count; j++)
                 {
                     // Add lines to SystemRunPlay
-                    lineIds.Add(tempLineCounter);
-                    tempLineCounter++;
+                    lineIds.Add(lineCounter);
+                    lineCounter++;
                 }
 
                 for (int j = 0; j < p.lines.Count; j++)
@@ -120,14 +166,15 @@ public class ServerClientDataSplitter : MonoBehaviour
                         childC = lineIds[line.childC],
                         childD = lineIds[line.childD]
                     };
-                    playRunner.PlayLibrary.Add(lineCounter, l);
-                    lineCounter++;
+                    playStarter.PlayLibrary.Add(i, l);
                 }
+
+                playRunner.PlayLibrary = playStarter.PlayLibrary;
 
                 for (int j = 0; j < p.requirements.Count; j++)
                 {
                     // Add requirements to SystemParameterAnalyzer
-                    parameterAnalyzer.Plays.Add(i, p.requirements[j]);
+                    parameterAnalyzer.PlaysRequirements.Add(i, p.requirements[j]);
                 }
 
                 parameterAnalyzer.PlayDramaValues.Add(i, fullPlays[i].drama);
