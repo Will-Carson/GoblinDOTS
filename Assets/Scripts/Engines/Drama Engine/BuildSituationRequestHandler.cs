@@ -1,6 +1,7 @@
 ﻿using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Transforms;
 using DOTSNET;
 using UnityEngine;
 
@@ -12,7 +13,7 @@ public class BuildSituationRequestHandler : SystemBase
 
     protected override void OnCreate()
     {
-        var plainBuffer = ESECBS.CreateCommandBuffer();
+        var pecb = ESECBS.CreateCommandBuffer();
         SituationBuilder = EntityManager.CreateArchetype(new ComponentType[]
         {
             typeof(PartialSituation),
@@ -23,51 +24,56 @@ public class BuildSituationRequestHandler : SystemBase
 
         // TODO TEST
 
-        var e = plainBuffer.CreateEntity();
+        var e = pecb.CreateEntity();
         var r = new BuildSituationRequest { stageId = 0 };
-        plainBuffer.AddComponent(e, r);
+        pecb.AddComponent(e, r);
 
-        var actor1 = plainBuffer.CreateEntity();
+        var actor1 = pecb.CreateEntity();
         var actorId = new ActorId { value = 0 };
         var stageOccupant = new StageOccupant { stageId = 0 };
-        var relationships = plainBuffer.AddBuffer<ActorRelationship>(actor1);
+        var relationships = pecb.AddBuffer<ActorRelationship>(actor1);
         var relationship = new ActorRelationship { owner = 0, target = 1, type = 0 };
-        plainBuffer.AddComponent(actor1, actorId);
-        plainBuffer.AddComponent(actor1, stageOccupant);
-        plainBuffer.AppendToBuffer(actor1, relationship);
+        pecb.AddComponent(actor1, actorId);
+        pecb.AddComponent(actor1, stageOccupant);
+        pecb.AppendToBuffer(actor1, relationship);
 
-        var actor2 = plainBuffer.CreateEntity();
+        var actor2 = pecb.CreateEntity();
         actorId = new ActorId { value = 1 };
-        relationships = plainBuffer.AddBuffer<ActorRelationship>(actor2);
+        relationships = pecb.AddBuffer<ActorRelationship>(actor2);
         relationship = new ActorRelationship { owner = 1, target = 0, type = 0 };
-        plainBuffer.AddComponent(actor2, actorId);
-        plainBuffer.AddComponent(actor2, stageOccupant);
-        plainBuffer.AppendToBuffer(actor2, relationship);
+        pecb.AddComponent(actor2, actorId);
+        pecb.AddComponent(actor2, stageOccupant);
+        pecb.AppendToBuffer(actor2, relationship);
 
-        var actor3 = plainBuffer.CreateEntity();
+        var actor3 = pecb.CreateEntity();
         actorId = new ActorId { value = 2 };
-        relationships = plainBuffer.AddBuffer<ActorRelationship>(actor3);
+        relationships = pecb.AddBuffer<ActorRelationship>(actor3);
         //relationship = new ActorRelationship { owner = 1, target = 0, type = 0 };
-        plainBuffer.AddComponent(actor3, actorId);
-        plainBuffer.AddComponent(actor3, stageOccupant);
+        pecb.AddComponent(actor3, actorId);
+        pecb.AddComponent(actor3, stageOccupant);
         //plainBuffer.AppendToBuffer(actor3, relationship);
 
-        e = plainBuffer.CreateEntity();
+        e = pecb.CreateEntity();
         var stageId = new StageId { value = 0 };
-        plainBuffer.AddComponent(e, stageId);
-        var b = plainBuffer.AddBuffer<Occupant>(e);
+        pecb.AddComponent(e, stageId);
+        var b = pecb.AddBuffer<Occupant>(e);
         var occupant = new Occupant { id = 0, occupant = actor1 };
-        plainBuffer.AppendToBuffer(e, occupant);
+        pecb.AppendToBuffer(e, occupant);
         occupant = new Occupant { id = 1, occupant = actor2 };
-        plainBuffer.AppendToBuffer(e, occupant);
+        pecb.AppendToBuffer(e, occupant);
         occupant = new Occupant { id = 2, occupant = actor3 };
-        plainBuffer.AppendToBuffer(e, occupant);
+        pecb.AppendToBuffer(e, occupant);
         var playRunner = new PlayRunner { stageId = 0 };
-        plainBuffer.AddComponent(e, playRunner);
+        pecb.AddComponent(e, playRunner);
         var needsPlay = new NeedsPlay();
-        plainBuffer.AddComponent(e, needsPlay);
-        plainBuffer.AddBuffer<DialogueRequest>(e);
-        plainBuffer.AddBuffer<NetworkObserver>(e);
+        pecb.AddComponent(e, needsPlay);
+        pecb.AddBuffer<DialogueRequest>(e);
+        pecb.AddBuffer<NetworkObserver>(e);
+        pecb.AddBuffer<RebuildNetworkObserver>(e);
+        pecb.AddComponent<Translation>(e);
+        pecb.AddComponent<Rotation>(e);
+        pecb.AddComponent<NetworkEntity>(e);
+        pecb.AddComponent<NetworkTransform>(e);
     }
 
     protected override void OnDestroy()

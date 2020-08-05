@@ -11,16 +11,15 @@ public class ProcessDialogueRequestMessage : NetworkClientMessageSystem<Dialogue
 
     protected override void OnCreate()
     {
+        base.OnCreate();
         DialogueManager = Object.FindObjectOfType<DialogueManager>();
     }
 
     protected override void OnMessage(DialogueMessage message)
     {
+        Debug.Log(message.dialogueId);
         DialogueManager.ProcessDialogueRequest(message);
     }
 
-    protected override void OnUpdate()
-    {
-        
-    }
+    protected override void OnUpdate() { }
 }

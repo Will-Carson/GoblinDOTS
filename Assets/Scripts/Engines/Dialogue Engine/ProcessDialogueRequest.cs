@@ -1,6 +1,8 @@
 ﻿using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Transforms;
+using UnityEngine;
 using DOTSNET;
 
 [ServerWorld]
@@ -8,41 +10,89 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
 
-    private EntityCommandBuffer Buffer;
+    // NativeMultiMap so we can run most of it with Burst enabled
+    NativeMultiHashMap<int, DialogueMessage> messages;
+    NativeList<DialogueMessage> messagesList;
 
     protected override void OnCreate()
     {
-        Buffer = ESECBS.CreateCommandBuffer();
+        // call base because it might be implemented.
+        base.OnCreate();
+
+        // allocate
+        messages = new NativeMultiHashMap<int, DialogueMessage>(1000, Allocator.Persistent);
+        messagesList = new NativeList<DialogueMessage>(1000, Allocator.Persistent);
+    }
+
+    protected override void OnDestroy()
+    {
+        // dispose
+        messagesList.Dispose();
+        messages.Dispose();
+
+        // call base because it might be implemented.
+        base.OnDestroy();
     }
 
     protected override void Broadcast()
     {
-        var buffer = Buffer;
-        var server2 = server;
+        var ecb = ESECBS.CreateCommandBuffer();
 
+        // run with Burst
+        var _messages = messages;
         Entities.ForEach((Entity entity,
-                          int entityInQueryIndex,
-                          DynamicBuffer<NetworkObserver> observers,
-                          DynamicBuffer<DialogueRequest> requests,
-                          ref StageId stageId) =>
+                          in DynamicBuffer<DialogueRequest> dialogueRequests,
+                          in DynamicBuffer<NetworkObserver> observers,
+                          in NetworkEntity networkEntity) =>
         {
-            for (int i = 0; i < observers.Length; i++)
+            // TransformMessage is the same one for each observer.
+            // let's create it only once, which is faster.
+            for (int j = 0; j < dialogueRequests.Length; j++)
             {
-                for (int j = 0; j < requests.Length; j++)
+                DialogueMessage message = new DialogueMessage
                 {
-                    var message = new DialogueMessage
-                    {
-                        actorId = requests[j].actorId,
-                        dialogueId = requests[j].dialogueId
-                    };
-                    var connectionId = observers[i];
-                    server2.Send(connectionId, message);
+                    actorId = dialogueRequests[j].actorId,
+                    dialogueId = dialogueRequests[j].dialogueId
+                };
+
+                // send state to each observer connection
+                // DynamicBuffer foreach allocates. use for.
+                for (int i = 0; i < observers.Length; ++i)
+                {
+                    // get connectionId
+                    int connectionId = observers[i];
+
+                    // owner?
+                    bool owner = networkEntity.connectionId == connectionId;
+
+                    // add to messages and send afterwards without burst
+                    _messages.Add(connectionId, message);
                 }
             }
-            requests.Clear();
+            ecb.SetBuffer<DialogueRequest>(entity);
         })
-        .WithoutBurst()
         .Run();
+
+        // for each connectionId:
+        foreach (int connectionId in server.connections.Keys)
+        {
+            // sort messages into NativeList and batch send them.
+            // (NativeMultiMap.GetKeyArray allocates, so we simply iterate each
+            //  connectionId on the server and assume that most of them will
+            //  receive a message anyway)
+            messagesList.Clear();
+            NativeMultiHashMapIterator<int>? it = default;
+            while (messages.TryIterate(connectionId, out DialogueMessage message, ref it))
+            {
+                server.Send(connectionId, message, Channel.Reliable);
+            }
+        }
+
+        // clean up
+        messages.Clear();
+
+        Dependency.Complete();
+        ESECBS.AddJobHandleForProducer(Dependency);
     }
 }
 

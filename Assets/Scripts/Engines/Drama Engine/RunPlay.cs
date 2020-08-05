@@ -114,7 +114,7 @@ public class RunPlay : SystemBase
 
             var dr = new DialogueRequest
             {
-                actorId = nextLine.speaker,
+                actorId = speaker,
                 dialogueId = nextLine.dialogueId
             };
 

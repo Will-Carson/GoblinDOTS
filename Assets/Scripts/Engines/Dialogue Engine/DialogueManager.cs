@@ -10,7 +10,7 @@ public class DialogueManager : MonoBehaviour
     private void Start()
     {
         // TODO TEST
-        actors.Add(0, FindObjectOfType<DialogueBox>());
+        actors.Add(2, FindObjectOfType<DialogueBox>());
     }
 
     public void AddActor()

@@ -10,7 +10,7 @@ namespace DOTSNET
     {
         // find NetworkServerSystem in ECS world
         NetworkServerSystem server =>
-            Bootstrap.ServerWorld.GetExistingSystem<NetworkServerSystem>();
+            Bootstrap.ServerWorld.GetOrCreateSystem<NetworkServerSystem>();
 
         // add system if Authoring is used
         public virtual Type GetSystemType() { return typeof(NetworkServerSystem); }

@@ -72,26 +72,59 @@ public class ServerClientDataSplitter : MonoBehaviour
         {
             line = "Dong"
         };
+        var c2 = new DialogueContent
+        {
+            line = "Dong1"
+        };
+        var c3 = new DialogueContent
+        {
+            line = "Dong2"
+        };
+        var c4 = new DialogueContent
+        {
+            line = "Dong3"
+        };
         contents1.Add(c1);
+        contents1.Add(c2);
+        contents1.Add(c3);
+        contents1.Add(c4);
 
         var lines1 = new List<Line>();
         var l1 = new Line
         {
             dialogueId = 0,
             isEnd = false,
-            life = 10,
+            life = 4,
             speaker = 0,
             childA = 1
         };
         var l2 = new Line
         {
-            dialogueId = 0,
-            isEnd = true,
-            life = 8,
+            dialogueId = 1,
+            isEnd = false,
+            life = 4,
+            speaker = 0,
+            childA = 2
+        };
+        var l3 = new Line
+        {
+            dialogueId = 2,
+            isEnd = false,
+            life = 4,
+            speaker = 0,
+            childA = 3
+        };
+        var l4 = new Line
+        {
+            dialogueId = 3,
+            isEnd = false,
+            life = 4,
             speaker = 0
         };
         lines1.Add(l1);
         lines1.Add(l2);
+        lines1.Add(l3);
+        lines1.Add(l4);
         lines1.Reverse();
 
         testPlay1.drama = 2;
@@ -155,9 +188,12 @@ public class ServerClientDataSplitter : MonoBehaviour
                 {
                     // Add lines to SystemRunPlay
                     var line = p.lines[j];
+                    Debug.Log(p.lines[j].dialogueId);
+                    //Debug.Log(dialogueIds[p.lines[j].dialogueId]);
                     var l = new Line
                     {
-                        dialogueId = dialogueIds[line.dialogueId],
+                        // TODO fix
+                        dialogueId = dialogueIds[p.lines[j].dialogueId],
                         isEnd = line.isEnd,
                         life = line.life,
                         speaker = line.speaker,
