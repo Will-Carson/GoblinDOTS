@@ -23,7 +23,7 @@ public class TestClayxelSolids : MonoBehaviour
 
         	solids.Add(newSolid);
         }
-
+        
         this.clayxel.updatedSolidCount();
     }
 

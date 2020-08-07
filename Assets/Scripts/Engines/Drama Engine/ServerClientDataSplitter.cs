@@ -188,8 +188,6 @@ public class ServerClientDataSplitter : MonoBehaviour
                 {
                     // Add lines to SystemRunPlay
                     var line = p.lines[j];
-                    Debug.Log(p.lines[j].dialogueId);
-                    //Debug.Log(dialogueIds[p.lines[j].dialogueId]);
                     var l = new Line
                     {
                         // TODO fix

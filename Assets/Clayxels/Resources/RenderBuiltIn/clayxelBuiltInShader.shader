@@ -7,7 +7,7 @@ Shader "Clayxels/ClayxelBuiltInShader"
 		_Smoothness ("Smoothness", Range(0.0,1.0)) = 0.5
 		_Metallic ("Metallic", Range(0.0,1.0)) = 0.0
 		[HDR]_Emission ("Emission", Color) = (0, 0, 0, 0)
-		_ClayxelSize ("Clayxel Size", Range(0.0, 100.0)) = 1.0
+		_ClayxelSize ("Clayxel Size", Range(0.1, 1.5)) = 1.0
 		_NormalOrient ("Normal Orient", Range(0.0, 1.0)) = 1.0
 		[NoScaleOffset]_MainTex ("Texture", 2D) = "defaulttexture" {}
 		_Cutoff ("Cutoff", Range(0.0, 1.0)) = 0.95

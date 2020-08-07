@@ -171,9 +171,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 49
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &92868367
 GameObject:
   m_ObjectHideFlags: 0
@@ -224,9 +224,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 16
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &137475939
 GameObject:
   m_ObjectHideFlags: 0
@@ -277,9 +277,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 0
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &160547049
 GameObject:
   m_ObjectHideFlags: 0
@@ -330,9 +330,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 12
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &171339294
 GameObject:
   m_ObjectHideFlags: 0
@@ -383,9 +383,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 2
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &207314250
 GameObject:
   m_ObjectHideFlags: 0
@@ -436,9 +436,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 54
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &213981921
 GameObject:
   m_ObjectHideFlags: 0
@@ -701,9 +701,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 14
   numSolids: 1
+  splineSubdiv: 3
 --- !u!21 &417070054
 Material:
   serializedVersion: 6
@@ -792,9 +792,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 41
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &433465023
 GameObject:
   m_ObjectHideFlags: 0
@@ -845,9 +845,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 7
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &459549680
 GameObject:
   m_ObjectHideFlags: 0
@@ -898,9 +898,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 20
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &461722832
 GameObject:
   m_ObjectHideFlags: 0
@@ -951,9 +951,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 48
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &491883252
 GameObject:
   m_ObjectHideFlags: 0
@@ -1004,9 +1004,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 43
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &511090101
 GameObject:
   m_ObjectHideFlags: 0
@@ -1057,9 +1057,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 46
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &519042457
 GameObject:
   m_ObjectHideFlags: 0
@@ -1110,9 +1110,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 3
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &531541597
 GameObject:
   m_ObjectHideFlags: 0
@@ -1163,9 +1163,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 37
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &551705205
 GameObject:
   m_ObjectHideFlags: 0
@@ -1216,9 +1216,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 13
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &554519759
 GameObject:
   m_ObjectHideFlags: 0
@@ -1269,9 +1269,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 26
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &564399920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1352,9 +1352,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 4
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &588386922
 GameObject:
   m_ObjectHideFlags: 0
@@ -1405,9 +1405,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 22
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &592400273
 GameObject:
   m_ObjectHideFlags: 0
@@ -1458,9 +1458,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 45
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &604199548
 GameObject:
   m_ObjectHideFlags: 0
@@ -1511,9 +1511,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 36
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &604624036
 GameObject:
   m_ObjectHideFlags: 0
@@ -1594,9 +1594,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 23
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &652839945
 GameObject:
   m_ObjectHideFlags: 0
@@ -1626,17 +1626,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf51d6fd97243134dbf9d48bd3107215, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chunkSize: 8
-  chunksX: 1
-  chunksY: 1
-  chunksZ: 1
   customMaterial: {fileID: 2100000, guid: df1f3385984c4024c8c20f0798827a65, type: 2}
   meshAssetPath: 
   forceUpdate: 0
   needsUpdate: 0
-  material: {fileID: 417070054}
   shouldRetopoMesh: 0
   retopoMaxVerts: -1
+  clayxelDetail: 88
+  chunksX: 1
+  chunksY: 1
+  chunksZ: 1
+  material: {fileID: 417070054}
 --- !u!4 &652839947
 Transform:
   m_ObjectHideFlags: 0
@@ -1756,9 +1756,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 28
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &745729364
 GameObject:
   m_ObjectHideFlags: 0
@@ -1809,9 +1809,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 1
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &833106639
 GameObject:
   m_ObjectHideFlags: 0
@@ -1872,9 +1872,9 @@ MonoBehaviour:
   - {fileID: 213981921}
   - {fileID: 604624036}
   - {fileID: 604624036}
-  splineSubdiv: 7
   clayObjectId: 38
   numSolids: 21
+  splineSubdiv: 7
 --- !u!1 &862002524
 GameObject:
   m_ObjectHideFlags: 0
@@ -1925,9 +1925,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 17
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &878848223
 GameObject:
   m_ObjectHideFlags: 0
@@ -1978,9 +1978,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 11
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &889001810
 GameObject:
   m_ObjectHideFlags: 0
@@ -2031,9 +2031,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 33
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1027293364
 GameObject:
   m_ObjectHideFlags: 0
@@ -2084,9 +2084,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 44
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1032118660
 GameObject:
   m_ObjectHideFlags: 0
@@ -2137,9 +2137,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 39
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1110120728
 GameObject:
   m_ObjectHideFlags: 0
@@ -2190,9 +2190,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 19
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1153170719
 GameObject:
   m_ObjectHideFlags: 0
@@ -2243,9 +2243,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 10
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1207174720
 GameObject:
   m_ObjectHideFlags: 0
@@ -2296,9 +2296,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 24
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1306954960
 GameObject:
   m_ObjectHideFlags: 0
@@ -2441,9 +2441,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 1
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1379891052
 GameObject:
   m_ObjectHideFlags: 0
@@ -2494,9 +2494,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 29
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1389552245
 GameObject:
   m_ObjectHideFlags: 0
@@ -2547,9 +2547,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 27
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1411352380
 GameObject:
   m_ObjectHideFlags: 0
@@ -2600,9 +2600,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 3
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1457273678
 GameObject:
   m_ObjectHideFlags: 0
@@ -2653,9 +2653,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 15
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1482345800
 GameObject:
   m_ObjectHideFlags: 0
@@ -2706,9 +2706,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 31
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1543510560
 GameObject:
   m_ObjectHideFlags: 0
@@ -2759,9 +2759,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 4
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1568267466
 GameObject:
   m_ObjectHideFlags: 0
@@ -2812,9 +2812,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 30
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1574546512
 GameObject:
   m_ObjectHideFlags: 0
@@ -2865,9 +2865,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 42
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1577138274
 GameObject:
   m_ObjectHideFlags: 0
@@ -2918,9 +2918,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 51
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1612767251
 GameObject:
   m_ObjectHideFlags: 0
@@ -2971,9 +2971,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 5
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1654625496
 GameObject:
   m_ObjectHideFlags: 0
@@ -3024,9 +3024,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 6
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1659398217
 GameObject:
   m_ObjectHideFlags: 0
@@ -3077,9 +3077,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 50
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1676262209
 GameObject:
   m_ObjectHideFlags: 0
@@ -3130,9 +3130,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 47
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1684474204
 GameObject:
   m_ObjectHideFlags: 0
@@ -3183,9 +3183,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 52
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1686482294
 GameObject:
   m_ObjectHideFlags: 0
@@ -3236,9 +3236,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 25
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1691966776
 GameObject:
   m_ObjectHideFlags: 0
@@ -3289,9 +3289,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 40
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1718972929
 GameObject:
   m_ObjectHideFlags: 0
@@ -3342,9 +3342,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 32
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1730178007
 GameObject:
   m_ObjectHideFlags: 0
@@ -3395,9 +3395,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 0
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1737318152
 GameObject:
   m_ObjectHideFlags: 0
@@ -3448,9 +3448,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 18
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1754168937
 GameObject:
   m_ObjectHideFlags: 0
@@ -3501,9 +3501,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 9
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1774176251
 GameObject:
   m_ObjectHideFlags: 0
@@ -3584,9 +3584,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 21
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1869846623
 GameObject:
   m_ObjectHideFlags: 0
@@ -3637,9 +3637,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 8
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1876314371
 GameObject:
   m_ObjectHideFlags: 0
@@ -3690,9 +3690,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 53
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &1879665076
 GameObject:
   m_ObjectHideFlags: 0
@@ -3722,17 +3722,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf51d6fd97243134dbf9d48bd3107215, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chunkSize: 27
-  chunksX: 1
-  chunksY: 1
-  chunksZ: 1
   customMaterial: {fileID: 2100000, guid: df1f3385984c4024c8c20f0798827a65, type: 2}
   meshAssetPath: 
   forceUpdate: 0
   needsUpdate: 0
-  material: {fileID: 385187912}
   shouldRetopoMesh: 0
   retopoMaxVerts: -1
+  clayxelDetail: 48
+  chunksX: 1
+  chunksY: 1
+  chunksZ: 1
+  material: {fileID: 385187912}
 --- !u!4 &1879665078
 Transform:
   m_ObjectHideFlags: 0
@@ -3802,9 +3802,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 2
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &2038982946
 GameObject:
   m_ObjectHideFlags: 0
@@ -3855,9 +3855,9 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 35
   numSolids: 1
+  splineSubdiv: 3
 --- !u!1 &2053687776
 GameObject:
   m_ObjectHideFlags: 0
@@ -3908,6 +3908,6 @@ MonoBehaviour:
   mode: 0
   offsetter: {fileID: 0}
   splinePoints: []
-  splineSubdiv: 3
   clayObjectId: 34
   numSolids: 1
+  splineSubdiv: 3

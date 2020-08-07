@@ -6,11 +6,11 @@ public static class ClayxelsPrefs {
     public static void apply(){
     	// how many solids can you have in a container
         // affects video memory
-        Clayxels.ClayContainer.setMaxSolids(512);// 64, 128, 256, 512, 1024, 4096, 16384
+        Clayxels.ClayContainer.setMaxSolids(1024);// 64, 128, 256, 512, 1024, 4096, 16384
 
         // max size of the container work area
         // only has effect in the UI, no performance change
-        Clayxels.ClayContainer.setMaxChunks(3, 3, 3);// don't exceed 4,4,4 to avoid filling up video memory
+        Clayxels.ClayContainer.setMaxChunks(4, 4, 4);// don't exceed 4,4,4 to avoid filling up video memory
         
         // how many solids you can have in a single voxel
         // lower values means faster and less video memory used

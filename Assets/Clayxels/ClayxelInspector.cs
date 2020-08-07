@@ -7,6 +7,8 @@ using System.Globalization;
 
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 
 using Clayxels;
@@ -17,48 +19,94 @@ namespace Clayxels{
 		public override void OnInspectorGUI(){
 			ClayContainer clayxel = (ClayContainer)this.target;
 
-			EditorGUILayout.LabelField("Clayxels, V0.822 beta");
-			EditorGUILayout.LabelField("used solids: " + clayxel.getNumSolids());
+			EditorGUILayout.LabelField("Clayxels V0.9");
 
-			// #if !CLAYXELS_ONEUP
-			// 	EditorGUILayout.LabelField("itch.io limit: 64 clayObjects");
-			// #else
-				EditorGUILayout.LabelField("limit is " + clayxel.getMaxSolids());
-			// #endif
+			if(clayxel.getNumSolids() > clayxel.getMaxSolids()){
+				EditorGUILayout.LabelField("Max solid count exeeded, see ClayxelsPrefs.cs setMaxSolids.");
+			}
 
 			EditorGUILayout.Space();
 
 			EditorGUI.BeginChangeCheck();
-			int chunkSize = EditorGUILayout.IntField(new GUIContent("chunk size", "Determines how coarse or finely detailed is your scult. Enable Gizmos in your viewport to see the boundaries."), clayxel.chunkSize);
-			Vector3Int gridSize = EditorGUILayout.Vector3IntField(new GUIContent("chunks", "Make the grid bigger by employing multiple chunks. The more chunks you have, the slower the computation."), new Vector3Int(clayxel.chunksX, clayxel.chunksY, clayxel.chunksZ));
+
+			int clayxelDetail = EditorGUILayout.IntField(new GUIContent("clayxel detail", "How coarse or finely detailed is your sculpt. Enable Gizmos in your viewport to see the boundaries."), clayxel.getClayxelDetail());
 			
 			if(EditorGUI.EndChangeCheck()){
 				ClayContainer.inspectorUpdate();
 
-				clayxel.chunkSize = chunkSize;
-				clayxel.chunksX = gridSize.x;
-				clayxel.chunksY = gridSize.y;
-				clayxel.chunksZ = gridSize.z;
+				clayxel.setClayxelDetail(clayxelDetail);
+
+				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+				ClayContainer.getSceneView().Repaint();
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
+
+				return;
+			}
+
+			GUILayout.BeginHorizontal();
+
+			EditorGUI.BeginChangeCheck();
+			Vector3Int boundsScale = EditorGUILayout.Vector3IntField(new GUIContent("bounds scale", "How much work area you have for your sculpt within this container. Enable Gizmos in your viewport to see the boundaries."), clayxel.getBoundsScale());
+			
+			if(EditorGUI.EndChangeCheck()){
+				ClayContainer.inspectorUpdate();
+
+				clayxel.setBoundsScale(boundsScale.x, boundsScale.y, boundsScale.z);
 
 				clayxel.init();
 				clayxel.needsUpdate = true;
 				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 				ClayContainer.getSceneView().Repaint();
 
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
+
 				return;
 			}
 
+			if(GUILayout.Button(new GUIContent("-", ""))){
+				ClayContainer.inspectorUpdate();
+
+				Vector3Int bounds = clayxel.getBoundsScale();
+				clayxel.setBoundsScale(bounds.x - 1, bounds.y - 1, bounds.z - 1);
+
+				clayxel.init();
+				clayxel.needsUpdate = true;
+				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+				ClayContainer.getSceneView().Repaint();
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
+
+				return;
+			}
+
+			if(GUILayout.Button(new GUIContent("+", ""))){
+				ClayContainer.inspectorUpdate();
+
+				Vector3Int bounds = clayxel.getBoundsScale();
+				clayxel.setBoundsScale(bounds.x + 1, bounds.y + 1, bounds.z + 1);
+
+				clayxel.init();
+				clayxel.needsUpdate = true;
+				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+				ClayContainer.getSceneView().Repaint();
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
+
+				return;
+			}
+
+			GUILayout.EndHorizontal();
+
 			EditorGUILayout.Space();
-
-			clayxel.forceUpdate = EditorGUILayout.Toggle(new GUIContent("update always", "Force this container to update on every frame, use it if you're moving the container as well as the clayObjects inside it."), clayxel.forceUpdate);
-
-			if(GUILayout.Button((new GUIContent("reload all", "This is necessary after you make changes to the shader or to the claySDF file.")))){
-				ClayContainer.reloadAll();
-			}
-
-			if(GUILayout.Button(new GUIContent("pick clay (p)", "Press p on your keyboard to mouse pick ClayObjects from the viewport. Pressing Shift will add to a previous selection."))){
-				ClayContainer.startPicking();
-			}
 
 			if(GUILayout.Button(new GUIContent("add clay", "lets get this party started"))){
 				ClayObject clayObj = ((ClayContainer)this.target).addClayObject();
@@ -70,13 +118,27 @@ namespace Clayxels{
 				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 				ClayContainer.getSceneView().Repaint();
 
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
+
 				return;
 			}
 
+			if(GUILayout.Button(new GUIContent("pick clay (p)", "Press p on your keyboard to mouse pick ClayObjects from the viewport. Pressing Shift will add to a previous selection."))){
+				ClayContainer.startPicking();
+			}
+
+			if(GUILayout.Button((new GUIContent("reload all", "This is necessary after you make changes to the shader or to the claySDF file.")))){
+				ClayContainer.reloadAll();
+			}
+
+			clayxel.forceUpdate = EditorGUILayout.Toggle(new GUIContent("force update", "Force this container to update on every frame, useful when animating, necessary only if you're moving the container as well as the clayObjects inside it."), clayxel.forceUpdate);
+
 			EditorGUILayout.Space();
 
-			#if CLAYXELS_ONEUP
-				clayxel.shouldRetopoMesh = EditorGUILayout.Toggle(new GUIContent("retopology", "(Experimental) use this to save better meshes on disk"), clayxel.shouldRetopoMesh);
+			#if CLAYXELS_RETOPO
+				clayxel.shouldRetopoMesh = EditorGUILayout.Toggle(new GUIContent("retopology", "Use this to generate meshes with a better topology."), clayxel.shouldRetopoMesh);
 				if(clayxel.shouldRetopoMesh){
 					clayxel.retopoMaxVerts = EditorGUILayout.IntField(new GUIContent("max verts", "-1 will let the tool decide on the best number of vertices."), clayxel.retopoMaxVerts);
 				}
@@ -90,7 +152,7 @@ namespace Clayxels{
 
 			if(!clayxel.hasCachedMesh()){
 				if(GUILayout.Button(new GUIContent("freeze to mesh", "Switch between live clayxels and a frozen mesh that will not be updated."))){
-					clayxel.generateMesh();
+					clayxel.freezeToMesh();
 
 					if(clayxel.shouldRetopoMesh){
 						clayxel.retopoMesh();
@@ -105,7 +167,7 @@ namespace Clayxels{
 			}
 			else{
 				if(GUILayout.Button(new GUIContent("defrost clayxels", "Back to live clayxels."))){
-					clayxel.disableMesh();
+					clayxel.disableFrozenMesh();
 					UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 					ClayContainer.getSceneView().Repaint();
 				}
@@ -125,17 +187,38 @@ namespace Clayxels{
 
 				if(customMaterial != clayxel.customMaterial){
 					clayxel.setCustomMaterial(customMaterial);
-					// clayxel.init();
 				}
 
 				clayxel.needsUpdate = true;
-				clayxel.forceUpdateAllChunks();
+				clayxel.forceUpdateAllSolids();
 				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 				ClayContainer.getSceneView().Repaint();
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
 			}
 
 			if(!clayxel.hasCachedMesh()){
 				this.inspectMaterial(clayxel);
+			}
+
+			EditorGUILayout.Space();
+
+			EditorGUI.BeginChangeCheck();
+
+			bool castShadows = EditorGUILayout.Toggle("cast shadows", clayxel.getCastShadows());
+			// bool receiveShadows = EditorGUILayout.Toggle("receive shadows", clayxel.getReceiveShadows());
+
+			if(EditorGUI.EndChangeCheck()){
+				ClayContainer.inspectorUpdate();
+
+				clayxel.setCastShadows(castShadows);
+				// clayxel.setReceiveShadows(receiveShadows);
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
 			}
 		}
 
@@ -162,6 +245,10 @@ namespace Clayxels{
 					DestroyImmediate(this.materialEditor);
 					this.materialEditor = null;
 				}
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
 			}
 		}
 	}
@@ -170,6 +257,8 @@ namespace Clayxels{
 	public class ClayObjectInspector : Editor{
 		
 		public override void OnInspectorGUI(){
+			UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+			
 			ClayObject clayObj = (ClayObject)this.targets[0];
 			ClayContainer clayxel = clayObj.getClayContainer();
 			
@@ -181,6 +270,10 @@ namespace Clayxels{
 				clayObj.setMode(mode);
 
 				UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+
+				if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
 			}
 
 			if(clayObj.mode == ClayObject.ClayObjectMode.offset){
@@ -194,7 +287,8 @@ namespace Clayxels{
 
 			EditorGUI.BeginChangeCheck();
 
-			float blend = EditorGUILayout.FloatField("blend", clayObj.blend);
+			float blend = EditorGUILayout.FloatField("blend", clayObj.blend * 100.0f);
+			blend *= 0.01f;
 			if(blend > 1.0f){
 				blend = 1.0f;
 			}
@@ -230,7 +324,7 @@ namespace Clayxels{
 	 				wMaskLabels.Add(label);
 	 			}
 	 			else{
-	 				paramValues[attr] = EditorGUILayout.FloatField(label, paramValues[attr]);
+	 				paramValues[attr] = EditorGUILayout.FloatField(label, paramValues[attr] * 100.0f) * 0.01f;
 	 			}
 	 		}
 
@@ -261,7 +355,6 @@ namespace Clayxels{
 	 				}
 					
 	 				if(clayObj.primitiveType != primitiveType){
-
 	 					currentClayObj.primitiveType = primitiveType;
 	 					somethingChanged = true;
 	 					shouldAutoRename = true;
@@ -315,6 +408,10 @@ namespace Clayxels{
 	 			
 	 			UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 	 			ClayContainer.getSceneView().Repaint();
+
+	 			if(!Application.isPlaying){
+					EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+				}
 			}
 		}
 
@@ -371,6 +468,21 @@ namespace Clayxels{
 			clayObj.gameObject.name = "clay_" + solidsLabels[clayObj.primitiveType] + blendSign + isColoring;
 		}
 	}
+
+	#if UNITY_EDITOR_WIN
+		[InitializeOnLoad]
+		public class ClayxelsWinEditorInit {
+		    static ClayxelsWinEditorInit(){
+		    	// allow retopo native lib
+		        PlayerSettings.allowUnsafeCode = true;
+
+		        string currDefines = PlayerSettings.GetScriptingDefineSymbolsForGroup( EditorUserBuildSettings.selectedBuildTargetGroup );
+		        if(!currDefines.Contains("CLAYXELS_RETOPO")){
+		    		PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, "CLAYXELS_RETOPO;" + currDefines);
+		    	}
+		    }
+		}
+	#endif
 }
 
 #endif // end if UNITY_EDITOR

@@ -11,7 +11,7 @@ Shader "Clayxels/ClayxelURPShader"
 		_Smoothness("Smoothness", Range( 0 , 1)) = 0.5
 		[NoScaleOffset]_MainTex("Texture", 2D) = "white" {}
 		[HDR]_Emission("Emission", Color) = (0,0,0,0)
-		_ClayxelSize("ClayxelSize", Range( 0 , 100)) = 1
+		_ClayxelSize("ClayxelSize", Range( 0.1 , 1.5)) = 1
 		_NormalOrient("NormalOrient", Range( 0 , 1)) = 1
 
 	}

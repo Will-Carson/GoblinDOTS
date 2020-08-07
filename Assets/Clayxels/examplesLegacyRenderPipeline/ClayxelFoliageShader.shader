@@ -5,7 +5,7 @@ Shader "ClayxelFoliageShader"
 	Properties
 	{
 		_Metallic("Metallic", Range( 0 , 1)) = 0.5
-		_ClayxelSize("ClayxelSize", Range( 0 , 10)) = 1
+		_ClayxelSize("ClayxelSize", Range( 0.1 , 2)) = 1
 		_Fuzz("Fuzz", Range( 0.001 , 0.7)) = 0.7
 		_NormalOrient("NormalOrient", Range( 0 , 1)) = 0
 		_Smoothness1("Smoothness", Range( 0 , 1)) = 0.5
@@ -67,6 +67,7 @@ Shader "ClayxelFoliageShader"
 			float normalOrient7 = ( _NormalOrient * 0.45 );
 			clayxelVertFoliage(vertexId7 , clayxelSize7, normalOrient7, v.texcoord, v.color.xyz, vertexPosition7, vertexNormal7); 
 			v.vertex.w = 1.0; // fix shadows in builtin renderer
+			v.tangent = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal7)),0.5);
 			v.vertex.xyz += vertexPosition7;
 			v.normal = vertexNormal7;
 			float localclayxelGetPointCloud34 = ( 0.0 );
@@ -186,7 +187,7 @@ Shader "ClayxelFoliageShader"
 }
 /*ASEBEGIN
 Version=18000
-331;81;1133;603;2046.602;100.8015;1.317243;True;False
+168;289;1363;558;1185.123;213.4259;1.317243;True;False
 Node;AmplifyShaderEditor.VertexIdVariableNode;35;-3236.483,-243.2999;Inherit;False;0;1;INT;0
 Node;AmplifyShaderEditor.CustomExpressionNode;34;-3064.402,-193.1563;Inherit;False;clayxelGetPointCloud(vertexId, gridPoint, pointColor, pointCenter, pointNormal)@;7;True;5;False;vertexId;INT;0;In;;Inherit;False;True;pointCenter;FLOAT3;0,0,0;Out;;Inherit;False;True;pointNormal;FLOAT3;0,0,0;Out;;Inherit;False;True;pointColor;FLOAT3;0,0,0;Out;;Inherit;False;True;gridPoint;FLOAT3;0,0,0;Out;;Inherit;False;clayxelGetPointCloud;False;False;0;6;0;FLOAT;0;False;1;INT;0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT3;0,0,0;False;5;FLOAT3;0,0,0;False;5;FLOAT;0;FLOAT3;3;FLOAT3;4;FLOAT3;5;FLOAT3;6
 Node;AmplifyShaderEditor.CrossProductOpNode;90;-2766.241,-121.1199;Inherit;False;2;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
@@ -199,21 +200,21 @@ Node;AmplifyShaderEditor.SimpleMultiplyOpNode;49;-1907.031,153.5305;Inherit;Fals
 Node;AmplifyShaderEditor.RotatorNode;29;-1742.461,46.0318;Inherit;False;3;0;FLOAT2;0,0;False;1;FLOAT2;0.5,0.5;False;2;FLOAT;1;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.VertexToFragmentNode;91;-1528.983,26.16465;Inherit;False;1;0;FLOAT2;0,0;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.TexturePropertyNode;3;-1556.901,-189.2809;Inherit;True;Property;_MainTex1;Texture;5;1;[NoScaleOffset];Create;False;0;0;False;0;1aa3096b1b9d9204eaa6c75a4275adb1;b9385d232bb3338469705512dca8a12a;False;white;Auto;Texture2D;-1;0;1;SAMPLER2D;0
-Node;AmplifyShaderEditor.SamplerNode;11;-1296.131,-167.2464;Inherit;True;Property;_TextureSample0;Texture Sample 0;6;0;Create;True;0;0;False;0;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;6;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.TexCoordVertexDataNode;92;-1302.931,152.0294;Inherit;False;0;2;0;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.RangedFloatNode;1;-926.1871,591.6495;Inherit;False;Property;_NormalOrient;NormalOrient;3;0;Create;True;0;0;False;0;0;0.3;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.TexCoordVertexDataNode;92;-1302.931,152.0294;Inherit;False;0;2;0;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.SamplerNode;11;-1296.131,-167.2464;Inherit;True;Property;_TextureSample0;Texture Sample 0;6;0;Create;True;0;0;False;0;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;6;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.RangedFloatNode;9;-1016.258,274.1686;Inherit;False;Property;_Fuzz;Fuzz;2;0;Create;True;0;0;False;0;0.7;0.001;0.001;0.7;0;1;FLOAT;0
 Node;AmplifyShaderEditor.VertexColorNode;6;-598.1531,-448.7143;Inherit;False;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.VertexIdVariableNode;5;-606.8448,369.614;Inherit;False;0;1;INT;0
-Node;AmplifyShaderEditor.RangedFloatNode;2;-735.8527,498.3518;Inherit;False;Property;_ClayxelSize;ClayxelSize;1;0;Create;True;0;0;False;0;1;2.21;0;10;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;93;-604.22,640.8062;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0.45;False;1;FLOAT;0
 Node;AmplifyShaderEditor.FunctionNode;26;-993.85,126.6098;Inherit;False;Random Range;-1;;4;7b754edb8aebbfb4a9ace907af661cfc;0;3;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT;1;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;2;-735.8527,498.3518;Inherit;False;Property;_ClayxelSize;ClayxelSize;1;0;Create;True;0;0;False;0;1;2.21;0.1;2;0;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;8;-694.7849,72.86772;Inherit;False;Property;_Smoothness1;Smoothness;4;0;Create;False;0;0;True;0;0.5;0;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;24;-376.6388,-266.5422;Inherit;False;2;2;0;COLOR;0,0,0,0;False;1;COLOR;0,0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.RangedFloatNode;10;-695.9645,-23.20914;Inherit;False;Property;_Metallic;Metallic;0;0;Create;True;0;0;True;0;0.5;0;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.ConditionalIfNode;27;-644.673,177.6142;Inherit;False;True;5;0;FLOAT;0;False;1;FLOAT;0.1;False;2;FLOAT;0;False;3;FLOAT;0;False;4;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.ColorNode;12;-422.2181,-152.0223;Inherit;False;Property;_Emission;Emission;6;1;[HDR];Create;True;0;0;False;0;0,0,0,0;0,0,0,0;True;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.CustomExpressionNode;7;-381.56,351.0013;Inherit;False;$clayxelVertFoliage(vertexId , clayxelSize, normalOrient, v.texcoord, v.color.xyz, vertexPosition, vertexNormal)@ $v.vertex.w = 1.0@ // fix shadows in builtin renderer$$;7;True;5;False;vertexId;INT;0;In;;Inherit;False;False;vertexPosition;FLOAT3;0,0,0;Out;;Inherit;False;False;vertexNormal;FLOAT3;0,0,0;Out;;Inherit;False;False;clayxelSize;FLOAT;0;In;;Inherit;False;False;normalOrient;FLOAT;0;In;;Inherit;False;clayxelComputeVertex;False;False;0;6;0;FLOAT;0;False;1;INT;0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;5;FLOAT;0;False;3;FLOAT;0;FLOAT3;3;FLOAT3;4
+Node;AmplifyShaderEditor.CustomExpressionNode;7;-381.56,351.0013;Inherit;False;$clayxelVertFoliage(vertexId , clayxelSize, normalOrient, v.texcoord, v.color.xyz, vertexPosition, vertexNormal)@ $v.vertex.w = 1.0@ // fix shadows in builtin renderer$$v.tangent = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal)),0.5)@$;7;True;5;False;vertexId;INT;0;In;;Inherit;False;False;vertexPosition;FLOAT3;0,0,0;Out;;Inherit;False;False;vertexNormal;FLOAT3;0,0,0;Out;;Inherit;False;False;clayxelSize;FLOAT;0;In;;Inherit;False;False;normalOrient;FLOAT;0;In;;Inherit;False;clayxelComputeVertex;False;False;0;6;0;FLOAT;0;False;1;INT;0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;5;FLOAT;0;False;3;FLOAT;0;FLOAT3;3;FLOAT3;4
 Node;AmplifyShaderEditor.StandardSurfaceOutputNode;77;174.7608,-24.62549;Float;False;True;-1;2;ASEMaterialInspector;0;0;Standard;ClayxelFoliageShader;False;False;False;False;False;False;False;True;False;False;False;False;False;False;False;False;False;False;False;False;False;Back;0;False;-1;0;False;-1;False;0;False;-1;0;False;-1;False;4;Custom;0.5;True;True;0;True;Opaque;;AlphaTest;All;14;all;True;True;True;True;0;False;-1;False;0;False;-1;255;False;-1;255;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;False;2;15;10;25;False;0.5;True;0;5;False;-1;10;False;-1;0;5;False;-1;10;False;-1;0;False;-1;0;False;-1;0;False;5.8;0,0,0,0;VertexScale;True;False;Cylindrical;False;Relative;0;;-1;-1;-1;-1;0;True;0;0;False;-1;-1;0;True;9;1;Include;Assets/Clayxels/Resources/clayxelSRPUtils.cginc;False;;Custom;0;0;False;0.1;False;-1;0;False;9;16;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT3;0,0,0;False;7;FLOAT3;0,0,0;False;8;FLOAT;0;False;9;FLOAT;0;False;10;FLOAT;0;False;13;FLOAT3;0,0,0;False;11;FLOAT3;0,0,0;False;12;FLOAT3;0,0,0;False;14;FLOAT4;0,0,0,0;False;15;FLOAT3;0,0,0;False;0
 WireConnection;34;1;35;0
 WireConnection;90;0;34;3
@@ -248,4 +249,4 @@ WireConnection;77;10;27;0
 WireConnection;77;11;7;3
 WireConnection;77;12;7;4
 ASEEND*/
-//CHKSM=74CDDA6432E2A2790F0D7643883CF13E73B10885
+//CHKSM=0BF4B532B055A7497B029B84A8860F2E1DBD0C37

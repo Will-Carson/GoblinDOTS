@@ -50,6 +50,12 @@ Shader "Clayxels/ClayxelHDRPShader"
 		[HideInInspector] [ToggleUI] _DoubleSidedEnable("Double Sided Enable", Float) = 0
 		[HideInInspector] [Enum(Flip, 0, Mirror, 1, None, 2)] _DoubleSidedNormalMode("Double Sided Normal Mode", Float) = 2
 		[HideInInspector] _DoubleSidedConstants("DoubleSidedConstants", Vector) = (1,1,-1,0)
+		[HideInInspector]_TessPhongStrength( "Tess Phong Strength", Range( 0, 1 ) ) = 0.5
+		[HideInInspector]_TessValue( "Tess Max Tessellation", Range( 1, 32 ) ) = 16
+		[HideInInspector]_TessMin( "Tess Min Distance", Float ) = 10
+		[HideInInspector]_TessMax( "Tess Max Distance", Float ) = 25
+		[HideInInspector]_TessEdgeLength ( "Tess Edge length", Range( 2, 50 ) ) = 16
+		[HideInInspector]_TessMaxDisp( "Tess Max Displacement", Float ) = 25
 	}
 
 	SubShader
@@ -64,6 +70,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 		#pragma target 4.5
 		#pragma only_renderers d3d11 ps4 xboxone vulkan metal switch
 		#pragma multi_compile_instancing
+		#pragma instancing_options renderinglayer
 
 		struct GlobalSurfaceDescription // GBuffer Forward META TransparentBackface
 		{
@@ -150,6 +157,103 @@ Shader "Clayxels/ClayxelHDRPShader"
 			float AlphaClipThreshold;
 		};
 
+		float4 FixedTess( float tessValue )
+		{
+			return tessValue;
+		}
+		
+		float CalcDistanceTessFactor (float4 vertex, float minDist, float maxDist, float tess, float4x4 o2w, float3 cameraPos )
+		{
+			float3 wpos = mul(o2w,vertex).xyz;
+			float dist = distance (wpos, cameraPos);
+			float f = clamp(1.0 - (dist - minDist) / (maxDist - minDist), 0.01, 1.0) * tess;
+			return f;
+		}
+
+		float4 CalcTriEdgeTessFactors (float3 triVertexFactors)
+		{
+			float4 tess;
+			tess.x = 0.5 * (triVertexFactors.y + triVertexFactors.z);
+			tess.y = 0.5 * (triVertexFactors.x + triVertexFactors.z);
+			tess.z = 0.5 * (triVertexFactors.x + triVertexFactors.y);
+			tess.w = (triVertexFactors.x + triVertexFactors.y + triVertexFactors.z) / 3.0f;
+			return tess;
+		}
+
+		float CalcEdgeTessFactor (float3 wpos0, float3 wpos1, float edgeLen, float3 cameraPos, float4 scParams )
+		{
+			float dist = distance (0.5 * (wpos0+wpos1), cameraPos);
+			float len = distance(wpos0, wpos1);
+			float f = max(len * scParams.y / (edgeLen * dist), 1.0);
+			return f;
+		}
+
+		float DistanceFromPlaneASE (float3 pos, float4 plane)
+		{
+			return dot (float4(pos,1.0f), plane);
+		}
+
+		bool WorldViewFrustumCull (float3 wpos0, float3 wpos1, float3 wpos2, float cullEps, float4 planes[6] )
+		{
+			float4 planeTest;
+			planeTest.x = (( DistanceFromPlaneASE(wpos0, planes[0]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos1, planes[0]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos2, planes[0]) > -cullEps) ? 1.0f : 0.0f );
+			planeTest.y = (( DistanceFromPlaneASE(wpos0, planes[1]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos1, planes[1]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos2, planes[1]) > -cullEps) ? 1.0f : 0.0f );
+			planeTest.z = (( DistanceFromPlaneASE(wpos0, planes[2]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos1, planes[2]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos2, planes[2]) > -cullEps) ? 1.0f : 0.0f );
+			planeTest.w = (( DistanceFromPlaneASE(wpos0, planes[3]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos1, planes[3]) > -cullEps) ? 1.0f : 0.0f ) +
+						  (( DistanceFromPlaneASE(wpos2, planes[3]) > -cullEps) ? 1.0f : 0.0f );
+			return !all (planeTest);
+		}
+
+		float4 DistanceBasedTess( float4 v0, float4 v1, float4 v2, float tess, float minDist, float maxDist, float4x4 o2w, float3 cameraPos )
+		{
+			float3 f;
+			f.x = CalcDistanceTessFactor (v0,minDist,maxDist,tess,o2w,cameraPos);
+			f.y = CalcDistanceTessFactor (v1,minDist,maxDist,tess,o2w,cameraPos);
+			f.z = CalcDistanceTessFactor (v2,minDist,maxDist,tess,o2w,cameraPos);
+
+			return CalcTriEdgeTessFactors (f);
+		}
+
+		float4 EdgeLengthBasedTess( float4 v0, float4 v1, float4 v2, float edgeLength, float4x4 o2w, float3 cameraPos, float4 scParams )
+		{
+			float3 pos0 = mul(o2w,v0).xyz;
+			float3 pos1 = mul(o2w,v1).xyz;
+			float3 pos2 = mul(o2w,v2).xyz;
+			float4 tess;
+			tess.x = CalcEdgeTessFactor (pos1, pos2, edgeLength, cameraPos, scParams);
+			tess.y = CalcEdgeTessFactor (pos2, pos0, edgeLength, cameraPos, scParams);
+			tess.z = CalcEdgeTessFactor (pos0, pos1, edgeLength, cameraPos, scParams);
+			tess.w = (tess.x + tess.y + tess.z) / 3.0f;
+			return tess;
+		}
+
+		float4 EdgeLengthBasedTessCull( float4 v0, float4 v1, float4 v2, float edgeLength, float maxDisplacement, float4x4 o2w, float3 cameraPos, float4 scParams, float4 planes[6] )
+		{
+			float3 pos0 = mul(o2w,v0).xyz;
+			float3 pos1 = mul(o2w,v1).xyz;
+			float3 pos2 = mul(o2w,v2).xyz;
+			float4 tess;
+
+			if (WorldViewFrustumCull(pos0, pos1, pos2, maxDisplacement, planes))
+			{
+				tess = 0.0f;
+			}
+			else
+			{
+				tess.x = CalcEdgeTessFactor (pos1, pos2, edgeLength, cameraPos, scParams);
+				tess.y = CalcEdgeTessFactor (pos2, pos0, edgeLength, cameraPos, scParams);
+				tess.z = CalcEdgeTessFactor (pos0, pos1, edgeLength, cameraPos, scParams);
+				tess.w = (tess.x + tess.y + tess.z) / 3.0f;
+			}
+			return tess;
+		}
 		ENDHLSL
 		
 		Pass
@@ -176,7 +280,6 @@ Shader "Clayxels/ClayxelHDRPShader"
 
 			#define _DISABLE_DECALS 1
 			#define _SPECULAR_OCCLUSION_FROM_AO 1
-			#pragma instancing_options renderinglayer
 			#define HAVE_MESH_MODIFICATION
 			#define ASE_SRP_VERSION 999999
 
@@ -265,10 +368,10 @@ Shader "Clayxels/ClayxelHDRPShader"
 			};
 
 			CBUFFER_START( UnityPerMaterial )
+			float4 _Emission;
 			float _ClayxelSize;
 			float _NormalOrient;
 			float _Metallic;
-			float4 _Emission;
 			float _Smoothness;
 			float _CutOff;
 			float4 _EmissionColor;
@@ -311,6 +414,12 @@ Shader "Clayxels/ClayxelHDRPShader"
 			float _DoubleSidedEnable;
 			float _DoubleSidedNormalMode;
 			float4 _DoubleSidedConstants;
+			float _TessPhongStrength;
+			float _TessValue;
+			float _TessMin;
+			float _TessMax;
+			float _TessEdgeLength;
+			float _TessMaxDisp;
 			CBUFFER_END
 			sampler2D _MainTex;
 
@@ -506,7 +615,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				PostInitBuiltinData(V, posInput, surfaceData, builtinData);
 			}
 
-			PackedVaryingsMeshToPS Vert(AttributesMesh inputMesh )
+			PackedVaryingsMeshToPS VertexFunction(AttributesMesh inputMesh )
 			{
 				PackedVaryingsMeshToPS outputPackedVaryingsMeshToPS;
 
@@ -524,6 +633,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				clayxelVertNormalBlend(vertexId21 , clayxelSize21, normalOrient21, inputMesh.ase_texcoord, color, vertexPosition21, vertexNormal21);
 				#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS
 				inputMesh.ase_color = float4(color, 1);
+				inputMesh.tangentOS = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal21)),0.5);
 				#endif
 				
 				outputPackedVaryingsMeshToPS.ase_color = inputMesh.ase_color;
@@ -560,6 +670,106 @@ Shader "Clayxels/ClayxelHDRPShader"
 				outputPackedVaryingsMeshToPS.interp04.xyzw = inputMesh.uv2;
 				return outputPackedVaryingsMeshToPS;
 			}
+
+			#if defined(TESSELLATION_ON)
+			struct VertexControl
+			{
+				float3 positionOS : INTERNALTESSPOS;
+				float3 normalOS : NORMAL;
+				float4 tangentOS : TANGENT;
+				float4 uv1 : TEXCOORD1;
+				float4 uv2 : TEXCOORD2;
+				uint ase_vertexID : SV_VertexID;
+				float4 ase_color : COLOR;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl Vert ( AttributesMesh v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.positionOS = v.positionOS;
+				o.normalOS = v.normalOS;
+				o.tangentOS = v.tangentOS;
+				o.uv1 = v.uv1;
+				o.uv2 = v.uv2;
+				o.ase_vertexID = v.ase_vertexID;
+				o.ase_color = v.ase_color;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if (SHADEROPTIONS_CAMERA_RELATIVE_RENDERING != 0)
+				float3 cameraPos = 0;
+				#else
+				float3 cameraPos = _WorldSpaceCameraPos;
+				#endif
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), cameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, GetObjectToWorldMatrix(), cameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), cameraPos, _ScreenParams, _FrustumPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+			   return patch[id];
+			}
+
+			[domain("tri")]
+			PackedVaryingsMeshToPS DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				AttributesMesh o = (AttributesMesh) 0;
+				o.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
+				o.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
+				o.tangentOS = patch[0].tangentOS * bary.x + patch[1].tangentOS * bary.y + patch[2].tangentOS * bary.z;
+				o.uv1 = patch[0].uv1 * bary.x + patch[1].uv1 * bary.y + patch[2].uv1 * bary.z;
+				o.uv2 = patch[0].uv2 * bary.x + patch[1].uv2 * bary.y + patch[2].uv2 * bary.z;
+				o.ase_vertexID = patch[0].ase_vertexID * bary.x + patch[1].ase_vertexID * bary.y + patch[2].ase_vertexID * bary.z;
+				o.ase_color = patch[0].ase_color * bary.x + patch[1].ase_color * bary.y + patch[2].ase_color * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.positionOS.xyz - patch[i].normalOS * (dot(o.positionOS.xyz, patch[i].normalOS) - dot(patch[i].positionOS.xyz, patch[i].normalOS));
+				float phongStrength = _TessPhongStrength;
+				o.positionOS.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.positionOS.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			PackedVaryingsMeshToPS Vert ( AttributesMesh v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
 
 			void Frag( PackedVaryingsMeshToPS packedInput,
 						OUTPUT_GBUFFER(outGBuffer)
@@ -706,7 +916,6 @@ Shader "Clayxels/ClayxelHDRPShader"
 
 			#define _DISABLE_DECALS 1
 			#define _SPECULAR_OCCLUSION_FROM_AO 1
-			#pragma instancing_options renderinglayer
 			#define HAVE_MESH_MODIFICATION
 			#define ASE_SRP_VERSION 999999
 
@@ -777,10 +986,10 @@ Shader "Clayxels/ClayxelHDRPShader"
 			};
 
 			CBUFFER_START( UnityPerMaterial )
+			float4 _Emission;
 			float _ClayxelSize;
 			float _NormalOrient;
 			float _Metallic;
-			float4 _Emission;
 			float _Smoothness;
 			float _CutOff;
 			float4 _EmissionColor;
@@ -823,6 +1032,12 @@ Shader "Clayxels/ClayxelHDRPShader"
 			float _DoubleSidedEnable;
 			float _DoubleSidedNormalMode;
 			float4 _DoubleSidedConstants;
+			float _TessPhongStrength;
+			float _TessValue;
+			float _TessMin;
+			float _TessMax;
+			float _TessEdgeLength;
+			float _TessMaxDisp;
 			CBUFFER_END
 			sampler2D _MainTex;
 
@@ -962,7 +1177,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				PostInitBuiltinData(V, posInput, surfaceData, builtinData);
 			}
 
-			PackedVaryingsMeshToPS Vert(AttributesMesh inputMesh )
+			PackedVaryingsMeshToPS VertexFunction(AttributesMesh inputMesh )
 			{
 				PackedVaryingsMeshToPS outputPackedVaryingsMeshToPS;
 				UNITY_SETUP_INSTANCE_ID(inputMesh);
@@ -979,6 +1194,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				clayxelVertNormalBlend(vertexId21 , clayxelSize21, normalOrient21, inputMesh.ase_texcoord, color, vertexPosition21, vertexNormal21);
 				#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS
 				inputMesh.ase_color = float4(color, 1);
+				inputMesh.tangentOS = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal21)),0.5);
 				#endif
 				
 				outputPackedVaryingsMeshToPS.ase_texcoord1.xy = inputMesh.ase_texcoord.xy;
@@ -1007,6 +1223,94 @@ Shader "Clayxels/ClayxelHDRPShader"
 				return outputPackedVaryingsMeshToPS;
 			}
 
+			#if defined(TESSELLATION_ON)
+			struct VertexControl
+			{
+				float3 positionOS : INTERNALTESSPOS;
+				float3 normalOS : NORMAL;
+				uint ase_vertexID : SV_VertexID;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl Vert ( AttributesMesh v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.positionOS = v.positionOS;
+				o.normalOS = v.normalOS;
+				o.ase_vertexID = v.ase_vertexID;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if (SHADEROPTIONS_CAMERA_RELATIVE_RENDERING != 0)
+				float3 cameraPos = 0;
+				#else
+				float3 cameraPos = _WorldSpaceCameraPos;
+				#endif
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), cameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, GetObjectToWorldMatrix(), cameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), cameraPos, _ScreenParams, _FrustumPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+			   return patch[id];
+			}
+
+			[domain("tri")]
+			PackedVaryingsMeshToPS DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				AttributesMesh o = (AttributesMesh) 0;
+				o.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
+				o.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
+				o.ase_vertexID = patch[0].ase_vertexID * bary.x + patch[1].ase_vertexID * bary.y + patch[2].ase_vertexID * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.positionOS.xyz - patch[i].normalOS * (dot(o.positionOS.xyz, patch[i].normalOS) - dot(patch[i].positionOS.xyz, patch[i].normalOS));
+				float phongStrength = _TessPhongStrength;
+				o.positionOS.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.positionOS.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			PackedVaryingsMeshToPS Vert ( AttributesMesh v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
+			
 			void Frag( PackedVaryingsMeshToPS packedInput
 						#ifdef WRITE_NORMAL_BUFFER
 						, out float4 outNormalBuffer : SV_Target0
@@ -1116,7 +1420,6 @@ Shader "Clayxels/ClayxelHDRPShader"
 
 			#define _DISABLE_DECALS 1
 			#define _SPECULAR_OCCLUSION_FROM_AO 1
-			#pragma instancing_options renderinglayer
 			#define HAVE_MESH_MODIFICATION
 			#define ASE_SRP_VERSION 999999
 
@@ -1190,10 +1493,10 @@ Shader "Clayxels/ClayxelHDRPShader"
 			};
 
 			CBUFFER_START( UnityPerMaterial )
+			float4 _Emission;
 			float _ClayxelSize;
 			float _NormalOrient;
 			float _Metallic;
-			float4 _Emission;
 			float _Smoothness;
 			float _CutOff;
 			float4 _EmissionColor;
@@ -1234,6 +1537,12 @@ Shader "Clayxels/ClayxelHDRPShader"
 			float _DoubleSidedEnable;
 			float _DoubleSidedNormalMode;
 			float4 _DoubleSidedConstants;
+			float _TessPhongStrength;
+			float _TessValue;
+			float _TessMin;
+			float _TessMax;
+			float _TessEdgeLength;
+			float _TessMaxDisp;
 			CBUFFER_END
 			sampler2D _MainTex;
 
@@ -1371,7 +1680,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				PostInitBuiltinData(V, posInput, surfaceData, builtinData);
 			}
 
-			PackedVaryingsMeshToPS Vert(AttributesMesh inputMesh )
+			PackedVaryingsMeshToPS VertexFunction(AttributesMesh inputMesh )
 			{
 				PackedVaryingsMeshToPS outputPackedVaryingsMeshToPS;
 
@@ -1389,6 +1698,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				clayxelVertNormalBlend(vertexId21 , clayxelSize21, normalOrient21, inputMesh.ase_texcoord, color, vertexPosition21, vertexNormal21);
 				#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS
 				inputMesh.ase_color = float4(color, 1);
+				inputMesh.tangentOS = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal21)),0.5);
 				#endif
 				
 				outputPackedVaryingsMeshToPS.ase_texcoord3.xy = inputMesh.ase_texcoord.xy;
@@ -1422,6 +1732,97 @@ Shader "Clayxels/ClayxelHDRPShader"
 				outputPackedVaryingsMeshToPS.interp02.xyzw = tangentWS;
 				return outputPackedVaryingsMeshToPS;
 			}
+			
+			#if defined(TESSELLATION_ON)
+			struct VertexControl
+			{
+				float3 positionOS : INTERNALTESSPOS;
+				float3 normalOS : NORMAL;
+				float4 tangentOS : TANGENT;
+				uint ase_vertexID : SV_VertexID;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl Vert ( AttributesMesh v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.positionOS = v.positionOS;
+				o.normalOS = v.normalOS;
+				o.tangentOS = v.tangentOS;
+				o.ase_vertexID = v.ase_vertexID;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if (SHADEROPTIONS_CAMERA_RELATIVE_RENDERING != 0)
+				float3 cameraPos = 0;
+				#else
+				float3 cameraPos = _WorldSpaceCameraPos;
+				#endif
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), cameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, GetObjectToWorldMatrix(), cameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), cameraPos, _ScreenParams, _FrustumPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+			   return patch[id];
+			}
+
+			[domain("tri")]
+			PackedVaryingsMeshToPS DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				AttributesMesh o = (AttributesMesh) 0;
+				o.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
+				o.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
+				o.tangentOS = patch[0].tangentOS * bary.x + patch[1].tangentOS * bary.y + patch[2].tangentOS * bary.z;
+				o.ase_vertexID = patch[0].ase_vertexID * bary.x + patch[1].ase_vertexID * bary.y + patch[2].ase_vertexID * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.positionOS.xyz - patch[i].normalOS * (dot(o.positionOS.xyz, patch[i].normalOS) - dot(patch[i].positionOS.xyz, patch[i].normalOS));
+				float phongStrength = _TessPhongStrength;
+				o.positionOS.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.positionOS.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			PackedVaryingsMeshToPS Vert ( AttributesMesh v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
 
 			void Frag( PackedVaryingsMeshToPS packedInput
 						#ifdef WRITE_NORMAL_BUFFER
@@ -1534,7 +1935,6 @@ Shader "Clayxels/ClayxelHDRPShader"
 
 			#define _DISABLE_DECALS 1
 			#define _SPECULAR_OCCLUSION_FROM_AO 1
-			#pragma instancing_options renderinglayer
 			#define HAVE_MESH_MODIFICATION
 			#define ASE_SRP_VERSION 999999
 
@@ -1598,7 +1998,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
-			struct PackedVaryingsToPS
+			struct PackedVaryingsMeshToPS
 			{
 				float4 vmeshPositionCS : SV_Position;
 				float3 vmeshInterp00 : TEXCOORD0;
@@ -1613,10 +2013,10 @@ Shader "Clayxels/ClayxelHDRPShader"
 			};
 
 			CBUFFER_START( UnityPerMaterial )
+			float4 _Emission;
 			float _ClayxelSize;
 			float _NormalOrient;
 			float _Metallic;
-			float4 _Emission;
 			float _Smoothness;
 			float _CutOff;
 			float4 _EmissionColor;
@@ -1659,6 +2059,12 @@ Shader "Clayxels/ClayxelHDRPShader"
 			float _DoubleSidedEnable;
 			float _DoubleSidedNormalMode;
 			float4 _DoubleSidedConstants;
+			float _TessPhongStrength;
+			float _TessValue;
+			float _TessMin;
+			float _TessMax;
+			float _TessEdgeLength;
+			float _TessMaxDisp;
 			CBUFFER_END
 			sampler2D _MainTex;
 
@@ -1796,7 +2202,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				PostInitBuiltinData(V, posInput, surfaceData, builtinData);
 			}
 
-			AttributesMesh ApplyMeshModification(AttributesMesh inputMesh, float3 timeParameters, inout PackedVaryingsToPS outputPackedVaryingsToPS )
+			AttributesMesh ApplyMeshModification(AttributesMesh inputMesh, float3 timeParameters, inout PackedVaryingsMeshToPS outputPackedVaryingsMeshToPS )
 			{
 				_TimeParameters.xyz = timeParameters;
 				float localclayxelComputeVertex21 = ( 0.0 );
@@ -1809,12 +2215,13 @@ Shader "Clayxels/ClayxelHDRPShader"
 				clayxelVertNormalBlend(vertexId21 , clayxelSize21, normalOrient21, inputMesh.ase_texcoord, color, vertexPosition21, vertexNormal21);
 				#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS
 				inputMesh.ase_color = float4(color, 1);
+				inputMesh.tangentOS = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal21)),0.5);
 				#endif
 				
-				outputPackedVaryingsToPS.ase_texcoord3.xy = inputMesh.ase_texcoord.xy;
+				outputPackedVaryingsMeshToPS.ase_texcoord3.xy = inputMesh.ase_texcoord.xy;
 				
 				//setting value to unused interpolator channels and avoid initialization warnings
-				outputPackedVaryingsToPS.ase_texcoord3.zw = 0;
+				outputPackedVaryingsMeshToPS.ase_texcoord3.zw = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 				float3 defaultVertexValue = inputMesh.positionOS.xyz;
@@ -1832,16 +2239,16 @@ Shader "Clayxels/ClayxelHDRPShader"
 				return inputMesh;
 			}
 
-			PackedVaryingsToPS Vert(AttributesMesh inputMesh)
+			PackedVaryingsMeshToPS VertexFunction(AttributesMesh inputMesh)
 			{
-				PackedVaryingsToPS outputPackedVaryingsToPS = (PackedVaryingsToPS)0;
+				PackedVaryingsMeshToPS outputPackedVaryingsMeshToPS = (PackedVaryingsMeshToPS)0;
 				AttributesMesh defaultMesh = inputMesh;
 
 				UNITY_SETUP_INSTANCE_ID(inputMesh);
-				UNITY_TRANSFER_INSTANCE_ID(inputMesh, outputPackedVaryingsToPS);
-				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO( outputPackedVaryingsToPS );
+				UNITY_TRANSFER_INSTANCE_ID(inputMesh, outputPackedVaryingsMeshToPS);
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO( outputPackedVaryingsMeshToPS );
 
-				inputMesh = ApplyMeshModification( inputMesh, _TimeParameters.xyz, outputPackedVaryingsToPS);
+				inputMesh = ApplyMeshModification( inputMesh, _TimeParameters.xyz, outputPackedVaryingsMeshToPS);
 
 				float3 positionRWS = TransformObjectToWorld(inputMesh.positionOS);
 				float3 normalWS = TransformObjectToWorldNormal(inputMesh.normalOS);
@@ -1868,7 +2275,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 					#if defined(HAVE_MESH_MODIFICATION)
 						AttributesMesh previousMesh = defaultMesh;
 						previousMesh.positionOS = effectivePositionOS ;
-						PackedVaryingsToPS test = (PackedVaryingsToPS)0;
+						PackedVaryingsMeshToPS test = (PackedVaryingsMeshToPS)0;
 						float3 curTime = _TimeParameters.xyz;
 						previousMesh = ApplyMeshModification(previousMesh, _LastTimeParameters.xyz, test);
 						_TimeParameters.xyz = curTime;
@@ -1890,15 +2297,115 @@ Shader "Clayxels/ClayxelHDRPShader"
 					VPASSpreviousPositionCS = mul(UNITY_MATRIX_PREV_VP, float4(previousPositionRWS, 1.0));
 				}
 
-				outputPackedVaryingsToPS.vmeshPositionCS = VMESHpositionCS;
-				outputPackedVaryingsToPS.vmeshInterp00.xyz = VMESHpositionRWS;
+				outputPackedVaryingsMeshToPS.vmeshPositionCS = VMESHpositionCS;
+				outputPackedVaryingsMeshToPS.vmeshInterp00.xyz = VMESHpositionRWS;
 
-				outputPackedVaryingsToPS.vpassInterpolators0 = float3(VPASSpositionCS.xyw);
-				outputPackedVaryingsToPS.vpassInterpolators1 = float3(VPASSpreviousPositionCS.xyw);
-				return outputPackedVaryingsToPS;
+				outputPackedVaryingsMeshToPS.vpassInterpolators0 = float3(VPASSpositionCS.xyw);
+				outputPackedVaryingsMeshToPS.vpassInterpolators1 = float3(VPASSpreviousPositionCS.xyw);
+				return outputPackedVaryingsMeshToPS;
 			}
 
-			void Frag( PackedVaryingsToPS packedInput
+			#if defined(TESSELLATION_ON)
+			struct VertexControl
+			{
+				float3 positionOS : INTERNALTESSPOS;
+				float3 normalOS : NORMAL;
+				float3 previousPositionOS : TEXCOORD4;
+				#if defined (_ADD_PRECOMPUTED_VELOCITY)
+					float3 precomputedVelocity : TEXCOORD5;
+				#endif
+				uint ase_vertexID : SV_VertexID;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl Vert ( AttributesMesh v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.positionOS = v.positionOS;
+				o.normalOS = v.normalOS;
+				o.previousPositionOS = v.previousPositionOS;
+				#if defined (_ADD_PRECOMPUTED_VELOCITY)
+				o.precomputedVelocity = v.precomputedVelocity;
+				#endif
+				o.ase_vertexID = v.ase_vertexID;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if (SHADEROPTIONS_CAMERA_RELATIVE_RENDERING != 0)
+				float3 cameraPos = 0;
+				#else
+				float3 cameraPos = _WorldSpaceCameraPos;
+				#endif
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), cameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, GetObjectToWorldMatrix(), cameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), cameraPos, _ScreenParams, _FrustumPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+			   return patch[id];
+			}
+
+			[domain("tri")]
+			PackedVaryingsMeshToPS DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				AttributesMesh o = (AttributesMesh) 0;
+				o.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
+				o.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
+				o.previousPositionOS = patch[0].previousPositionOS * bary.x + patch[1].previousPositionOS * bary.y + patch[2].previousPositionOS * bary.z;
+				#if defined (_ADD_PRECOMPUTED_VELOCITY)
+					o.precomputedVelocity = patch[0].precomputedVelocity * bary.x + patch[1].precomputedVelocity * bary.y + patch[2].precomputedVelocity * bary.z;
+				#endif
+				o.ase_vertexID = patch[0].ase_vertexID * bary.x + patch[1].ase_vertexID * bary.y + patch[2].ase_vertexID * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.positionOS.xyz - patch[i].normalOS * (dot(o.positionOS.xyz, patch[i].normalOS) - dot(patch[i].positionOS.xyz, patch[i].normalOS));
+				float phongStrength = _TessPhongStrength;
+				o.positionOS.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.positionOS.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			PackedVaryingsMeshToPS Vert ( AttributesMesh v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
+
+			void Frag( PackedVaryingsMeshToPS packedInput
 				, out float4 outMotionVector : SV_Target0
 				#ifdef WRITE_NORMAL_BUFFER
 				, out float4 outNormalBuffer : SV_Target1
@@ -2010,7 +2517,6 @@ Shader "Clayxels/ClayxelHDRPShader"
 
 			#define _DISABLE_DECALS 1
 			#define _SPECULAR_OCCLUSION_FROM_AO 1
-			#pragma instancing_options renderinglayer
 			#define HAVE_MESH_MODIFICATION
 			#define ASE_SRP_VERSION 999999
 
@@ -2114,10 +2620,10 @@ Shader "Clayxels/ClayxelHDRPShader"
 			};
 
 			CBUFFER_START( UnityPerMaterial )
+			float4 _Emission;
 			float _ClayxelSize;
 			float _NormalOrient;
 			float _Metallic;
-			float4 _Emission;
 			float _Smoothness;
 			float _CutOff;
 			float4 _EmissionColor;
@@ -2160,6 +2666,12 @@ Shader "Clayxels/ClayxelHDRPShader"
 			float _DoubleSidedEnable;
 			float _DoubleSidedNormalMode;
 			float4 _DoubleSidedConstants;
+			float _TessPhongStrength;
+			float _TessValue;
+			float _TessMin;
+			float _TessMax;
+			float _TessEdgeLength;
+			float _TessMaxDisp;
 			CBUFFER_END
 			sampler2D _MainTex;
 
@@ -2360,6 +2872,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				clayxelVertNormalBlend(vertexId21 , clayxelSize21, normalOrient21, inputMesh.ase_texcoord, color, vertexPosition21, vertexNormal21);
 				#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS
 				inputMesh.ase_color = float4(color, 1);
+				inputMesh.tangentOS = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal21)),0.5);
 				#endif
 				
 				outputPackedVaryingsMeshToPS.ase_color = inputMesh.ase_color;
@@ -2385,7 +2898,7 @@ Shader "Clayxels/ClayxelHDRPShader"
 				return inputMesh;
 			}
 
-			PackedVaryingsMeshToPS Vert(AttributesMesh inputMesh)
+			PackedVaryingsMeshToPS VertexFunction(AttributesMesh inputMesh)
 			{
 				PackedVaryingsMeshToPS outputPackedVaryingsMeshToPS = (PackedVaryingsMeshToPS)0;
 				AttributesMesh defaultMesh = inputMesh;
@@ -2456,6 +2969,124 @@ Shader "Clayxels/ClayxelHDRPShader"
 				#endif
 				return outputPackedVaryingsMeshToPS;
 			}
+
+			#if defined(TESSELLATION_ON)
+			struct VertexControl
+			{
+				float3 positionOS : INTERNALTESSPOS;
+				float3 normalOS : NORMAL;
+				float4 tangentOS : TANGENT;
+				float4 uv1 : TEXCOORD1;
+				float4 uv2 : TEXCOORD2;
+				#ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
+					float3 previousPositionOS : TEXCOORD4;
+					#if defined (_ADD_PRECOMPUTED_VELOCITY)
+						float3 precomputedVelocity : TEXCOORD5;
+					#endif
+				#endif
+				uint ase_vertexID : SV_VertexID;
+				float4 ase_color : COLOR;
+				float4 ase_texcoord : TEXCOORD0;
+
+				UNITY_VERTEX_INPUT_INSTANCE_ID
+			};
+
+			struct TessellationFactors
+			{
+				float edge[3] : SV_TessFactor;
+				float inside : SV_InsideTessFactor;
+			};
+
+			VertexControl Vert ( AttributesMesh v )
+			{
+				VertexControl o;
+				UNITY_SETUP_INSTANCE_ID(v);
+				UNITY_TRANSFER_INSTANCE_ID(v, o);
+				o.positionOS = v.positionOS;
+				o.normalOS = v.normalOS;
+				o.tangentOS = v.tangentOS;
+				o.uv1 = v.uv1;
+				o.uv2 = v.uv2;
+				#ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
+					o.previousPositionOS = v.previousPositionOS;
+					#if defined (_ADD_PRECOMPUTED_VELOCITY)
+						o.precomputedVelocity = v.precomputedVelocity;
+					#endif
+				#endif
+				o.ase_vertexID = v.ase_vertexID;
+				o.ase_color = v.ase_color;
+				o.ase_texcoord = v.ase_texcoord;
+				return o;
+			}
+
+			TessellationFactors TessellationFunction (InputPatch<VertexControl,3> v)
+			{
+				TessellationFactors o;
+				float4 tf = 1;
+				float tessValue = _TessValue; float tessMin = _TessMin; float tessMax = _TessMax;
+				float edgeLength = _TessEdgeLength; float tessMaxDisp = _TessMaxDisp;
+				#if (SHADEROPTIONS_CAMERA_RELATIVE_RENDERING != 0)
+				float3 cameraPos = 0;
+				#else
+				float3 cameraPos = _WorldSpaceCameraPos;
+				#endif
+				#if defined(ASE_FIXED_TESSELLATION)
+				tf = FixedTess( tessValue );
+				#elif defined(ASE_DISTANCE_TESSELLATION)
+				tf = DistanceBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), tessValue, tessMin, tessMax, GetObjectToWorldMatrix(), cameraPos );
+				#elif defined(ASE_LENGTH_TESSELLATION)
+				tf = EdgeLengthBasedTess(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, GetObjectToWorldMatrix(), cameraPos, _ScreenParams );
+				#elif defined(ASE_LENGTH_CULL_TESSELLATION)
+				tf = EdgeLengthBasedTessCull(float4(v[0].positionOS,1), float4(v[1].positionOS,1), float4(v[2].positionOS,1), edgeLength, tessMaxDisp, GetObjectToWorldMatrix(), cameraPos, _ScreenParams, _FrustumPlanes );
+				#endif
+				o.edge[0] = tf.x; o.edge[1] = tf.y; o.edge[2] = tf.z; o.inside = tf.w;
+				return o;
+			}
+
+			[domain("tri")]
+			[partitioning("fractional_odd")]
+			[outputtopology("triangle_cw")]
+			[patchconstantfunc("TessellationFunction")]
+			[outputcontrolpoints(3)]
+			VertexControl HullFunction(InputPatch<VertexControl, 3> patch, uint id : SV_OutputControlPointID)
+			{
+			   return patch[id];
+			}
+
+			[domain("tri")]
+			PackedVaryingsMeshToPS DomainFunction(TessellationFactors factors, OutputPatch<VertexControl, 3> patch, float3 bary : SV_DomainLocation)
+			{
+				AttributesMesh o = (AttributesMesh) 0;
+				o.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
+				o.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
+				o.tangentOS = patch[0].tangentOS * bary.x + patch[1].tangentOS * bary.y + patch[2].tangentOS * bary.z;
+				o.uv1 = patch[0].uv1 * bary.x + patch[1].uv1 * bary.y + patch[2].uv1 * bary.z;
+				o.uv2 = patch[0].uv2 * bary.x + patch[1].uv2 * bary.y + patch[2].uv2 * bary.z;
+				#ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
+					o.previousPositionOS = patch[0].previousPositionOS * bary.x + patch[1].previousPositionOS * bary.y + patch[2].previousPositionOS * bary.z;
+					#if defined (_ADD_PRECOMPUTED_VELOCITY)
+						o.precomputedVelocity = patch[0].precomputedVelocity * bary.x + patch[1].precomputedVelocity * bary.y + patch[2].precomputedVelocity * bary.z;
+					#endif
+				#endif
+				o.ase_vertexID = patch[0].ase_vertexID * bary.x + patch[1].ase_vertexID * bary.y + patch[2].ase_vertexID * bary.z;
+				o.ase_color = patch[0].ase_color * bary.x + patch[1].ase_color * bary.y + patch[2].ase_color * bary.z;
+				o.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
+				#if defined(ASE_PHONG_TESSELLATION)
+				float3 pp[3];
+				for (int i = 0; i < 3; ++i)
+					pp[i] = o.positionOS.xyz - patch[i].normalOS * (dot(o.positionOS.xyz, patch[i].normalOS) - dot(patch[i].positionOS.xyz, patch[i].normalOS));
+				float phongStrength = _TessPhongStrength;
+				o.positionOS.xyz = phongStrength * (pp[0]*bary.x + pp[1]*bary.y + pp[2]*bary.z) + (1.0f-phongStrength) * o.positionOS.xyz;
+				#endif
+				UNITY_TRANSFER_INSTANCE_ID(patch[0], o);
+				return VertexFunction(o);
+			}
+			#else
+			PackedVaryingsMeshToPS Vert ( AttributesMesh v )
+			{
+				return VertexFunction( v );
+			}
+			#endif
 
 			void Frag(PackedVaryingsMeshToPS packedInput,
 					#ifdef OUTPUT_SPLIT_LIGHTING
@@ -2701,21 +3332,21 @@ Shader "Clayxels/ClayxelHDRPShader"
 	
 }
 /*ASEBEGIN
-Version=18000
-348;81;1095;639;1163.392;546.7006;1.14046;True;False
-Node;AmplifyShaderEditor.RangedFloatNode;12;-648.9528,375.6794;Inherit;False;Property;_NormalOrient;NormalOrient;3;0;Create;True;0;0;False;0;1;0;0;1;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;15;-650.2532,287.6025;Inherit;False;Property;_ClayxelSize;ClayxelSize;1;0;Create;True;0;0;False;0;1;0;0;100;0;1;FLOAT;0
-Node;AmplifyShaderEditor.TexturePropertyNode;32;-927.1282,-313.4475;Inherit;True;Property;_MainTex;Texture;5;1;[NoScaleOffset];Create;False;0;0;False;0;1aa3096b1b9d9204eaa6c75a4275adb1;1aa3096b1b9d9204eaa6c75a4275adb1;False;white;Auto;Texture2D;-1;0;1;SAMPLER2D;0
+Version=18100
+74;411;1239;428;1788.22;576.1227;2.477643;True;False
+Node;AmplifyShaderEditor.RangedFloatNode;12;-648.9528,375.6794;Inherit;False;Property;_NormalOrient;NormalOrient;3;0;Create;True;0;0;False;0;False;1;0;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;15;-650.2532,287.6025;Inherit;False;Property;_ClayxelSize;ClayxelSize;1;0;Create;True;0;0;False;0;False;1;0;0;100;0;1;FLOAT;0
+Node;AmplifyShaderEditor.TexturePropertyNode;32;-927.1282,-313.4475;Inherit;True;Property;_MainTex;Texture;5;1;[NoScaleOffset];Create;False;0;0;False;0;False;1aa3096b1b9d9204eaa6c75a4275adb1;1aa3096b1b9d9204eaa6c75a4275adb1;False;white;Auto;Texture2D;-1;0;1;SAMPLER2D;0
 Node;AmplifyShaderEditor.TexCoordVertexDataNode;31;-902.9151,-64.92539;Inherit;False;0;2;0;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.VertexIdVariableNode;13;-533.2453,168.8644;Inherit;False;0;1;INT;0
+Node;AmplifyShaderEditor.ColorNode;40;-465.4248,-452.1717;Inherit;False;Property;_Emission;Emission;6;1;[HDR];Create;True;0;0;False;0;False;0,0,0,0;0,0,0,0;True;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.SamplerNode;36;-605.0529,-151.3908;Inherit;True;Property;_TextureSample0;Texture Sample 0;6;0;Create;True;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;6;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.RangedFloatNode;33;-290.5288,-230.2615;Inherit;False;Property;_Metallic;Metallic;0;0;Create;True;0;0;True;0;False;0.5;0;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.CustomExpressionNode;21;-334.9083,104.8201;Inherit;False;float3 color = float3(0, 0, 0)@$$clayxelVertNormalBlend(vertexId , clayxelSize, normalOrient, inputMesh.ase_texcoord, color, vertexPosition, vertexNormal)@$$#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS$inputMesh.ase_color = float4(color, 1)@$inputMesh.tangentOS = float4(normalize(cross(UNITY_MATRIX_V._m20_m21_m22, vertexNormal)),0.5)@$#endif;7;True;5;False;vertexId;INT;0;In;;Inherit;False;False;vertexPosition;FLOAT3;0,0,0;Out;;Inherit;False;False;vertexNormal;FLOAT3;0,0,0;Out;;Inherit;False;False;clayxelSize;FLOAT;0;In;;Inherit;False;False;normalOrient;FLOAT;0;In;;Inherit;False;clayxelComputeVertex;False;False;0;6;0;FLOAT;0;False;1;INT;0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;5;FLOAT;0;False;3;FLOAT;0;FLOAT3;3;FLOAT3;4
+Node;AmplifyShaderEditor.RangedFloatNode;39;-284.8286,-143.9635;Inherit;False;Property;_Smoothness;Smoothness;4;0;Create;False;0;0;True;0;False;0.5;0;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.VertexColorNode;37;-239.5408,-607.0821;Inherit;False;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.CustomExpressionNode;21;-334.9083,104.8201;Inherit;False;float3 color = float3(0, 0, 0)@$$clayxelVertNormalBlend(vertexId , clayxelSize, normalOrient, inputMesh.ase_texcoord, color, vertexPosition, vertexNormal)@$$#if SHADERPASS != SHADERPASS_DEPTH_ONLY && SHADERPASS != SHADERPASS_MOTION_VECTORS && SHADERPASS != SHADERPASS_SHADOWS$inputMesh.ase_color = float4(color, 1)@$#endif;7;True;5;False;vertexId;INT;0;In;;Inherit;False;False;vertexPosition;FLOAT3;0,0,0;Out;;Inherit;False;False;vertexNormal;FLOAT3;0,0,0;Out;;Inherit;False;False;clayxelSize;FLOAT;0;In;;Inherit;False;False;normalOrient;FLOAT;0;In;;Inherit;False;clayxelComputeVertex;False;False;0;6;0;FLOAT;0;False;1;INT;0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;5;FLOAT;0;False;3;FLOAT;0;FLOAT3;3;FLOAT3;4
-Node;AmplifyShaderEditor.RangedFloatNode;39;-284.8286,-143.9635;Inherit;False;Property;_Smoothness;Smoothness;4;0;Create;False;0;0;True;0;0.5;0;0;1;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;18;-279.9949,12.00752;Inherit;False;Property;_CutOff;CutOff;2;0;Create;True;0;0;False;0;1;1;0;1;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;33;-290.5288,-230.2615;Inherit;False;Property;_Metallic;Metallic;0;0;Create;True;0;0;True;0;0.5;0;0;1;0;1;FLOAT;0
-Node;AmplifyShaderEditor.SamplerNode;36;-605.0529,-151.3908;Inherit;True;Property;_TextureSample0;Texture Sample 0;6;0;Create;True;0;0;False;0;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;6;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.ColorNode;40;-465.4248,-452.1717;Inherit;False;Property;_Emission;Emission;6;1;[HDR];Create;True;0;0;False;0;0,0,0,0;0,0,0,0;True;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;0;242.1985,-329.4481;Float;False;True;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;Clayxels/ClayxelHDRPShader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;GBuffer;0;0;GBuffer;35;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;True;0;True;-14;False;True;True;0;True;-13;255;False;18;48;True;-12;7;False;-12;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;True;5;True;-14;False;True;1;LightMode=GBuffer;False;3;Include;;False;;Native;Include;../clayxelSRPUtils.cginc;False;;Custom;Define;_ALPHATEST_ON;False;;Custom;;0;0;Standard;32;Surface Type;0;  Rendering Pass;1;  Refraction Model;0;    Blending Mode;0;    Blend Preserves Specular;1;  Receive Fog;1;  Back Then Front Rendering;0;  Transparent Depth Prepass;0;  Transparent Depth Postpass;0;  Transparent Writes Motion Vector;0;  Distortion;0;    Distortion Mode;0;    Distortion Depth Test;1;  ZWrite;0;  Z Test;2;Double-Sided;0;Alpha Clipping;1;  Use Shadow Threshold;0;Material Type,InvertActionOnDeselection;0;  Energy Conserving Specular;1;  Transmission;1;Receive Decals;0;Receives SSR;1;Motion Vectors;1;  Add Precomputed Velocity;0;Specular AA;0;Specular Occlusion Mode;1;Override Baked GI;0;Depth Offset;0;DOTS Instancing;0;LOD CrossFade;0;Vertex Position;1;0;11;True;False;True;False;True;True;False;False;False;False;True;False;;0
+Node;AmplifyShaderEditor.RangedFloatNode;18;-279.9949,12.00752;Inherit;False;Property;_CutOff;CutOff;2;0;Create;True;0;0;False;0;False;1;1;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;10;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;Forward;0;10;Forward;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;True;1;0;True;-19;0;True;-20;1;0;True;-21;0;True;-22;False;False;True;0;True;-28;False;True;True;0;True;-4;255;False;-1;255;True;-5;7;False;-1;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;True;0;True;-23;True;0;True;-30;False;True;1;LightMode=Forward;False;0;;0;0;Standard;0;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;4;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;DepthOnly;0;4;DepthOnly;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;True;0;True;-25;False;True;True;0;True;-6;255;False;-1;255;True;-7;7;False;-1;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;True;1;False;-1;False;False;True;1;LightMode=DepthOnly;False;0;;0;0;Standard;0;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;8;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;TransparentDepthPrepass;0;8;TransparentDepthPrepass;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;True;1;1;False;-1;0;False;-1;0;1;False;-1;0;False;-1;False;False;True;0;True;-25;True;False;False;False;False;0;False;-1;False;True;1;False;-1;False;False;True;1;LightMode=TransparentDepthPrepass;False;0;;0;0;Standard;0;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;5;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;Motion Vectors;0;5;Motion Vectors;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;True;0;True;-25;False;True;True;0;True;-8;255;False;-1;255;True;-9;7;False;-1;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;True;1;False;-1;False;False;True;1;LightMode=MotionVectors;False;0;;0;0;Standard;0;0
@@ -2725,12 +3356,12 @@ Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;7;0,0;Float;False;False;-1;
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;META;0;1;META;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;True;2;False;-1;False;False;False;False;False;True;1;LightMode=Meta;False;0;;0;0;Standard;0;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;3;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;SceneSelectionPass;0;3;SceneSelectionPass;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;False;True;False;False;False;False;0;False;-1;False;False;False;False;True;1;LightMode=SceneSelectionPass;False;0;;0;0;Standard;0;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;2;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;ShadowCaster;0;2;ShadowCaster;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;True;0;True;-25;True;False;False;False;False;0;False;-1;False;True;1;False;-1;True;3;False;-1;False;True;1;LightMode=ShadowCaster;False;0;;0;0;Standard;0;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;10;0,0;Float;False;False;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;New Amplify Shader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;Forward;0;10;Forward;0;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;True;1;0;True;-19;0;True;-20;1;0;True;-21;0;True;-22;False;False;True;0;True;-28;False;True;True;0;True;-4;255;False;-1;255;True;-5;7;False;-1;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;True;0;True;-23;True;0;True;-30;False;True;1;LightMode=Forward;False;0;;0;0;Standard;0;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;0;242.1985,-329.4481;Float;False;True;-1;2;UnityEditor.Rendering.HighDefinition.HDLitGUI;0;2;Clayxels/ClayxelHDRPShader;53b46d85872c5b24c8f4f0a1c3fe4c87;True;GBuffer;0;0;GBuffer;35;False;False;False;False;False;False;False;False;False;True;3;RenderPipeline=HDRenderPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;True;5;0;False;False;False;True;0;True;-14;False;True;True;0;True;-13;255;False;18;48;True;-12;7;False;-12;3;False;-1;1;False;-1;1;False;-1;7;False;-1;1;False;-1;1;False;-1;1;False;-1;False;True;5;True;-14;False;True;1;LightMode=GBuffer;False;3;Include;;False;;Native;Include;../clayxelSRPUtils.cginc;False;;Custom;Define;_ALPHATEST_ON;False;;Custom;;0;0;Standard;41;Surface Type;0;  Rendering Pass;1;  Refraction Model;0;    Blending Mode;0;    Blend Preserves Specular;1;  Receive Fog;1;  Back Then Front Rendering;0;  Transparent Depth Prepass;0;  Transparent Depth Postpass;0;  Transparent Writes Motion Vector;0;  Distortion;0;    Distortion Mode;0;    Distortion Depth Test;1;  ZWrite;0;  Z Test;2;Double-Sided;0;Alpha Clipping;1;  Use Shadow Threshold;0;Material Type,InvertActionOnDeselection;0;  Energy Conserving Specular;1;  Transmission;1;Receive Decals;0;Receives SSR;1;Motion Vectors;1;  Add Precomputed Velocity;0;Specular AA;0;Specular Occlusion Mode;1;Override Baked GI;0;Depth Offset;0;DOTS Instancing;0;LOD CrossFade;0;Tessellation;0;  Phong;0;  Strength;0.5,False,-1;  Type;0;  Tess;16,False,-1;  Min;10,False,-1;  Max;25,False,-1;  Edge Length;16,False,-1;  Max Displacement;25,False,-1;Vertex Position;1;0;11;True;False;True;False;True;True;False;False;False;False;True;False;;0
+WireConnection;36;0;32;0
+WireConnection;36;1;31;0
 WireConnection;21;1;13;0
 WireConnection;21;4;15;0
 WireConnection;21;5;12;0
-WireConnection;36;0;32;0
-WireConnection;36;1;31;0
 WireConnection;0;0;37;0
 WireConnection;0;4;33;0
 WireConnection;0;6;40;0
@@ -2740,4 +3371,4 @@ WireConnection;0;10;18;0
 WireConnection;0;11;21;3
 WireConnection;0;12;21;4
 ASEEND*/
-//CHKSM=D71AD3810AEDD53742B0DB6873D232156C53A257
+//CHKSM=48079DA6A2EA65AF853ADD46CF057FD29415D14D

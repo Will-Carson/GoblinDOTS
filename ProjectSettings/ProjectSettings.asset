@@ -568,7 +568,7 @@ PlayerSettings:
   webGLThreadsSupport: 0
   webGLWasmStreaming: 0
   scriptingDefineSymbols:
-    1: CLAYXELS_ONEUP
+    1: CLAYXELS_RETOPO;CLAYXELS_ONEUP
   platformArchitecture: {}
   scriptingBackend:
     Standalone: 0

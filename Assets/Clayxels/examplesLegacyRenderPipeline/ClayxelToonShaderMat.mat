@@ -28,9 +28,10 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
-    - _ClayxelSize: 1
+    - _ClayxelSize: 1.2
+    - _Cutoff: 0.5
     - _Metallic: 0.5
-    - _NormalOrient: 0
+    - _NormalOrient: 1
     - _Smoothness1: 0.5
     - __dirty: 0
     - _fuzz: 1

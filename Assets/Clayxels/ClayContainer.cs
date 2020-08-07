@@ -13,6 +13,8 @@ using UnityEngine.Rendering;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine.SceneManagement;
+using UnityEditor.SceneManagement;
+using System.Reflection;
 #endif
 
 namespace Clayxels{
@@ -33,6 +35,7 @@ namespace Clayxels{
 			public ComputeBuffer computePointCloudDataBuffer;
 			public ComputeBuffer renderIndirectDrawArgsBuffer;
 			public ComputeBuffer renderPointCloudDataBuffer;
+			public Vector3Int coords = new Vector3Int();
 			public Vector3 center = new Vector3();
 			public Material clayxelMaterial;
 			public Material clayxelPickingMaterial;
@@ -42,18 +45,10 @@ namespace Clayxels{
 			#endif
 		}
 		
-		/* Size of one chunk in scene units*/
-		public int chunkSize = 8;
-
-		/* How many chunks should this container use in each dimention*/
-		public int chunksX = 1;
-		public int chunksY = 1;
-		public int chunksZ = 1;
-
 		/* CustomMaterial: specify a material that is not the default one. It will need a special shader as shown in the examples provided.*/
 		public Material customMaterial = null;
 
-		/* Store the generated mesh as an asset inside the project folders, used by ClayContainer.generateMesh().*/
+		/* Store the generated mesh as an asset inside the project folders, used by ClayContainer.freezeToMesh().*/
 		public string meshAssetPath = "";
 		
 		/* When a container moves, it inhibits any update of the nested ClayObjects. 
@@ -62,6 +57,10 @@ namespace Clayxels{
 
 		// private use for a ClayObject to notify its parent container that something got updated
 		public bool needsUpdate = true;
+
+		// for internal use in the inspector, retopology is not available at runtime.
+		public bool shouldRetopoMesh = false;
+		public int retopoMaxVerts = -1;
 		
 		static ComputeBuffer solidsPosBuffer;
 		static ComputeBuffer solidsRotBuffer;
@@ -112,8 +111,8 @@ namespace Clayxels{
 		static CommandBuffer pickingCommandBuffer;
 		static Texture2D pickingTextureResult;
 		static Rect pickingRect;
-		static int pickingMousePosX = -1;
-		static int pickingMousePosY = -1;
+		static float pickingMousePosX = -1;
+		static float pickingMousePosY = -1;
 		static int pickedClayObjectId = -1;
 		static int pickedClayxelId = -1;
 		static GameObject pickedObj = null;
@@ -128,8 +127,16 @@ namespace Clayxels{
 		static int chunksUpdatePerFrame = 64;
 		static int[] dummyData = new int[]{0, 1, 0, 0};
 		
+		[SerializeField] int clayxelDetail = 88;
+		[SerializeField] int chunksX = 1;
+		[SerializeField] int chunksY = 1;
+		[SerializeField] int chunksZ = 1;
+		[SerializeField] Material material = null;
+		[SerializeField] ShadowCastingMode castShadows = ShadowCastingMode.On;
+		[SerializeField] bool receiveShadows = true;
+
+		int chunkSize = 8;
 		bool memoryOptimized = false;
-		[SerializeField]Material material = null;
 		float globalSmoothing = 0.0f;
 		Dictionary<int, int> solidsUpdatedDict = new Dictionary<int, int>();
 		List<ClayxelChunk> chunks = new List<ClayxelChunk>();
@@ -152,7 +159,6 @@ namespace Clayxels{
 		int numChunks = 0;
 		float deltaTime = 0.0f;
 		bool meshCached = false;
-		Mesh mesh = null;
 		int numThreadsComputeStartRes;
 		int numThreadsComputeFullRes;
 		float splatRadius = 0.0f;
@@ -168,7 +174,8 @@ namespace Clayxels{
 			clearCachedDistField,
 			generatePointCloud,
 			debugDisplayGridPoints,
-			genMesh,
+			computeGridForMesh,
+			computeMesh,
 			filterSolidsPerChunk
 		}
 		
@@ -215,6 +222,81 @@ namespace Clayxels{
 			ClayContainer.globalDataNeedsInit = true;
 		}
 
+		/* How finely detailed are your clayxels, range 0 to 100.*/
+		public void setClayxelDetail(int value){
+			if(value == this.clayxelDetail){
+				return;
+			}
+
+			this.switchComputeData();
+
+			if(value < 0){
+				value = 0;
+			}
+			else if(value > 100){
+				value = 100;
+			}
+
+			this.clayxelDetail = value;
+
+			this.chunkSize = (int)Mathf.Lerp(40.0f, 4.0f, (float)this.clayxelDetail / 100.0f);
+			
+			float voxelSize = (float)this.chunkSize / 256;
+
+			this.splatRadius = (voxelSize * 0.5f) * 1.8f;
+			this.splatSize = this.splatRadius * ((this.transform.lossyScale.x + this.transform.lossyScale.y + this.transform.lossyScale.z) / 3.0f);
+
+			this.globalSmoothing = this.splatRadius * 2.0f;
+			ClayContainer.claycoreCompute.SetFloat("globalRoundCornerValue", this.globalSmoothing);
+
+			this.boundsScale.x = (float)this.chunkSize * this.chunksX;
+			this.boundsScale.y = (float)this.chunkSize * this.chunksY;
+			this.boundsScale.z = (float)this.chunkSize * this.chunksZ;
+			this.renderBounds.size = this.boundsScale * this.transform.localScale.x;
+
+			float gridCenterOffset = (this.chunkSize * 0.5f);
+			this.boundsCenter.x = ((this.chunkSize * (this.chunksX - 1)) * 0.5f) - (gridCenterOffset*(this.chunksX-1));
+			this.boundsCenter.y = ((this.chunkSize * (this.chunksY - 1)) * 0.5f) - (gridCenterOffset*(this.chunksY-1));
+			this.boundsCenter.z = ((this.chunkSize * (this.chunksZ - 1)) * 0.5f) - (gridCenterOffset*(this.chunksZ-1));
+
+			float chunkOffset = this.chunkSize - voxelSize; // removes the seam between chunks
+
+			for(int i = 0; i < this.numChunks; ++i){
+				ClayxelChunk chunk = this.chunks[i];
+				chunk.center = new Vector3(
+					(-((this.chunkSize * this.chunksX) * 0.5f) + gridCenterOffset) + (chunkOffset * chunk.coords.x),
+					(-((this.chunkSize * this.chunksY) * 0.5f) + gridCenterOffset) + (chunkOffset * chunk.coords.y),
+					(-((this.chunkSize * this.chunksZ) * 0.5f) + gridCenterOffset) + (chunkOffset * chunk.coords.z));
+			}
+
+			this.forceUpdateAllSolids();
+
+			this.needsUpdate = true;
+		}
+
+		/* Get the value specified by setClayxelDetail()*/		
+		public int getClayxelDetail(){
+			return this.clayxelDetail;
+		}
+
+		/* Determines how much work area you have for your sculpt within this container.
+			These values are not expressed in scene units, 
+			the final size of this container is determined by the value specified with setClayxelDetail().
+			Performance tip: The bigger the bounds, the slower this container will be to compute clay in-game.*/
+		public void setBoundsScale(int x, int y, int z){
+			this.chunksX = x;
+			this.chunksY = y;
+			this.chunksZ = z;
+			this.limitChunkValues();
+
+			this.needsInit = true;
+		}
+
+		/* Get the values specified by setBoundsScale()*/		
+		public Vector3Int getBoundsScale(){
+			return new Vector3Int(this.chunksX, this.chunksY, this.chunksZ);
+		}
+
 		/* How many solids can a container work with.*/
 		public int getMaxSolids(){
 			return ClayContainer.maxSolids;
@@ -255,9 +337,7 @@ namespace Clayxels{
 		/* If you work directly with the list of solids in this container, invoke this to notify when a solid has changed.*/
 		public void solidUpdated(int id){
 			if(id < ClayContainer.maxSolids){
-				if(this.numChunks > 1){
-					this.solidsUpdatedDict[id] = 1;
-				}
+				this.solidsUpdatedDict[id] = 1;
 
 				this.needsUpdate = true;
 			}
@@ -269,14 +349,16 @@ namespace Clayxels{
 				this.countBufferArray[0] = this.solids.Count;
 				ClayContainer.numSolidsPerChunkBuffer.SetData(this.countBufferArray);
 			}
-			else{
-				for(int i = 0; i < this.solids.Count; ++i){
-					Solid solid = this.solids[i];
-					solid.id = i;
-					
-					if(solid.id < ClayContainer.maxSolids){
-						this.solidsUpdatedDict[solid.id] = 1;
-					}
+			
+			for(int i = 0; i < this.solids.Count; ++i){
+				Solid solid = this.solids[i];
+				solid.id = i;
+				
+				if(solid.id < ClayContainer.maxSolids){
+					this.solidsUpdatedDict[solid.id] = 1;
+				}
+				else{
+					break;
 				}
 			}
 		}
@@ -342,12 +424,14 @@ namespace Clayxels{
 			ClayContainer.prefilteredSolidIdsBuffer = new ComputeBuffer((64 * 64 * 64) * ClayContainer.maxSolidsPerVoxel, sizeof(int));
 			ClayContainer.globalCompBuffers.Add(ClayContainer.prefilteredSolidIdsBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGrid, "prefilteredSolidIds", ClayContainer.prefilteredSolidIdsBuffer);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGridForMesh, "prefilteredSolidIds", ClayContainer.prefilteredSolidIdsBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.cacheDistField, "prefilteredSolidIds", ClayContainer.prefilteredSolidIdsBuffer);
 
 			int maxSolidsPerVoxelMask = ClayContainer.maxSolidsPerVoxel / 32;
 			ClayContainer.solidsFilterBuffer = new ComputeBuffer((64 * 64 * 64) * maxSolidsPerVoxelMask, sizeof(int));
 			ClayContainer.globalCompBuffers.Add(ClayContainer.solidsFilterBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGrid, "solidsFilter", ClayContainer.solidsFilterBuffer);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGridForMesh, "solidsFilter", ClayContainer.solidsFilterBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.cacheDistField, "solidsFilter", ClayContainer.solidsFilterBuffer);
 
 			ClayContainer.claycoreCompute.SetInt("maxSolidsPerVoxel", maxSolidsPerVoxel);
@@ -359,7 +443,7 @@ namespace Clayxels{
 			ClayContainer.triangleConnectionTable.SetData(MeshTable.TriangleConnectionTable);
 			
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.generatePointCloud, "triangleConnectionTable", ClayContainer.triangleConnectionTable);
-			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.genMesh, "triangleConnectionTable", ClayContainer.triangleConnectionTable);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeMesh, "triangleConnectionTable", ClayContainer.triangleConnectionTable);
 
 			ClayContainer.claycoreCompute.SetInt("maxSolids", ClayContainer.maxSolids);
 
@@ -406,6 +490,7 @@ namespace Clayxels{
 			ClayContainer.globalCompBuffers.Add(ClayContainer.numSolidsPerChunkBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.filterSolidsPerChunk, "numSolidsPerChunk", ClayContainer.numSolidsPerChunkBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGrid, "numSolidsPerChunk", ClayContainer.numSolidsPerChunkBuffer);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGridForMesh, "numSolidsPerChunk", ClayContainer.numSolidsPerChunkBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.cacheDistField, "numSolidsPerChunk", ClayContainer.numSolidsPerChunkBuffer);
 
 			ClayContainer.solidsUpdatedBuffer = new ComputeBuffer(ClayContainer.maxSolids, sizeof(int));
@@ -417,6 +502,7 @@ namespace Clayxels{
 			ClayContainer.globalCompBuffers.Add(ClayContainer.solidsPerChunkBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.filterSolidsPerChunk, "solidsPerChunk", ClayContainer.solidsPerChunkBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGrid, "solidsPerChunk", ClayContainer.solidsPerChunkBuffer);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGridForMesh, "solidsPerChunk", ClayContainer.solidsPerChunkBuffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.cacheDistField, "solidsPerChunk", ClayContainer.solidsPerChunkBuffer);
 
 			ClayContainer.solidsInSingleChunkArray = new int[ClayContainer.maxSolids];
@@ -467,6 +553,8 @@ namespace Clayxels{
 				this.releaseBuffers();
 				return;
 			}
+			
+			this.chunkSize = (int)Mathf.Lerp(40.0f, 4.0f, (float)this.clayxelDetail / 100.0f);
 
 			this.limitChunkValues();
 
@@ -483,13 +571,9 @@ namespace Clayxels{
 
 			this.initChunks();
 
-			if(this.chunkSize < 10){
-				this.globalSmoothing = this.splatRadius * 2.0f;
-			}
-			else{
-				this.globalSmoothing = this.splatRadius;
-			}
-
+			this.globalSmoothing = this.splatRadius * 2.0f;
+			ClayContainer.claycoreCompute.SetFloat("globalRoundCornerValue", this.globalSmoothing);
+			
 			this.countBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Raw);
 			this.compBuffers.Add(this.countBuffer);
 
@@ -538,16 +622,15 @@ namespace Clayxels{
 			this.solidsHierarchyNeedsScan = true;
 		}
 
-		/* If you change the material attributes, you will need to invoke this to update all solids in all chunks.*/
-		public void forceUpdateAllChunks(){
-			if(this.numChunks == 1){
-				return;
-			}
-
+		/* Invoke this when you need all solids in a container to be updated, ex. if you change the material attributes.*/
+		public void forceUpdateAllSolids(){
 			for(int i = 0; i < this.solids.Count; ++i){
 				int id = this.solids[i].id;
 				if(id < ClayContainer.maxSolids){
 					this.solidsUpdatedDict[id] = 1;
+				}
+				else{
+					break;
 				}
 			}
 		}
@@ -555,12 +638,10 @@ namespace Clayxels{
 		/* Notify this container that one of the nested ClayObject has changed.*/
 		public void clayObjectUpdated(ClayObject clayObj){
 			if(!this.transform.hasChanged || this.forceUpdate){
-				if(this.numChunks > 1){
-					for(int i = 0; i < clayObj.getNumSolids(); ++i){
-						int id = clayObj.getSolid(i).id;
-						if(id < ClayContainer.maxSolids){
-							this.solidsUpdatedDict[id] = 1;
-						}
+				for(int i = 0; i < clayObj.getNumSolids(); ++i){
+					int id = clayObj.getSolid(i).id;
+					if(id < ClayContainer.maxSolids){
+						this.solidsUpdatedDict[id] = 1;
 					}
 				}
 
@@ -570,13 +651,13 @@ namespace Clayxels{
 		
 		/* Get the material currently in use by this container. 
 			Even if you are using a customMaterial, this is the real instance of the material in scene.
-			After changing the material, invoke updatedMaterialProperties() and then forceUpdateAllChunks().*/
+			After changing the material, invoke updatedMaterialProperties() and then forceUpdateAllSolids().*/
 		public Material getMaterial(){
 			return this.material;
 		}
 
 		/* Each chunk in this container will be notified that something changed in the material.
-			Also invoke forceUpdateAllChunks() if you have multiple chunks.*/
+			Also invoke forceUpdateAllSolids() if you have multiple chunks.*/
 		public void updatedMaterialProperties(){
 			for(int i = 0; i < this.numChunks; ++i){
 				ClayxelChunk chunk = this.chunks[i];
@@ -668,7 +749,6 @@ namespace Clayxels{
 			
 			if(this.numChunks == 1){
 				this.computeChunk(0);
-				this.needsUpdate = false;
 			}
 			else{
 				for(int i = 0; i < this.numChunks; ++i){
@@ -680,44 +760,43 @@ namespace Clayxels{
 			this.chunkIter = 0;
 			this.updateFrame = 0;
 		}
-		
-		void computeClayStep(){
-			if(this.memoryOptimized){
-				this.expandMemory();
-			}
-			
-			if(this.solidsHierarchyNeedsScan){
-				this.scanClayObjectsHierarchy();
-			}
-			
-			if(ClayContainer.lastUpdatedContainerId != this.GetInstanceID()){
-				this.switchComputeData();
-			}
 
-			if(this.chunkIter == 0){
-				this.updateSolids();
-			}
-
-			if(this.numChunks == 1){
-				this.computeChunk(0);
-				this.needsUpdate = false;
+		/* */
+		public void setCastShadows(bool state){
+			if(state){
+				this.castShadows = ShadowCastingMode.On;
 			}
 			else{
-				for(int i = 0; i < ClayContainer.chunksUpdatePerFrame; ++i){
-					this.computeChunk(this.chunkIter);
-					this.chunkIter += 1;	
-					
-					if(this.chunkIter >= this.numChunks){
-						this.needsUpdate = false;
-						this.chunkIter = 0;
-						
-						if(ClayContainer.chunksUpdatePerFrame < this.numChunks){
-							this.swapBuffer();
-						}
+				this.castShadows = ShadowCastingMode.Off;		
+			}
+		}
 
-						break;
-					}
-				}
+		/* */
+		public bool getCastShadows(){
+			if(this.castShadows == ShadowCastingMode.On){
+				return true;
+			}
+
+			return false;
+		}
+
+		/* */
+		public void setReceiveShadows(bool state){
+			this.receiveShadows = state;
+		}
+
+		/* */
+		public bool getReceiveShadows(){
+			return this.receiveShadows;
+		}
+
+		/* Schedule a draw call, 
+			this is only useful if you disable this container's Update and want to manually draw its content.*/
+		public void drawClayxels(){
+			this.renderBounds.center = this.transform.position;
+
+			for(int chunkIt = 0; chunkIt < this.numChunks; ++chunkIt){
+				this.drawChunk(chunkIt);
 			}
 		}
 
@@ -762,12 +841,145 @@ namespace Clayxels{
 			}
 		}
 
-		// for internal use in the inspector, retopology is not available at runtime.
-		public bool shouldRetopoMesh = false;
-		public int retopoMaxVerts = -1;
+		/* Returns a mesh at the specified level of detail, clayxelDetail will range from 0 to 100.
+			Useful to generate mesh colliders, to improve performance leave colorizeMesh and watertight to false.*/
+		public Mesh generateMesh(int clayxelDetail, bool colorizeMesh = false, bool watertight = false){
+			this.switchComputeData();
 
-		/* Generate a mesh from the current clay.*/
-		public void generateMesh(){
+			int prevDetail = this.clayxelDetail;
+
+			if(clayxelDetail != this.clayxelDetail){
+				this.setClayxelDetail(clayxelDetail);
+			}
+			else{
+				this.forceUpdateAllSolids();
+			}
+
+			ComputeBuffer meshIndicesBuffer = new ComputeBuffer(ClayContainer.chunkMaxOutPoints, sizeof(int) * 3, ComputeBufferType.Counter);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeMesh, "meshOutIndices", meshIndicesBuffer);
+
+			ComputeBuffer meshVertsBuffer = new ComputeBuffer(ClayContainer.chunkMaxOutPoints, sizeof(float) * 3);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeMesh, "meshOutPoints", meshVertsBuffer);
+
+			ComputeBuffer meshColorsBuffer = new ComputeBuffer(ClayContainer.chunkMaxOutPoints, sizeof(float) * 4);
+			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeMesh, "meshOutColors", meshColorsBuffer);
+
+			List<Vector3> totalVertices = null;
+			List<int> totalIndices = null;
+			List<Color> totalColors = null;
+
+			if(this.numChunks > 1){
+				totalVertices = new List<Vector3>();
+				totalIndices = new List<int>();
+
+				if(colorizeMesh){
+					totalColors = new List<Color>();
+				}
+			}
+
+			int totalNumVerts = 0;
+
+			Mesh mesh = new Mesh();
+			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+
+			ClayContainer.claycoreCompute.SetInt("numSolids", this.solids.Count);
+			ClayContainer.claycoreCompute.SetFloat("chunkSize", (float)this.chunkSize);
+
+			for(int chunkIt = 0; chunkIt < this.numChunks; ++chunkIt){
+				ClayxelChunk chunk = this.chunks[chunkIt];
+
+				meshIndicesBuffer.SetCounterValue(0);
+
+				ClayContainer.claycoreCompute.SetInt("chunkId", chunkIt);
+
+				ClayContainer.claycoreCompute.SetVector("chunkCenter", chunk.center);
+
+				if(watertight){
+					ClayContainer.claycoreCompute.Dispatch((int)Kernels.computeGridForMesh, this.numThreadsComputeStartRes, this.numThreadsComputeStartRes, this.numThreadsComputeStartRes);
+				}
+				else{
+					ClayContainer.claycoreCompute.Dispatch((int)Kernels.computeGrid, this.numThreadsComputeStartRes, this.numThreadsComputeStartRes, this.numThreadsComputeStartRes);
+				}
+
+				ClayContainer.claycoreCompute.SetInt("outMeshIndexOffset", totalNumVerts);
+				ClayContainer.claycoreCompute.Dispatch((int)Kernels.computeMesh, this.numThreadsComputeFullRes, this.numThreadsComputeFullRes, this.numThreadsComputeFullRes);
+
+				int numTris = this.getBufferCount(meshIndicesBuffer);
+				int numVerts = numTris * 3;
+
+				if(numVerts > ClayContainer.chunkMaxOutPoints){
+					Debug.Log("Clayxels: the generated mesh is too dense, try a lower clayxelDetail.");
+					mesh = null;
+
+					break;
+				}
+
+				totalNumVerts += numVerts;
+				
+				if(mesh != null){
+					if(this.numChunks > 1){
+						Vector3[] vertices = new Vector3[numVerts];
+						meshVertsBuffer.GetData(vertices);
+
+						int[] indices = new int[numVerts];
+						meshIndicesBuffer.GetData(indices);
+
+						totalVertices.AddRange(vertices);
+						totalIndices.AddRange(indices);
+
+						if(colorizeMesh){
+							Color[] colors = new Color[numVerts];
+							meshColorsBuffer.GetData(colors);
+
+							totalColors.AddRange(colors);
+						}
+						
+					}
+				}
+			}
+
+			if(mesh != null){
+				if(this.numChunks > 1){
+					mesh.vertices = totalVertices.ToArray();
+					mesh.triangles = totalIndices.ToArray();
+
+					if(colorizeMesh){
+						mesh.colors = totalColors.ToArray();
+					}
+				}
+				else{
+					Vector3[] vertices = new Vector3[totalNumVerts];
+					meshVertsBuffer.GetData(vertices);
+
+					mesh.vertices = vertices;
+
+					int[] indices = new int[totalNumVerts];
+					meshIndicesBuffer.GetData(indices);
+
+					mesh.triangles = indices;
+
+					if(colorizeMesh){
+						Color[] colors = new Color[totalNumVerts];
+						meshColorsBuffer.GetData(colors);
+
+						mesh.colors = colors;
+					}
+				}
+			}
+
+			meshIndicesBuffer.Release();
+			meshVertsBuffer.Release();
+			meshColorsBuffer.Release();
+
+			if(prevDetail != this.clayxelDetail){
+				this.setClayxelDetail(prevDetail);
+			}
+
+			return mesh;
+		}
+
+		/* Freeze this container to a mesh.*/
+		public void freezeToMesh(){
 			if(this.needsInit){
 				this.init();
 			}
@@ -793,85 +1005,17 @@ namespace Clayxels{
 					render.material = new Material(Shader.Find("Clayxels/ClayxelBuiltInMeshShader"));
 				}
 			}
-
-			ComputeBuffer meshIndicesBuffer = new ComputeBuffer(ClayContainer.chunkMaxOutPoints, sizeof(int) * 3, ComputeBufferType.Counter);
-			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.genMesh, "meshOutIndices", meshIndicesBuffer);
-
-			ComputeBuffer meshVertsBuffer = new ComputeBuffer(ClayContainer.chunkMaxOutPoints, sizeof(float) * 3);
-			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.genMesh, "meshOutPoints", meshVertsBuffer);
-
-			ComputeBuffer meshColorsBuffer = new ComputeBuffer(ClayContainer.chunkMaxOutPoints, sizeof(float) * 4);
-			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.genMesh, "meshOutColors", meshColorsBuffer);
-
-			List<Vector3> totalVertices = new List<Vector3>();
-			List<int> totalIndices = new List<int>();
-			List<Color> totalColors = new List<Color>();
-
-			int totalNumVerts = 0;
-
-			this.mesh = new Mesh();
-			this.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-
-			this.forceUpdateAllChunks();
-			this.switchComputeData();
-
+			
 			this.updateSolids();
 
-			if(this.shouldRetopoMesh){
-				ClayContainer.claycoreCompute.SetInt("retopo", 1);
-			}
-			else{
-				ClayContainer.claycoreCompute.SetInt("retopo", 0);
-			}
-
-			ClayContainer.claycoreCompute.SetInt("numSolids", this.solids.Count);
-			ClayContainer.claycoreCompute.SetFloat("chunkSize", (float)this.chunkSize);
-
-			for(int chunkIt = 0; chunkIt < this.numChunks; ++chunkIt){
-				ClayxelChunk chunk = this.chunks[chunkIt];
-
-				meshIndicesBuffer.SetCounterValue(0);
-
-				ClayContainer.claycoreCompute.SetInt("chunkId", chunkIt);
-
-				ClayContainer.claycoreCompute.SetVector("chunkCenter", chunk.center);
-				ClayContainer.claycoreCompute.Dispatch((int)Kernels.computeGrid, this.numThreadsComputeStartRes, this.numThreadsComputeStartRes, this.numThreadsComputeStartRes);
-
-				ClayContainer.claycoreCompute.SetInt("outMeshIndexOffset", totalNumVerts);
-				ClayContainer.claycoreCompute.Dispatch((int)Kernels.genMesh, this.numThreadsComputeFullRes, this.numThreadsComputeFullRes, this.numThreadsComputeFullRes);
-
-				int numTris = this.getBufferCount(meshIndicesBuffer);
-				int numVerts = numTris * 3;
-				
-				totalNumVerts += numVerts;
-				
-				Vector3[] vertices = new Vector3[numVerts];
-				meshVertsBuffer.GetData(vertices);
-
-				int[] indices = new int[numVerts];
-				meshIndicesBuffer.GetData(indices);
-
-				Color[] colors = new Color[numVerts];
-				meshColorsBuffer.GetData(colors);
-
-				totalVertices.AddRange(vertices);
-				totalIndices.AddRange(indices);
-				totalColors.AddRange(colors);
-			}
-
-			mesh.vertices = totalVertices.ToArray();
-			mesh.triangles = totalIndices.ToArray();
-			mesh.colors = totalColors.ToArray();
+			bool vertexColors = true;
+			bool watertight = true;
+			Mesh mesh = this.generateMesh(this.clayxelDetail, vertexColors, watertight);
 			
-			this.mesh.Optimize();
-
-			this.mesh.RecalculateNormals();
+			mesh.Optimize();
+			mesh.RecalculateNormals();
 			
-			this.gameObject.GetComponent<MeshFilter>().mesh = this.mesh;
-
-			meshIndicesBuffer.Release();
-			meshVertsBuffer.Release();
-			meshColorsBuffer.Release();
+			this.gameObject.GetComponent<MeshFilter>().sharedMesh = mesh;
 
 			this.releaseBuffers();
 		}
@@ -904,11 +1048,16 @@ namespace Clayxels{
 
 		/* Is this container frozen to mesh? */
 		public bool hasCachedMesh(){
+			// we need to perform this check each time
+			if(this.gameObject.GetComponent<MeshFilter>() != null){
+				this.meshCached = true;
+			}
+
 			return this.meshCached;
 		}
 
 		/* Disable the frozen mesh and get back to live clayxels. */
-		public void disableMesh(){
+		public void disableFrozenMesh(){
 			this.meshCached = false;
 			this.needsInit = true;
 			this.enabled = true;
@@ -917,6 +1066,22 @@ namespace Clayxels{
 				DestroyImmediate(this.gameObject.GetComponent<MeshFilter>());
 			}
 		}
+
+		/* Access the point cloud buffer that is about to be drawn.
+			To correctly access the point cloud data you should refer to the function 
+			clayxelVertNormalBlend inside clayxelSRPUtils.cginc .*/
+		public List<ComputeBuffer> getPointCloudBuffers(){
+			List<ComputeBuffer> pointCloudBuffers = new List<ComputeBuffer>();
+
+			for(int i = 0; i < this.numChunks; ++i){
+				ComputeBuffer buff = this.chunks[i].renderPointCloudDataBuffer;
+				pointCloudBuffers.Add(buff);
+			}
+
+			return pointCloudBuffers;
+		}
+
+		// end of public interface ///////////////////////////////////////
 
 		static void parseSolidsAttrs(string content, ref int lastParsed){
 			string[] lines = content.Split(new[]{ "\r\n", "\r", "\n" }, StringSplitOptions.None);
@@ -997,6 +1162,46 @@ namespace Clayxels{
 			#endif
 		}
 
+		void computeClayStep(){
+			if(this.memoryOptimized){
+				this.expandMemory();
+			}
+			
+			if(this.solidsHierarchyNeedsScan){
+				this.scanClayObjectsHierarchy();
+			}
+			
+			if(ClayContainer.lastUpdatedContainerId != this.GetInstanceID()){
+				this.switchComputeData();
+			}
+
+			if(this.chunkIter == 0){
+				this.updateSolids();
+			}
+
+			if(this.numChunks == 1){
+				this.computeChunk(0);
+				this.needsUpdate = false;
+			}
+			else{
+				for(int i = 0; i < ClayContainer.chunksUpdatePerFrame; ++i){
+					this.computeChunk(this.chunkIter);
+					this.chunkIter += 1;	
+					
+					if(this.chunkIter >= this.numChunks){
+						this.needsUpdate = false;
+						this.chunkIter = 0;
+						
+						if(ClayContainer.chunksUpdatePerFrame < this.numChunks){
+							this.swapBuffer();
+						}
+
+						break;
+					}
+				}
+			}
+		}
+
 		void releaseBuffers(){
 			for(int i = 0; i < this.compBuffers.Count; ++i){
 				this.compBuffers[i].Release();
@@ -1050,7 +1255,7 @@ namespace Clayxels{
 			this.boundsScale.x = (float)this.chunkSize * this.chunksX;
 			this.boundsScale.y = (float)this.chunkSize * this.chunksY;
 			this.boundsScale.z = (float)this.chunkSize * this.chunksZ;
-			this.renderBounds.size = this.boundsScale;
+			this.renderBounds.size = this.boundsScale * this.transform.localScale.x;
 
 			float gridCenterOffset = (this.chunkSize * 0.5f);
 			this.boundsCenter.x = ((this.chunkSize * (this.chunksX - 1)) * 0.5f) - (gridCenterOffset*(this.chunksX-1));
@@ -1108,6 +1313,7 @@ namespace Clayxels{
 			float seamOffset = this.chunkSize / 256.0f; // removes the seam between chunks
 			float chunkOffset = this.chunkSize - seamOffset;
 			float gridCenterOffset = (this.chunkSize * 0.5f);
+			chunk.coords = new Vector3Int(x, y, z);
 			chunk.center = new Vector3(
 				(-((this.chunkSize * this.chunksX) * 0.5f) + gridCenterOffset) + (chunkOffset * x),
 				(-((this.chunkSize * this.chunksY) * 0.5f) + gridCenterOffset) + (chunkOffset * y),
@@ -1259,6 +1465,9 @@ namespace Clayxels{
 				if(solid.id < ClayContainer.maxSolids){
 					this.solidsUpdatedDict[solid.id] = 1;
 				}
+				else{
+					break;
+				}
 			}
 
 			clayObj.transform.hasChanged = true;
@@ -1321,7 +1530,7 @@ namespace Clayxels{
 				solidCount = ClayContainer.maxSolids;
 			}
 
-			for(int i = 0; i < solidCount; ++i){
+			foreach(int i in this.solidsUpdatedDict.Keys){
 				Solid solid = this.solids[i];
 
 				int clayObjId = solid.clayObjectId;
@@ -1367,9 +1576,9 @@ namespace Clayxels{
 				ClayContainer.solidsUpdatedBuffer.SetData(this.solidsUpdatedDict.Keys.ToArray());
 				
 				ClayContainer.claycoreCompute.Dispatch((int)Kernels.filterSolidsPerChunk, this.chunksX, this.chunksY, this.chunksZ);
-				
-				this.solidsUpdatedDict.Clear();
 			}
+
+			this.solidsUpdatedDict.Clear();
 		}
 
 		void logFPS(){
@@ -1379,13 +1588,20 @@ namespace Clayxels{
 		}
 
 		void switchComputeData(){
-			ClayContainer.lastUpdatedContainerId = this.GetInstanceID();
+			int id = this.GetInstanceID();
+			if(ClayContainer.lastUpdatedContainerId == id){
+				return;
+			}
+
+			ClayContainer.lastUpdatedContainerId = id;
 
 			ClayContainer.claycoreCompute.SetFloat("globalRoundCornerValue", this.globalSmoothing);
 
 			ClayContainer.claycoreCompute.SetInt("numChunksX", this.chunksX);
 			ClayContainer.claycoreCompute.SetInt("numChunksY", this.chunksY);
 			ClayContainer.claycoreCompute.SetInt("numChunksZ", this.chunksZ);
+
+			this.forceUpdateAllSolids();
 
 			if(this.numChunks == 1){
 				this.countBufferArray[0] = this.solids.Count;
@@ -1426,19 +1642,11 @@ namespace Clayxels{
 				this.renderBounds,
 				MeshTopology.Triangles, chunk.renderIndirectDrawArgsBuffer, 0,
 				null, null,
-				ShadowCastingMode.On, true, this.gameObject.layer);
-		}
-
-		void drawClayxels(){
-			this.renderBounds.center = this.transform.position;
-
-			for(int chunkIt = 0; chunkIt < this.numChunks; ++chunkIt){
-				this.drawChunk(chunkIt);
-			}
+				this.castShadows, this.receiveShadows, this.gameObject.layer);
 		}
 
 		void Start(){
-			if(ClayContainer.globalDataNeedsInit){
+			if(this.needsInit){
 				this.init();
 			}
 		}
@@ -1508,30 +1716,37 @@ namespace Clayxels{
 			 	return rgba;
 			}
 
+			if(ClayContainer.totalMaxChunks > (3 * 3 * 3)){
+				// prevent video memory from becoming huge 
+				ClayContainer.maxChunkX = 3;
+				ClayContainer.maxChunkY = 3;
+				ClayContainer.maxChunkZ = 3;
+				ClayContainer.totalMaxChunks = 3 * 3 * 3;
+			}
+
 			int cacheSize1 = 64 * 64 * 64;
 			int cacheSize2 = 256 * 256 * 256;
-			int maxCachedChunks = ClayContainer.maxChunkX * ClayContainer.maxChunkY * ClayContainer.maxChunkZ;
-
-			ClayContainer.fieldCache1Buffer = new ComputeBuffer(cacheSize1 * maxCachedChunks, sizeof(float));
+			
+			ClayContainer.fieldCache1Buffer = new ComputeBuffer(cacheSize1 * ClayContainer.totalMaxChunks, sizeof(float));
 			ClayContainer.globalCompBuffers.Add(ClayContainer.fieldCache1Buffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGrid, "fieldCache1", ClayContainer.fieldCache1Buffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.cacheDistField, "fieldCache1", ClayContainer.fieldCache1Buffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.clearCachedDistField, "fieldCache1", ClayContainer.fieldCache1Buffer);
 
-			ClayContainer.fieldCache2Buffer = new ComputeBuffer(cacheSize2 * maxCachedChunks, sizeof(uint));
+			ClayContainer.fieldCache2Buffer = new ComputeBuffer(cacheSize2 * ClayContainer.totalMaxChunks, sizeof(uint));
 			ClayContainer.globalCompBuffers.Add(ClayContainer.fieldCache2Buffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.computeGrid, "fieldCache2", ClayContainer.fieldCache2Buffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.cacheDistField, "fieldCache2", ClayContainer.fieldCache2Buffer);
 			ClayContainer.claycoreCompute.SetBuffer((int)Kernels.clearCachedDistField, "fieldCache2", ClayContainer.fieldCache2Buffer);
 
-			float[] cache1 = new float[cacheSize1 * maxCachedChunks];
-			uint[] cache2 = new uint[cacheSize2 * maxCachedChunks];
-			for(int i = 0; i < cacheSize1 * maxCachedChunks; ++i){
+			float[] cache1 = new float[cacheSize1 * ClayContainer.totalMaxChunks];
+			uint[] cache2 = new uint[cacheSize2 * ClayContainer.totalMaxChunks];
+			for(int i = 0; i < cacheSize1 * ClayContainer.totalMaxChunks; ++i){
 				cache1[i] = 1.0f;
 			}
 
 			uint defaultValue = encodeR6G6B6A14(1.0f, 1.0f, 1.0f, 1.0f);
-			for(int i = 0; i < cacheSize2 * maxCachedChunks; ++i){
+			for(int i = 0; i < cacheSize2 * ClayContainer.totalMaxChunks; ++i){
 				cache2[i] = defaultValue;
 			}
 
@@ -1607,7 +1822,7 @@ namespace Clayxels{
 		// All functions past this point are used only in editor
 		#if UNITY_EDITOR
 		void Awake(){
-			ClayContainer.checkEditorUIScaling();
+			// ClayContainer.checkEditorUIScaling();
 
 			if(!Application.isPlaying){
 				// this is needed to trigger a re-init after playing in editor
@@ -1616,12 +1831,24 @@ namespace Clayxels{
 			}
 		}
 
-		static void checkEditorUIScaling(){
-			int unityUIScale = EditorPrefs.GetInt("CustomEditorUIScale");
-			if(unityUIScale > 0){
-				Debug.Log("Clayxels Warning: Editor UI Scaling will corrupt scene picking ('p' shortcut), to fix: Preferences -> UI Scaling -> Use Default Desktop Setting True");
+		public static float getEditorUIScale(){
+			PropertyInfo p =
+				typeof(GUIUtility).GetProperty("pixelsPerPoint", BindingFlags.Static | BindingFlags.NonPublic);
+
+			float editorUiScaling = 1.0f;
+			if(p != null){
+				editorUiScaling = (float)p.GetValue(null, null);
 			}
+
+			return editorUiScaling;
 		}
+
+		// static void checkEditorUIScaling(){
+		// 	int unityUIScale = EditorPrefs.GetInt("CustomEditorUIScale");
+		// 	if(unityUIScale > 0){
+		// 		Debug.Log("Clayxels Warning: Editor UI Scaling will corrupt scene picking ('p' shortcut), to fix: Preferences -> UI Scaling -> Use Default Desktop Setting True");
+		// 	}
+		// }
 		
 		void updateMaterialInEditor(ClayxelChunk chunk, float splatSize){
 			if(ClayContainer.pickedClayxelId == this.clayxelId){
@@ -1696,6 +1923,7 @@ namespace Clayxels{
 		}
 
 		void onUndoPerformed(){
+
 			if(Undo.GetCurrentGroupName() == "changed clayobject" ||
 				Undo.GetCurrentGroupName() == "changed clayxel container"){
 				this.needsUpdate = true;
@@ -1719,10 +1947,7 @@ namespace Clayxels{
 				}
 			}
 			
-			if(this.needsUpdate){
-				this.computeClay();
-			}
-
+			EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
 			UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 			ClayContainer.getSceneView().Repaint();
 		}
@@ -1851,7 +2076,7 @@ namespace Clayxels{
 
 			if(ev.isKey){
 				if(ev.keyCode == KeyCode.P){
-					ClayContainer.checkEditorUIScaling();
+					// ClayContainer.checkEditorUIScaling();
 
 					ClayContainer.startPicking();
 				}
@@ -1886,8 +2111,9 @@ namespace Clayxels{
 			}
 			
 			if(ev.type == EventType.MouseMove){
-				ClayContainer.pickingMousePosX = (int)ev.mousePosition.x;
-				ClayContainer.pickingMousePosY = (int)ev.mousePosition.y;
+				float uiScale = ClayContainer.getEditorUIScale();
+				ClayContainer.pickingMousePosX = (int)ev.mousePosition.x * uiScale;
+				ClayContainer.pickingMousePosY = (int)ev.mousePosition.y * uiScale;
 				
 				if(ClayContainer.pickedObj != null){
 					ClayContainer.clearPicking();
@@ -1937,9 +2163,10 @@ namespace Clayxels{
 				}
 
 				Graphics.ExecuteCommandBuffer(ClayContainer.pickingCommandBuffer);
+
 				
 				ClayContainer.pickingRect.Set(
-					(int)(1024.0f * ((float)ClayContainer.pickingMousePosX / (float)sceneView.camera.pixelWidth)), 
+					(int)(1024.0f * ((float)ClayContainer.pickingMousePosX / (float)sceneView.camera.pixelWidth )), 
 					(int)(768.0f * ((float)ClayContainer.pickingMousePosY / (float)sceneView.camera.pixelHeight)), 
 					1, 1);
 
@@ -2013,25 +2240,24 @@ namespace Clayxels{
 			return (SceneView)SceneView.sceneViews[0];
 		}
 
-		#if CLAYXELS_ONEUP
+		#if CLAYXELS_RETOPO
 			public void retopoMesh(){
-				RetopoUtils.retopoMesh(this.mesh, this.retopoMaxVerts, -1);
+				RetopoUtils.retopoMesh(this.gameObject.GetComponent<MeshFilter>().sharedMesh, this.retopoMaxVerts, -1);
 			}
 		#else
 			public void retopoMesh(){
-				Debug.Log("");
+				Debug.Log("retopo is disabled");
 			}
 		#endif
 		
 		public void storeMesh(){
-			AssetDatabase.CreateAsset(this.mesh, "Assets/" + this.meshAssetPath + ".mesh");
+			AssetDatabase.CreateAsset(this.gameObject.GetComponent<MeshFilter>().sharedMesh, "Assets/" + this.meshAssetPath + ".mesh");
 			AssetDatabase.SaveAssets();
 			
 			UnityEngine.Object[] data = AssetDatabase.LoadAllAssetsAtPath("Assets/" + this.meshAssetPath + ".mesh");
 			for(int i = 0; i < data.Length; ++i){
 				if(data[i].GetType() == typeof(Mesh)){
-					this.mesh = (Mesh)data[i];
-					this.gameObject.GetComponent<MeshFilter>().mesh = this.mesh;
+					this.gameObject.GetComponent<MeshFilter>().sharedMesh = (Mesh)data[i];
 
 					break;
 				}

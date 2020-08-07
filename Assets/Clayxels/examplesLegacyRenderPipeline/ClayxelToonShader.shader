@@ -4,7 +4,7 @@ Shader "ClayxelToonShader"
 {
 	Properties
 	{
-		_ClayxelSize("ClayxelSize", Range( 0 , 10)) = 1
+		_ClayxelSize("ClayxelSize", Range( 0.1 , 1.5)) = 1
 		_Cutoff( "Mask Clip Value", Float ) = 0.5
 		_NormalOrient("NormalOrient", Range( 0 , 1)) = 0
 		[NoScaleOffset]_MainTex1("Texture", 2D) = "white" {}
@@ -202,20 +202,20 @@ Shader "ClayxelToonShader"
 }
 /*ASEBEGIN
 Version=18000
-620;73;963;655;1079.338;561.7535;1.888592;True;False
+168;289;1363;558;1457.056;470.1568;1.888592;True;False
 Node;AmplifyShaderEditor.LightColorNode;105;-533.1129,62.56911;Inherit;False;0;3;COLOR;0;FLOAT3;1;FLOAT;2
 Node;AmplifyShaderEditor.LightAttenuation;104;-551.7554,-46.62129;Inherit;False;0;1;FLOAT;0
 Node;AmplifyShaderEditor.VertexIdVariableNode;5;-525.6176,300.3712;Inherit;False;0;1;INT;0
-Node;AmplifyShaderEditor.RangedFloatNode;2;-666.61,397.1509;Inherit;False;Property;_ClayxelSize;ClayxelSize;0;0;Create;True;0;0;False;0;1;2.21;0;10;0;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;1;-667.3044,482.5592;Inherit;False;Property;_NormalOrient;NormalOrient;2;0;Create;True;0;0;False;0;0;0.3;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.TexturePropertyNode;3;-1220.66,-54.51107;Inherit;True;Property;_MainTex1;Texture;3;1;[NoScaleOffset];Create;False;0;0;False;0;1aa3096b1b9d9204eaa6c75a4275adb1;b9385d232bb3338469705512dca8a12a;False;white;Auto;Texture2D;-1;0;1;SAMPLER2D;0
 Node;AmplifyShaderEditor.TexCoordVertexDataNode;4;-1199.223,196.2176;Inherit;False;0;2;0;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;106;-314.7321,13.30023;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.VertexColorNode;6;-398.9502,-333.7456;Inherit;False;0;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.RangedFloatNode;2;-666.61,397.1509;Inherit;False;Property;_ClayxelSize;ClayxelSize;0;0;Create;True;0;0;False;0;1;2.21;0.1;1.5;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;107;-39.88856,-72.03152;Inherit;False;2;2;0;COLOR;0,0,0,0;False;1;FLOAT3;0,0,0;False;1;COLOR;0
 Node;AmplifyShaderEditor.SamplerNode;11;-860.5441,97.21779;Inherit;True;Property;_TextureSample0;Texture Sample 0;6;0;Create;True;0;0;False;0;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;6;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.CustomExpressionNode;7;-311.9438,327.513;Inherit;False;clayxelVertNormalBlend(vertexId , clayxelSize, normalOrient, v.texcoord, v.color.xyz, vertexPosition, vertexNormal)@ $#if defined(SHADERPASS_SHADOWCASTER)$v.vertex.w = 1.0@ // fix shadows in builtin renderer$#endif;7;True;5;False;vertexId;INT;0;In;;Inherit;False;False;vertexPosition;FLOAT3;0,0,0;Out;;Inherit;False;False;vertexNormal;FLOAT3;0,0,0;Out;;Inherit;False;False;clayxelSize;FLOAT;0;In;;Inherit;False;False;normalOrient;FLOAT;0;In;;Inherit;False;clayxelComputeVertex;False;False;0;6;0;FLOAT;0;False;1;INT;0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;5;FLOAT;0;False;3;FLOAT;0;FLOAT3;3;FLOAT3;4
-Node;AmplifyShaderEditor.StandardSurfaceOutputNode;101;409.5154,-255.2251;Float;False;True;-1;2;ASEMaterialInspector;0;0;CustomLighting;ClayxelToonShader;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;Off;0;False;-1;0;False;-1;False;0;False;-1;0;False;-1;False;0;Custom;0.5;True;True;0;True;TransparentCutout;;Geometry;All;14;all;True;True;True;True;0;False;-1;False;0;False;-1;255;False;-1;255;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;False;2;15;10;25;False;0.5;True;0;0;False;-1;0;False;-1;0;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;0;0,0,0,0;VertexOffset;True;False;Cylindrical;False;Absolute;0;;1;-1;-1;-1;0;False;0;0;False;-1;0;0;False;-1;1;Include;Assets/Clayxels/Resources/clayxelSRPUtils.cginc;False;;Custom;0;0;False;0.1;False;-1;0;False;-1;15;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;6;FLOAT3;0,0,0;False;7;FLOAT3;0,0,0;False;8;FLOAT;0;False;9;FLOAT;0;False;10;FLOAT;0;False;13;FLOAT3;0,0,0;False;11;FLOAT3;0,0,0;False;12;FLOAT3;0,0,0;False;14;FLOAT4;0,0,0,0;False;15;FLOAT3;0,0,0;False;0
+Node;AmplifyShaderEditor.StandardSurfaceOutputNode;101;409.5154,-255.2251;Float;False;True;-1;2;ASEMaterialInspector;0;0;CustomLighting;ClayxelToonShader;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;Off;0;False;-1;0;False;-1;False;0;False;-1;0;False;-1;False;0;Custom;0.5;True;True;0;True;TransparentCutout;;Geometry;All;14;all;True;True;True;True;0;False;-1;False;0;False;-1;255;False;-1;255;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;-1;False;2;15;10;25;False;0.5;True;0;0;False;-1;0;False;-1;0;0;False;-1;0;False;-1;0;False;-1;0;False;-1;0;False;0;0,0,0,0;VertexOffset;True;False;Cylindrical;False;Absolute;0;;1;-1;-1;-1;0;False;0;0;False;-1;-1;0;False;-1;1;Include;Assets/Clayxels/Resources/clayxelSRPUtils.cginc;False;;Custom;0;0;False;0.1;False;-1;0;False;-1;15;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;4;FLOAT;0;False;6;FLOAT3;0,0,0;False;7;FLOAT3;0,0,0;False;8;FLOAT;0;False;9;FLOAT;0;False;10;FLOAT;0;False;13;FLOAT3;0,0,0;False;11;FLOAT3;0,0,0;False;12;FLOAT3;0,0,0;False;14;FLOAT4;0,0,0,0;False;15;FLOAT3;0,0,0;False;0
 WireConnection;106;0;104;0
 WireConnection;106;1;105;1
 WireConnection;107;0;6;0
@@ -231,4 +231,4 @@ WireConnection;101;13;107;0
 WireConnection;101;11;7;3
 WireConnection;101;12;7;4
 ASEEND*/
-//CHKSM=A165F672396F5D1A81801865624300BD66194B91
+//CHKSM=CF2713F042C303A50F8F63A834E19EE39CCEF149

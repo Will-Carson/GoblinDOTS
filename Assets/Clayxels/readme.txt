@@ -22,6 +22,23 @@ Tips:
 - Split clayxels into many containers to make large and complex models
 
 Change log:
+v0.9
+- added slicing attributes on sphere and torus primitives
+- setClayxelDetail now allows for dynamic change of resolution without re-initializing the container, good for in-game LOD
+- changed resolution workflow to be less confusing, no more chunks, clayxelDetail from 0 to 100, buttons to expand bounds
+- improved mesh generation for collisions, use ClayContainer.generateMesh(int levelOfDetail)
+- improved meshing and retopology (retopo will still leave holes, non-retopo meshes are guaranteed watertight)
+- optimized performance on clay evaluation
+- added cast/receive shadows option on containers
+- added public API to access the internal point cloud: ClayContainer.getPointCloudBuffers()
+- added support for UI Scaling in Unity
+- added example scene to show normal maps and texturing of clayxels
+- added example scene to show dynamic mesh generation for collisions
+- improved clayObject inspector attributes with a bigger numeric range to make sculpting easier (only affects UI)
+- bug fix: flattened sphere primitive causing holes
+- bug fix: undo issues on ClayObject inspector
+- bug fix: freeze mesh then hit play, container will not show the right state of frozen
+
 v0.822
 - added built-in render pipeline examples
 - added options to fine tune performance, see ClayxelsPrefs.cs

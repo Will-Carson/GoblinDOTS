@@ -27,15 +27,25 @@ float computeClayDistanceFunction(uint solidType, float3 cellPoint, float3 solid
 		float3 a = abs(pointRotated) - solidSize + round;
 		dist = length(max(a, 0.0)) + min(max(a.x, max(a.y, a.z)), 0.0) - round;
 	}
-	else if(solidType == 1){// label: sphere, w0: painter 0, w1: mirrorX 0
+	else if(solidType == 1){// label: sphere, w0: painter 0, w1: mirrorX 0, x: round 0, y: sliceY 0.0
 		// Inigo Quilez ellipsoid approximation
+		float round = extraAttrs.x + globalRoundCornerValue;
 		
 		float k0 = length(pointRotated / solidSize);
 		float k1 = length(pointRotated / (solidSize * solidSize));
-		dist = k0 * (k0 - 1.0) / k1;
+
+		float d = (k0 * (k0 - 1.0) / k1) + round;
+
+		// slicing, also fixes squashing
+		float sliceY = -solidSize.y * ((extraAttrs.y * 2.0) - 1.0);
+		dist = length(max(float2(d, -pointRotated.y - sliceY), 0.0)) - round;
 	}
 	else if(solidType == 2){// label: cylinder, w0: painter 0, w1: mirrorX 0, x: round 0, y: sharp 0, z: cone 0
 		float round = extraAttrs.x + globalRoundCornerValue;
+
+		if(round > solidSize.y){
+			round = solidSize.y;
+		}
 
 		float3 params = float3(
 			(-1.0 * extraAttrs.y) + min(solidSize.x, solidSize.z), 
@@ -44,21 +54,29 @@ float computeClayDistanceFunction(uint solidType, float3 cellPoint, float3 solid
 		
 		dist = cylinderCone(pointRotated, solidSize, params);
 	}
-	else if(solidType == 3){// label: torus, w0: painter 0, w1: mirrorX 0, x: fat 0.2
-		// Inigo Quilez
+	else if(solidType == 3){// label: torus, w0: painter 0, w1: mirrorX 0, x: fat 0.2, y: round 0.0, z: sliceY 0.0
+		float round = extraAttrs.y + globalRoundCornerValue;
+
+		float fat = extraAttrs.x - round;
+		// if(solidSize.z < extraAttrs.x+round){
+		// 	solidSize.z = extraAttrs.x+round;
+		// }
+
 		float3 elongationVec = float3(0.0, 0.0, ((solidSize.z) - (extraAttrs.x)));
 		pointRotated = pointRotated - clamp(pointRotated, -elongationVec, elongationVec);// elongation op
 
-		float fat = extraAttrs.x;
-		if(fat < 0.1){// fix crash
-			fat = 0.1;
-		}
+		// float sliceX = -solidSize.x * ((extraAttrs.y * 2.0) - 1.0);
+		float sliceY = -solidSize.y * ((extraAttrs.z * 2.0) - 1.0);
 
 		float le = solidSize.y - solidSize.x;
-		float r1 = solidSize.x - fat;
+		float r1 = solidSize.x - fat - round;
 		
 		float3 a = float3(pointRotated.x, max(abs(pointRotated.y) - le, 0.0), pointRotated.z);
-		dist = length(float2(length(a.xy) - r1, a.z)) - fat;
+		float d = length(float2(length(a.xy) - r1, a.z)) - fat;
+		
+		// slicing
+		// d = length(max(float2(d, -pointRotated.x - sliceX), 0.0));
+		dist = length(max(float2(d, -pointRotated.y - sliceY), 0.0)) - round;
 	}
 	else if(solidType == 4){// label: curve, w0: painter 0, w1: mirrorX 0, x: slide 0.5, y: weight 0.5, z: fat 0.5
 		pointRotated.x += solidSize.x - (extraAttrs.z * 0.5);
@@ -105,7 +123,7 @@ float computeClayDistanceFunction(uint solidType, float3 cellPoint, float3 solid
 		pointRotated.x -= clamp( pointRotated.x, -2.0, 0.0 );
 		float d1 = length(pointRotated.xy)*sign(- pointRotated.y)*sizeX;
 		float d2 = abs(pointRotated.z)-sizeZ;
-		dist = length(max(float2(d1,d2),0.0)) + min(max(d1,d2), 0.) - round;
+		dist = length(max(float2(d1,d2),0.0)) + min(max(d1,d2), 0.0) - round;
 	}
 	
 	return dist;

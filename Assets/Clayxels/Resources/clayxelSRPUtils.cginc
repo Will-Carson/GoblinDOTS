@@ -369,6 +369,61 @@ void clayxelVertVR(uint vId, float splatSizeMult, float normalOrientedSplat, out
 #endif
 }
 
+void clayxelVertVoxel(uint vId, float splatSizeMult, float normalOrientedSplat, out float4 tex, out float3 vertexColor, out float3 outVertPos, out float3 outNormal){
+#ifdef CLAYXELS_VALID
+	// first we unpack the clayxels point cloud
+	int4 clayxelPointData = chunkPoints[vId / 3];
+
+	outNormal = mul((float3x3)objectMatrix, unpackNormal(clayxelPointData.z));
+
+	int4 compressedData = unpackInt4(clayxelPointData.x);
+
+	float cellSize = chunkSize / 256.0;
+	float3 pointPos = expandGridPoint(compressedData.xyz, cellSize, chunkSize) + chunkCenter;
+	float3 p = mul(objectMatrix, float4(pointPos, 1.0)).xyz;
+
+	vertexColor = unpackRgb(clayxelPointData.w);
+
+	int solidId = compressedData.w - 1;
+	if(solidId == solidHighlightId){
+		vertexColor += 1.0;
+	}
+
+	float newSplatSize = splatRadius * splatSizeMult;
+	float3 camUpVec = UNITY_MATRIX_V._m10_m11_m12;
+	float3 camSideVec = UNITY_MATRIX_V._m00_m01_m02;
+	
+	float3 upVec;
+	float3 sideVec;
+	
+	float3 normalSideVec = normalize(cross(camUpVec, outNormal));
+	float3 normalUpVec = normalize(cross(normalSideVec, outNormal));
+
+	upVec = normalize(lerp(camUpVec, normalUpVec, normalOrientedSplat)) * (newSplatSize);
+	sideVec = normalize(lerp(camSideVec, normalSideVec, normalOrientedSplat)) * (newSplatSize*2.0);
+
+	// expand splat from point P to a triangle with uv coordinates
+	uint vertexOffset = vId % 3;
+	if(vertexOffset == 0){
+		outVertPos = p + ((-upVec) + sideVec);
+		tex = float4(-0.5, 0.0, 0.0, 0.0);
+	}
+	else if(vertexOffset == 1){
+		outVertPos = p + ((-upVec) - sideVec);
+		tex = float4(1.5, 0.0, 0.0, 0.0);
+	}
+	else if(vertexOffset == 2){
+		outVertPos = p + (upVec * 1.7);
+		tex = float4(0.5, 1.35, 0.0, 0.0);
+	}
+#else
+		tex = float4(0, 0, 0, 0);
+		vertexColor = float3(0, 0, 0);
+		outVertPos = float3(0, 0, 0);
+		outNormal = float3(0, 0, 0);
+#endif
+}
+
 float random(float2 uv){
     return frac(sin(dot(uv,float2(12.9898,78.233)))*43758.5453123);
 }

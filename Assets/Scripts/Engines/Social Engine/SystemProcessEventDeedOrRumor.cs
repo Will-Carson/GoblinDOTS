@@ -4,8 +4,6 @@ using Unity.Jobs;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
-using System;
-using UnityEngine;
 
 [ServerWorld]
 [UpdateBefore(typeof(TransformSystemGroup))]
@@ -23,11 +21,17 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
 
     protected override void OnUpdate()
     {
-        var buffer = ESECBS.CreateCommandBuffer();
+        var ecb = ESECBS.CreateCommandBuffer();
         var deedLibrary = DeedLibrary;
 
         Entities
-            .ForEach((Entity entity, FactionMember factionMember, Faction faction, DynamicBuffer<Relationship> relationships, DynamicBuffer<Memory> memories, DynamicBuffer<EventWitness> eventsWitness) =>
+            .ForEach((
+                Entity entity, 
+                FactionMember factionMember, 
+                Faction faction, 
+                DynamicBuffer<Relationship> relationships, 
+                DynamicBuffer<Memory> memories, 
+                DynamicBuffer<EventWitness> eventsWitness) =>
             {
                 for (int i = 0; i < eventsWitness.Length; i++)
                 {
@@ -198,7 +202,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                 }
 
                 // Wipe buffer after going through all elements
-                buffer.SetBuffer<EventWitness>(entity);
+                ecb.SetBuffer<EventWitness>(entity);
             })
             .WithBurst()
             .Run();

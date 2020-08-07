@@ -1,5 +1,5 @@
-#if UNITY_EDITOR
-#if CLAYXELS_ONEUP
+#if UNITY_EDITOR_WIN
+#if CLAYXELS_RETOPO
 
 using System;
 using System.IO;
@@ -46,11 +46,11 @@ namespace Clayxels{
 			#endif
 
 			if(libPtr == null){
-				Debug.Log("failed to find Assets\\Clayxels\\meshUtils\\retopoLib.dll, please define CLAYXELS_RETOPO_LIB with the actual path to this lib in your project");
+				Debug.Log("Clayxels failed to find Assets\\Clayxels\\meshUtils\\retopoLib.dll, please define CLAYXELS_RETOPO_LIB with the actual path to this lib in your project");
 				return;
 			}
 
-			// try{
+			try{
 				IntPtr retopoMeshFuncPtr = NativeLib.GetProcAddress(libPtr.Value, "retopoMesh");
 				RetopoMeshDelegate retopoMesh = (RetopoMeshDelegate)Marshal.GetDelegateForFunctionPointer(retopoMeshFuncPtr, typeof(RetopoMeshDelegate));
 				
@@ -97,10 +97,11 @@ namespace Clayxels{
 				mesh.triangles = newIndices;
 				mesh.normals = normals;
 				mesh.colors = newColors;
-			// }
-			// catch{
-			// 	Debug.Log("error during retopo");
-			// }
+			}
+			catch{
+				Debug.Log("Clayxels: error during retopo");
+				Debug.Log("If your path to the retopo lib is different than Assets\\Clayxels\\meshUtils\\retopoLib.dll, please define CLAYXELS_RETOPO_LIB with the actual path to this lib in your project");
+			}
 			
 			NativeLib.FreeLibrary(libPtr.Value);
 			libPtr = null;
