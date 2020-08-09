@@ -8,7 +8,7 @@ using UnityEngine;
 [ServerWorld]
 public class BuildSituationRequestHandler : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
     private EntityArchetype SituationBuilder;
 
     protected override void OnCreate()
@@ -70,6 +70,7 @@ public class BuildSituationRequestHandler : SystemBase
         pecb.AddBuffer<DialogueRequest>(e);
         pecb.AddBuffer<NetworkObserver>(e);
         pecb.AddBuffer<RebuildNetworkObserver>(e);
+        pecb.AddBuffer<PlayLineRequest>(e);
         pecb.AddComponent<Translation>(e);
         pecb.AddComponent<Rotation>(e);
         pecb.AddComponent<NetworkEntity>(e);

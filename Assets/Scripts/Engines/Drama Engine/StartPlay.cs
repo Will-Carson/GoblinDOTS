@@ -7,7 +7,7 @@ using UnityEngine;
 [ServerWorld]
 public class StartPlay : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     public NativeMultiHashMap<int, Line> PlayLibrary
         = new NativeMultiHashMap<int, Line>(G.numberOfPlays * G.linesPerPlay, Allocator.Persistent);

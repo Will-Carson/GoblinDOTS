@@ -7,7 +7,7 @@ using UnityEngine;
 [ServerWorld]
 public class SituationNumberOfActorsHandler : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     protected override void OnUpdate()
     {

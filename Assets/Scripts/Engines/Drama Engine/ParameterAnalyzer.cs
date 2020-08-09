@@ -7,7 +7,7 @@ using UnityEngine;
 [ServerWorld]
 public class ParameterAnalyzer : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     public NativeMultiHashMap<int, Parameter> PlaysRequirements = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
     public NativeHashMap<int, int> PlayDramaValues = new NativeHashMap<int, int>(G.numberOfPlays, Allocator.Persistent);

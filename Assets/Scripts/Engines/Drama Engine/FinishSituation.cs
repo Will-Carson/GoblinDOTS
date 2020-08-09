@@ -6,7 +6,7 @@ using DOTSNET;
 [ServerWorld]
 public class FinishSituation : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     protected override void OnUpdate()
     {

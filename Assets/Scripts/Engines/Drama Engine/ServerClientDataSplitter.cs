@@ -10,7 +10,6 @@ public class ServerClientDataSplitter : MonoBehaviour
     private World server;
 
     private int dialogueCounter = 0;
-    private int requirementCounter = 0;
     private int lineCounter = 0;
 
     private bool isClient;

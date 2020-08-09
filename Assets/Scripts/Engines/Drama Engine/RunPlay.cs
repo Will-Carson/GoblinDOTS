@@ -2,12 +2,11 @@
 using Unity.Entities;
 using Unity.Jobs;
 using DOTSNET;
-using UnityEngine;
 
 [ServerWorld]
 public class RunPlay : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     public NativeMultiHashMap<int, Line> PlayLibrary 
         = new NativeMultiHashMap<int, Line>(G.numberOfPlays * G.linesPerPlay, Allocator.Persistent);
@@ -36,11 +35,7 @@ public class RunPlay : SystemBase
             // generate step request if time is up for running line
             if (playRunner.lineTime > playRunner.lineTimeMax)
             {
-                var p = new PlayLineRequest
-                {
-                    newLine = 0
-                };
-                ecb.AddComponent(entityInQueryIndex, entity, p);
+                ecb.AppendToBuffer(entityInQueryIndex, entity, new PlayLineRequest());
                 return;
             }
 
@@ -66,59 +61,56 @@ public class RunPlay : SystemBase
             int entityInQueryIndex,
             PlayRunner playRunner,
             Line playingLine,
-            PlayLineRequest newLine,
+            DynamicBuffer<PlayLineRequest> newLines,
             PlayActorIds actors) =>
         {
-            // Release stages for new plays 
-            ecb.RemoveComponent<PlayLineRequest>(entityInQueryIndex, entity);
-            if (playingLine.isEnd)
+            for (int j = 0; j < newLines.Length; j++)
             {
-                ecb.SetComponent(entityInQueryIndex, entity, new PlayRunner { stageId = playRunner.stageId });
-                ecb.RemoveComponent<Line>(entityInQueryIndex, entity);
-                ecb.AddComponent<NeedsPlay>(entityInQueryIndex, entity);
-                return;
+                var newLine = newLines[j];
+
+                // Process step requests
+                var newPlayRunner = new PlayRunner();
+                if (newLine.newLine == 0) { newPlayRunner.lineId = playingLine.childA; }
+                if (newLine.newLine == 1) { newPlayRunner.lineId = playingLine.childB; }
+                if (newLine.newLine == 2) { newPlayRunner.lineId = playingLine.childC; }
+                if (newLine.newLine == 3) { newPlayRunner.lineId = playingLine.childD; }
+
+                var playLines = playLibrary.GetValuesForKey(playRunner.playId);
+
+                var nextLine = new Line();
+                int i = 0;
+                while (playLines.MoveNext())
+                {
+                    i++;
+                    nextLine = playLines.Current;
+                    if (newPlayRunner.lineId == i) { break; }
+                }
+
+                newPlayRunner.lineTime = 0;
+                newPlayRunner.lineTimeMax = nextLine.life;
+                newPlayRunner.playId = playRunner.playId;
+                newPlayRunner.stageId = playRunner.stageId;
+                newPlayRunner.timeLineUpdated = time;
+
+                ecb.SetComponent(entityInQueryIndex, entity, newPlayRunner);
+                ecb.SetComponent(entityInQueryIndex, entity, nextLine);
+
+                // Create dialogue requests
+                var speaker = 0;
+                if (nextLine.speaker == 0) { speaker = actors.alpha; }
+                if (nextLine.speaker == 1) { speaker = actors.beta; }
+                if (nextLine.speaker == 2) { speaker = actors.gamma; }
+
+                var dr = new DialogueRequest
+                {
+                    actorId = speaker,
+                    dialogueId = nextLine.dialogueId
+                };
+
+                ecb.AppendToBuffer(entityInQueryIndex, entity, dr);
             }
 
-            // Process step requests
-            var newPlayRunner = new PlayRunner();
-            if (newLine.newLine == 0) { newPlayRunner.lineId = playingLine.childA; }
-            if (newLine.newLine == 1) { newPlayRunner.lineId = playingLine.childB; }
-            if (newLine.newLine == 2) { newPlayRunner.lineId = playingLine.childC; }
-            if (newLine.newLine == 3) { newPlayRunner.lineId = playingLine.childD; }
-
-            var playLines = playLibrary.GetValuesForKey(playRunner.playId);
-
-            var nextLine = new Line();
-            int i = 0;
-            while (playLines.MoveNext())
-            {
-                i++;
-                nextLine = playLines.Current;
-                if (newPlayRunner.lineId == i) { break; }
-            }
-
-            newPlayRunner.lineTime = 0;
-            newPlayRunner.lineTimeMax = nextLine.life;
-            newPlayRunner.playId = playRunner.playId;
-            newPlayRunner.stageId = playRunner.stageId;
-            newPlayRunner.timeLineUpdated = time;
-
-            ecb.SetComponent(entityInQueryIndex, entity, newPlayRunner);
-            ecb.SetComponent(entityInQueryIndex, entity, nextLine);
-
-            // Create dialogue requests
-            var speaker = 0;
-            if (nextLine.speaker == 0) { speaker = actors.alpha; }
-            if (nextLine.speaker == 1) { speaker = actors.beta; }
-            if (nextLine.speaker == 2) { speaker = actors.gamma; }
-
-            var dr = new DialogueRequest
-            {
-                actorId = speaker,
-                dialogueId = nextLine.dialogueId
-            };
-
-            ecb.AppendToBuffer(entityInQueryIndex, entity, dr);
+            ecb.SetBuffer<PlayLineRequest>(entityInQueryIndex, entity);
         })
         .WithBurst()
         .Schedule();
@@ -149,10 +141,11 @@ public struct Line : IComponentData
     public int childC;
     public int childD;
     public bool isEnd;
+    public int endingId;
     public float life;
 }
 
-public struct PlayLineRequest : IComponentData
+public struct PlayLineRequest : IBufferElementData
 {
     public int newLine;
 }

@@ -9,7 +9,7 @@ using DOTSNET;
 [UpdateBefore(typeof(TransformSystemGroup))]
 public class SystemProcessDeedOrRumorEvent : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
     public NativeArray<DataDeed> DeedLibrary 
         = new NativeArray<DataDeed>(G.numberOfDeeds, Allocator.Persistent);
 

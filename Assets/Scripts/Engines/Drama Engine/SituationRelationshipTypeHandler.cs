@@ -7,7 +7,7 @@ using UnityEngine;
 [ServerWorld]
 public class SituationRelationshipTypeHandler : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     protected override void OnDestroy()
     {

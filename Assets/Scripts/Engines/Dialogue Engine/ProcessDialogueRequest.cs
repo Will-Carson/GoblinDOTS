@@ -8,7 +8,7 @@ using DOTSNET;
 [ServerWorld]
 public class ProcessDialogueRequest : NetworkBroadcastSystem
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS;
+    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
     // NativeMultiMap so we can run most of it with Burst enabled
     NativeMultiHashMap<int, DialogueMessage> messages;
@@ -21,13 +21,11 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
 
         // allocate
         messages = new NativeMultiHashMap<int, DialogueMessage>(1000, Allocator.Persistent);
-        messagesList = new NativeList<DialogueMessage>(1000, Allocator.Persistent);
     }
 
     protected override void OnDestroy()
     {
         // dispose
-        messagesList.Dispose();
         messages.Dispose();
 
         // call base because it might be implemented.
@@ -41,7 +39,7 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
         // run with Burst
         var _messages = messages;
         Entities.ForEach((Entity entity,
-                          in DynamicBuffer<DialogueRequest> dialogueRequests,
+                          ref DynamicBuffer<DialogueRequest> dialogueRequests,
                           in DynamicBuffer<NetworkObserver> observers,
                           in NetworkEntity networkEntity) =>
         {
@@ -49,6 +47,11 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
             // let's create it only once, which is faster.
             for (int j = 0; j < dialogueRequests.Length; j++)
             {
+                if (dialogueRequests[j].sent > 3) continue;
+                var dr = dialogueRequests[j];
+                dr.sent = dr.sent + 1;
+                dialogueRequests[j] = dr;
+
                 DialogueMessage message = new DialogueMessage
                 {
                     actorId = dialogueRequests[j].actorId,
@@ -69,7 +72,6 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
                     _messages.Add(connectionId, message);
                 }
             }
-            ecb.SetBuffer<DialogueRequest>(entity);
         })
         .Run();
 
@@ -80,7 +82,6 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
             // (NativeMultiMap.GetKeyArray allocates, so we simply iterate each
             //  connectionId on the server and assume that most of them will
             //  receive a message anyway)
-            messagesList.Clear();
             NativeMultiHashMapIterator<int>? it = default;
             while (messages.TryIterate(connectionId, out DialogueMessage message, ref it))
             {
@@ -100,6 +101,7 @@ public struct DialogueRequest : IBufferElementData
 {
     public int actorId;
     public int dialogueId;
+    public int sent;
 }
 
 public struct DialogueMessage : NetworkMessage
