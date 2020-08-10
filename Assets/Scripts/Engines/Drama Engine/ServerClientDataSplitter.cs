@@ -11,6 +11,7 @@ public class ServerClientDataSplitter : MonoBehaviour
 
     private int dialogueCounter = 0;
     private int lineCounter = 0;
+    private int endingCounter = 0;
 
     private bool isClient;
     private bool isServer;
@@ -152,11 +153,16 @@ public class ServerClientDataSplitter : MonoBehaviour
         ParameterAnalyzer parameterAnalyzer = null;
         StartPlay playStarter = null;
         RunPlay playRunner = null;
+        FinishPlay playFinisher = null;
 
         if (isClient) { dialogueManager = FindObjectOfType<DialogueManager>(); }
-        if (isServer) { parameterAnalyzer = server.GetOrCreateSystem<ParameterAnalyzer>(); }
-        if (isServer) { playStarter = server.GetOrCreateSystem<StartPlay>(); }
-        if (isServer) { playRunner = server.GetOrCreateSystem<RunPlay>(); }
+        if (isServer)
+        {
+            parameterAnalyzer = server.GetOrCreateSystem<ParameterAnalyzer>();
+            playStarter = server.GetOrCreateSystem<StartPlay>();
+            playRunner = server.GetOrCreateSystem<RunPlay>();
+            playFinisher = server.GetOrCreateSystem<FinishPlay>();
+        }
 
         for (int i = 0; i < fullPlays.Count; i++)
         {
@@ -183,6 +189,13 @@ public class ServerClientDataSplitter : MonoBehaviour
                     lineCounter++;
                 }
 
+                var endingIds = new List<int>();
+                for (int j = 0; j < p.endings.Count; j++)
+                {
+                    endingIds.Add(endingCounter);
+                    endingCounter++;
+                }
+
                 for (int j = 0; j < p.lines.Count; j++)
                 {
                     // Add lines to SystemRunPlay
@@ -191,6 +204,7 @@ public class ServerClientDataSplitter : MonoBehaviour
                     {
                         // TODO fix
                         dialogueId = dialogueIds[p.lines[j].dialogueId],
+                        endingId = endingIds[p.lines[j].endingId],
                         isEnd = line.isEnd,
                         life = line.life,
                         speaker = line.speaker,
@@ -203,6 +217,15 @@ public class ServerClientDataSplitter : MonoBehaviour
                 }
 
                 playRunner.PlayLibrary = playStarter.PlayLibrary;
+                
+                for (int j = 0; j < p.endings.Count; j++)
+                {
+                    var e = p.endings[j].playEndings;
+                    for (int k = 0; k < e.Count; k++)
+                    {
+                        playFinisher.PlayEndings.Add(endingIds[j], e[k]);
+                    }
+                }
 
                 for (int j = 0; j < p.requirements.Count; j++)
                 {
@@ -221,8 +244,14 @@ public class FullPlayData
     // Server data
     public List<Parameter> requirements = new List<Parameter>();
     public List<Line> lines = new List<Line>();
+    public List<Endings> endings;
     public int drama = 0;
 
     // Client data
     public List<DialogueContent> content = new List<DialogueContent>();
+}
+
+public struct Endings
+{
+    public List<PlayConsiquence> playEndings;
 }

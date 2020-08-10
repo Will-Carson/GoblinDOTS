@@ -4,14 +4,18 @@ using Unity.Jobs;
 using Unity.Transforms;
 using static Unity.Mathematics.math;
 using DOTSNET;
+using System.Collections.Generic;
 
 [ServerWorld]
-[UpdateBefore(typeof(TransformSystemGroup))]
-public class SystemProcessDeedOrRumorEvent : SystemBase
+public class ProcessDeedOrRumorEvent : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
     public NativeArray<DataDeed> DeedLibrary 
         = new NativeArray<DataDeed>(G.numberOfDeeds, Allocator.Persistent);
+    public NativeHashMap<int, FactionMember> FactionMembers 
+        = new NativeHashMap<int, FactionMember>();
+    public NativeHashMap<int, Faction> Factions 
+        = new NativeHashMap<int, Faction>();
 
     protected override void OnCreate()
     {
@@ -19,10 +23,20 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
         DeedLibrary[0] = new DataDeed() { values = new DataValues() { /* Define deed here */ } };
     }
 
+    protected override void OnDestroy()
+    {
+        DeedLibrary.Dispose();
+        FactionMembers.Dispose();
+        Factions.Dispose();
+    }
+
     protected override void OnUpdate()
     {
         var ecb = ESECBS.CreateCommandBuffer();
         var deedLibrary = DeedLibrary;
+
+        var factionMembers = FactionMembers;
+        var factions = Factions;
 
         Entities
             .ForEach((
@@ -31,34 +45,34 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                 Faction faction, 
                 DynamicBuffer<Relationship> relationships, 
                 DynamicBuffer<Memory> memories, 
-                DynamicBuffer<EventWitness> eventsWitness) =>
+                DynamicBuffer<WitnessedEvent> witnessedEvents) =>
             {
-                for (int i = 0; i < eventsWitness.Length; i++)
+                for (int i = 0; i < witnessedEvents.Length; i++)
                 {
                     #region data prep
 
-                    var eventWitness = eventsWitness[i];
-                    if (!eventWitness.needsEvaluation) return;
+                    var witnessedEvent = witnessedEvents[i];
+                    if (!witnessedEvent.needsEvaluation) return;
 
                     var newMemory = new Memory();
-                    newMemory.rumorSpreaderFactionMember = eventWitness.rumorSpreaderfactionMember;
-                    newMemory.deedDoerFactionMember = eventWitness.deedDoerfactionMember;
-                    newMemory.type = eventWitness.type;
-                    newMemory.deedTargetFactionMember = eventWitness.deedTargetfactionMember;
+                    newMemory.rumorSpreaderFactionMemberId = witnessedEvent.rumorSpreaderFactionMemberId;
+                    newMemory.deedDoerFactionMemberId = witnessedEvent.deedDoerFactionMemberId;
+                    newMemory.type = witnessedEvent.type;
+                    newMemory.deedTargetFactionMemberId = witnessedEvent.deedTargetFactionMemberId;
                     newMemory.timesCommitted = 1;
-                    newMemory.reliability = eventWitness.reliability;
+                    newMemory.reliability = witnessedEvent.reliability;
 
-                    float gossipAffinity = 0;
-                    float deedTargetAffinity = 0;
-                    float deedDoerAffinity = 0;
+                    int gossipAffinity = 0;
+                    int deedTargetAffinity = 0;
+                    int deedDoerAffinity = 0;
 
                     for (int j = 0; j < relationships.Length; j++)
                     {
-                        if (relationships[j].targetFaction.id == eventWitness.rumorSpreaderfactionMember.faction.id)
+                        if (relationships[j].targetFaction.id == factions[witnessedEvent.rumorSpreaderFactionMemberId].id)
                             gossipAffinity = relationships[j].affinity;
-                        if (relationships[j].targetFaction.id == eventWitness.deedTargetfactionMember.faction.id)
+                        if (relationships[j].targetFaction.id == factions[witnessedEvent.deedTargetFactionMemberId].id)
                             deedTargetAffinity = relationships[j].affinity;
-                        if (relationships[j].targetFaction.id == eventWitness.deedDoerfactionMember.faction.id)
+                        if (relationships[j].targetFaction.id == factions[witnessedEvent.deedDoerFactionMemberId].id)
                             deedDoerAffinity = relationships[j].affinity;
                     }
 
@@ -79,9 +93,9 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     deedValues.Dispose();
                     traits.Dispose();
 
-                    if (eventWitness.rumorSpreaderfactionMember.id != factionMember.id)
+                    if (witnessedEvent.rumorSpreaderFactionMemberId != factionMember.id)
                     {
-                        newMemory.reliability = gossipAffinity * eventWitness.reliability;
+                        newMemory.reliability = gossipAffinity * witnessedEvent.reliability;
                     }
                     else
                     {
@@ -92,21 +106,21 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
 
                     #region affinity calculation
 
-                    float affinityDelta = 0;
+                    int affinityDelta = 0;
 
                     // Calculate affinity change from witness relationship to target
                     affinityDelta
-                        += deedTargetAffinity
+                        += (int)(deedTargetAffinity
                         * newMemory.impact
-                        * newMemory.reliability;
+                        * newMemory.reliability);
                     affinityDelta
-                        += abs(affinityDelta)
+                        += (int)(abs(affinityDelta)
                         * traitAlignment
-                        * G.traitAlignmentImportance;
+                        * G.traitAlignmentImportance);
                     affinityDelta
-                        += deedDoerAffinity
+                        += (int)(deedDoerAffinity
                         * factionMember.mood.arousal
-                        * G.arrousalImportance;
+                        * G.arrousalImportance);
 
                     var isEstablished = false;
 
@@ -122,9 +136,9 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                             {
                                 targetFaction = tempRelationship.targetFaction,
                                 affinity
-                                        = tempRelationship.affinity
+                                        = (int)(tempRelationship.affinity
                                         + affinityDelta
-                                        * pow(.8f, newMemory.timesCommitted) // TODO am I supposed to multiply by affinityDelta again? Seems wrong
+                                        * pow(.8f, newMemory.timesCommitted)) // TODO am I supposed to multiply by affinityDelta again? Seems wrong
                             };
                             newMemory.impact
                                 = affinityDelta
@@ -136,7 +150,7 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                     {
                         var relationship = new Relationship()
                         {
-                            targetFaction = newMemory.deedDoerFactionMember.faction,
+                            targetFaction = factions[factionMembers[newMemory.deedDoerFactionMemberId].faction.id],
                             affinity = affinityDelta
                         };
 
@@ -183,26 +197,26 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
                         * abs(affinityDelta);
                     dominanceDelta
                         += abs(dominanceDelta)
-                        * GetPowerCurve((factionMember.power
-                        - newMemory.deedDoerFactionMember.power));
+                        * GetPowerCurve(factionMember.power
+                        - factionMembers[newMemory.deedDoerFactionMemberId].power);
 
                     var tempFactionMember = factionMember;
                     tempFactionMember.mood = new Mood()
                     {
-                        pleasure = tempFactionMember.mood.pleasure + pleasureDelta,
-                        arousal = tempFactionMember.mood.arousal + arousalDelta,
-                        dominance = tempFactionMember.mood.dominance + dominanceDelta
+                        pleasure = tempFactionMember.mood.pleasure + (int)(pleasureDelta * 100),
+                        arousal = tempFactionMember.mood.arousal + (int)(arousalDelta * 100),
+                        dominance = tempFactionMember.mood.dominance + (int)(dominanceDelta * 100)
                     };
 
                     factionMember = tempFactionMember;
 
                     #endregion
 
-                    eventWitness.needsEvaluation = false;
+                    witnessedEvent.needsEvaluation = false;
                 }
 
                 // Wipe buffer after going through all elements
-                ecb.SetBuffer<EventWitness>(entity);
+                ecb.SetBuffer<WitnessedEvent>(entity);
             })
             .WithBurst()
             .Run();
@@ -215,9 +229,116 @@ public class SystemProcessDeedOrRumorEvent : SystemBase
         result = result / (a - 1);
         return result;
     }
+}
 
-    protected override void OnDestroy()
+public struct Memory : IBufferElementData
+{
+    public int rumorSpreaderFactionMemberId;
+    public int deedDoerFactionMemberId;
+    public DeedType type;
+    public int deedTargetFactionMemberId;
+    public int timesCommitted;
+    public float impact;
+    public float reliability;
+}
+
+public struct Relationship : IBufferElementData
+{
+    public Faction targetFaction;
+    public int affinity;
+    public RelationshipValues values;
+}
+
+public struct RelationshipValues
+{
+    // TODO BROKE
+}
+
+public struct WitnessedEvent : IBufferElementData
+{
+    public int rumorSpreaderFactionMemberId;
+    public int deedDoerFactionMemberId;
+    public DeedType type;
+    public int deedTargetFactionMemberId;
+    public int deedWitnessFactionMemberId;
+    public int reliability;
+    public bool isRumor;
+    public bool needsEvaluation;
+}
+
+public struct Mood 
+{
+    public int pleasure;
+    public int arousal;
+    public int dominance;
+}
+
+public struct DataDeed
+{
+    public DeedType Type { get; }
+    public float Aggression { get; }
+    public float Impact { get; }
+    public DataValues values;
+}
+
+public struct DataValues
+{
+    // TODO BROKE
+    public static NativeArray<int> GetValues(Allocator a, DataValues v)
     {
-        DeedLibrary.Dispose();
+        return new NativeArray<int>(2, a);
     }
+}
+
+public struct FactionMember : IComponentData
+{
+    public int id;
+    public Faction faction;
+    public Mood mood;
+    public int power;
+}
+
+public struct Faction : IComponentData
+{
+    public int id;
+    public DataValues values;
+}
+
+public struct Witness : IBufferElementData
+{
+    public Entity witness;
+}
+
+public enum DeedType
+{
+    Betrayed,
+    Reconciled,
+    Robbed
+}
+
+public enum RelationshipType
+{
+    Brother,
+    Sister,
+    Father,
+    Mother,
+    Lover,
+    Other
+}
+
+public enum RelationshipValueType
+{
+    Affinity
+    // Respect,
+    // Admiration,
+    // Duty,
+    // etc.
+}
+
+public enum ValueType
+{
+    // Charismatic,
+    // Angry,
+    // Caring,
+    // etc.
 }
