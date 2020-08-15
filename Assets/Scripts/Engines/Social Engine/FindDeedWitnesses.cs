@@ -36,8 +36,8 @@ public class FindDeedWitnesses : SystemBase
                     };
                     ecb.AppendToBuffer(entityInQueryIndex, occupants[j].occupant, witnessedEvent);
                 }
+                requests.RemoveAt(i);
             }
-            ecb.SetBuffer<FindDeedWitnessesRequest>(entityInQueryIndex, entity);
         })
         .WithBurst()
         .Schedule();

@@ -214,10 +214,8 @@ public class ProcessDeedOrRumorEvent : SystemBase
                     #endregion
 
                     witnessedEvent.needsEvaluation = false;
+                    witnessedEvents.RemoveAt(i);
                 }
-
-                // Wipe buffer after going through all elements
-                ecb.SetBuffer<WitnessedEvent>(entity);
             })
             .WithBurst()
             .Run();

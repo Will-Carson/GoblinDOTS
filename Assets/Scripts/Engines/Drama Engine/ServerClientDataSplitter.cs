@@ -51,11 +51,17 @@ public class ServerClientDataSplitter : MonoBehaviour
         lines.Add(l);
         
         var endings = new List<Endings>();
-        endings.Add(new Endings
+        endings.Add(
+            new Endings
             {
                 playEndings = new List<PlayConsiquence>()
                 {
-                    new PlayConsiquence { type = Consiquence.Robbed }
+                    new PlayConsiquence
+                    {
+                        type = Consiquence.Robbed,
+                        value1 = 0,
+                        value2 = 1
+                    }
                 }
             });
 
@@ -144,7 +150,12 @@ public class ServerClientDataSplitter : MonoBehaviour
             {
                 playEndings = new List<PlayConsiquence>()
                 {
-                    new PlayConsiquence { type = Consiquence.Robbed }
+                    new PlayConsiquence
+                    {
+                        type = Consiquence.Robbed,
+                        value1 = 0,
+                        value2 = 1
+                    }
                 }
             });
 

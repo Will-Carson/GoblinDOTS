@@ -84,10 +84,10 @@ public class FinishPlay : SystemBase
                         break;
                     #endregion
                     case Consiquence.War:
-                        break;
+                        break;                    
                 }
+                consiquences.RemoveAt(i);
             }
-            ecb.SetBuffer<PlayConsiquence>(entityInQueryIndex, entity);
         })
         .WithBurst()
         .Schedule();
