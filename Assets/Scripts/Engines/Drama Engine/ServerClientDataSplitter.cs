@@ -49,11 +49,21 @@ public class ServerClientDataSplitter : MonoBehaviour
             childA = 0
         };
         lines.Add(l);
+        
+        var endings = new List<Endings>();
+        endings.Add(new Endings
+            {
+                playEndings = new List<PlayConsiquence>()
+                {
+                    new PlayConsiquence { type = Consiquence.Robbed }
+                }
+            });
 
         testPlay.drama = 2;
         testPlay.requirements = parameters;
         testPlay.content = contents;
         testPlay.lines = lines;
+        testPlay.endings = endings;
         fullPlays.Add(testPlay);
 
         var testPlay1 = new FullPlayData();
@@ -94,7 +104,7 @@ public class ServerClientDataSplitter : MonoBehaviour
         {
             dialogueId = 0,
             isEnd = false,
-            life = 4,
+            life = 3,
             speaker = 0,
             childA = 1
         };
@@ -110,16 +120,17 @@ public class ServerClientDataSplitter : MonoBehaviour
         {
             dialogueId = 2,
             isEnd = false,
-            life = 4,
+            life = 5,
             speaker = 0,
             childA = 3
         };
         var l4 = new Line
         {
             dialogueId = 3,
-            isEnd = false,
-            life = 4,
-            speaker = 0
+            isEnd = true,
+            life = 6,
+            speaker = 0,
+            childA = 0
         };
         lines1.Add(l1);
         lines1.Add(l2);
@@ -127,10 +138,21 @@ public class ServerClientDataSplitter : MonoBehaviour
         lines1.Add(l4);
         lines1.Reverse();
 
+        var endings1 = new List<Endings>();
+        endings1.Add(
+            new Endings
+            {
+                playEndings = new List<PlayConsiquence>()
+                {
+                    new PlayConsiquence { type = Consiquence.Robbed }
+                }
+            });
+
         testPlay1.drama = 2;
         testPlay1.requirements = parameters1;
         testPlay1.content = contents1;
         testPlay1.lines = lines1;
+        testPlay1.endings = endings1;
         fullPlays.Add(testPlay1);
 
         #endregion
@@ -195,7 +217,7 @@ public class ServerClientDataSplitter : MonoBehaviour
                     endingIds.Add(endingCounter);
                     endingCounter++;
                 }
-
+                
                 for (int j = 0; j < p.lines.Count; j++)
                 {
                     // Add lines to SystemRunPlay
@@ -208,11 +230,12 @@ public class ServerClientDataSplitter : MonoBehaviour
                         isEnd = line.isEnd,
                         life = line.life,
                         speaker = line.speaker,
-                        childA = lineIds[line.childA],
-                        childB = lineIds[line.childB],
-                        childC = lineIds[line.childC],
-                        childD = lineIds[line.childD]
+                        childA = line.childA,
+                        childB = line.childB,
+                        childC = line.childC,
+                        childD = line.childD
                     };
+                    
                     playStarter.PlayLibrary.Add(i, l);
                 }
 
@@ -226,7 +249,7 @@ public class ServerClientDataSplitter : MonoBehaviour
                         playFinisher.PlayEndings.Add(endingIds[j], e[k]);
                     }
                 }
-
+                
                 for (int j = 0; j < p.requirements.Count; j++)
                 {
                     // Add requirements to SystemParameterAnalyzer

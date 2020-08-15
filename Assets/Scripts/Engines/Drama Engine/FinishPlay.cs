@@ -61,7 +61,8 @@ public class FinishPlay : SystemBase
                         break;
                     case Consiquence.Siege:
                         break;
-                    case Consiquence.Steal:
+                    #region Robbed
+                    case Consiquence.Robbed:
                         var deedDoer = 0;
                         var deedReciever = 0;
                         if (ending.value1 == 0) deedDoer = actors.alpha;
@@ -72,18 +73,16 @@ public class FinishPlay : SystemBase
                         if (ending.value2 == 1) deedReciever = actors.beta;
                         if (ending.value2 == 2) deedReciever = actors.gamma;
 
-                        var deed = new WitnessedEvent
+                        var deed = new FindDeedWitnessesRequest
                         {
                             deedDoerFactionMemberId = deedDoer,
                             deedTargetFactionMemberId = deedReciever,
-                            deedWitnessFactionMemberId = 0,
-                            isRumor = false,
-                            needsEvaluation = true,
-                            reliability = 1,
-                            rumorSpreaderFactionMemberId = 0,
                             type = DeedType.Robbed
                         };
+
+                        ecb.AppendToBuffer(entityInQueryIndex, entity, deed);
                         break;
+                    #endregion
                     case Consiquence.War:
                         break;
                 }
@@ -92,8 +91,7 @@ public class FinishPlay : SystemBase
         })
         .WithBurst()
         .Schedule();
-
-        Dependency.Complete();
+        
         ESECBS.AddJobHandleForProducer(Dependency);
     }
 }
@@ -109,16 +107,17 @@ public struct PlayConsiquence : IBufferElementData
 
 public enum Consiquence
 {
-    Relationship,
     Build,
     Siege,
     War,
     Peace,
-    Steal,
+    Robbed,
     Gift
 }
 
-public struct FindDeedWitnesses : IBufferElementData
+public struct FindDeedWitnessesRequest : IBufferElementData
 {
-    // TODO Build system to find deeds
+    public int deedDoerFactionMemberId;
+    public int deedTargetFactionMemberId;
+    public DeedType type;
 }

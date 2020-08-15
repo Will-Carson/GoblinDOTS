@@ -70,12 +70,12 @@ public class StartPlay : SystemBase
 
             var newPlayRunner = new PlayRunner
             {
-                playId = bestPlays[playRunner.stageId].playId,
                 stageId = playRunner.stageId,
-                lineTimeMax = line.life,
-                lineId = 0,
+                playId = bestPlays[playRunner.stageId].playId,
+                lineId = 1,
+                timeLineUpdated = 0,
                 lineTime = 0,
-                timeLineUpdated = 0
+                lineTimeMax = line.life
             };
 
             var actors = actorRoles[playRunner.stageId];

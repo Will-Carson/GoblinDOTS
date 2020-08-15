@@ -2,6 +2,7 @@
 using Unity.Entities;
 using Unity.Jobs;
 using DOTSNET;
+using UnityEngine;
 
 [ServerWorld]
 public class RunPlay : SystemBase
@@ -13,7 +14,6 @@ public class RunPlay : SystemBase
 
     protected override void OnDestroy()
     {
-        Dependency.Complete();
         PlayLibrary.Dispose();
     }
 
@@ -35,7 +35,7 @@ public class RunPlay : SystemBase
             // generate step request if time is up for running line
             if (playRunner.lineTime > playRunner.lineTimeMax)
             {
-                ecb.AppendToBuffer(entityInQueryIndex, entity, new PlayLineRequest());
+                ecb.AppendToBuffer(entityInQueryIndex, entity, new PlayLineRequest { newLine = 0 });
                 return;
             }
 
@@ -74,23 +74,25 @@ public class RunPlay : SystemBase
                 if (newLine.newLine == 1) { newPlayRunner.lineId = playingLine.childB; }
                 if (newLine.newLine == 2) { newPlayRunner.lineId = playingLine.childC; }
                 if (newLine.newLine == 3) { newPlayRunner.lineId = playingLine.childD; }
-
-                var playLines = playLibrary.GetValuesForKey(playRunner.playId);
-
+                
                 var nextLine = new Line();
+                var playLines = playLibrary.GetValuesForKey(playRunner.playId);
                 int i = 0;
                 while (playLines.MoveNext())
                 {
+                    if (newPlayRunner.lineId == i)
+                    {
+                        nextLine = playLines.Current;
+                        break;
+                    }
                     i++;
-                    nextLine = playLines.Current;
-                    if (newPlayRunner.lineId == i) { break; }
                 }
 
+                newPlayRunner.stageId = playRunner.stageId;
+                newPlayRunner.playId = playRunner.playId;
+                newPlayRunner.timeLineUpdated = time;
                 newPlayRunner.lineTime = 0;
                 newPlayRunner.lineTimeMax = nextLine.life;
-                newPlayRunner.playId = playRunner.playId;
-                newPlayRunner.stageId = playRunner.stageId;
-                newPlayRunner.timeLineUpdated = time;
 
                 ecb.SetComponent(entityInQueryIndex, entity, newPlayRunner);
                 ecb.SetComponent(entityInQueryIndex, entity, nextLine);
@@ -104,7 +106,8 @@ public class RunPlay : SystemBase
                 var dr = new DialogueRequest
                 {
                     actorId = speaker,
-                    dialogueId = nextLine.dialogueId
+                    dialogueId = nextLine.dialogueId,
+                    sent = 0
                 };
 
                 ecb.AppendToBuffer(entityInQueryIndex, entity, dr);

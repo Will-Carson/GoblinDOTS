@@ -10,6 +10,7 @@ using System.Collections.Generic;
 public class ProcessDeedOrRumorEvent : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
+
     public NativeArray<DataDeed> DeedLibrary 
         = new NativeArray<DataDeed>(G.numberOfDeeds, Allocator.Persistent);
     public NativeHashMap<int, FactionMember> FactionMembers 

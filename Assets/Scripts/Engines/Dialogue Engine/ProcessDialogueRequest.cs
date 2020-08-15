@@ -1,9 +1,8 @@
 ﻿using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
-using Unity.Transforms;
-using UnityEngine;
 using DOTSNET;
+using UnityEngine;
 
 [ServerWorld]
 public class ProcessDialogueRequest : NetworkBroadcastSystem
@@ -35,7 +34,6 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
     protected override void Broadcast()
     {
         var ecb = ESECBS.CreateCommandBuffer();
-
         // run with Burst
         var _messages = messages;
         Entities.ForEach((Entity entity,
@@ -47,15 +45,19 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
             // let's create it only once, which is faster.
             for (int j = 0; j < dialogueRequests.Length; j++)
             {
-                if (dialogueRequests[j].sent > 3) continue;
+                if (dialogueRequests[j].sent > 3)
+                {
+                    dialogueRequests.RemoveAt(j);
+                    continue;
+                }
                 var dr = dialogueRequests[j];
                 dr.sent = dr.sent + 1;
                 dialogueRequests[j] = dr;
 
                 DialogueMessage message = new DialogueMessage
                 {
-                    actorId = dialogueRequests[j].actorId,
-                    dialogueId = dialogueRequests[j].dialogueId
+                    actorId = dr.actorId,
+                    dialogueId = dr.dialogueId
                 };
 
                 // send state to each observer connection
