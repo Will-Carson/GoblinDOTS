@@ -37,7 +37,7 @@ namespace DOTSNET
 
             // set default injection world and start updating
             World.DefaultGameObjectInjectionWorld = DefaultWorld;
-            ScriptBehaviourUpdateOrder.UpdatePlayerLoop(DefaultWorld);
+            ScriptBehaviourUpdateOrder.AddWorldToCurrentPlayerLoop(DefaultWorld);
 
             // make sure that runInBackground is enabled.
             EnableRunInBackground();

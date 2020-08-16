@@ -5,7 +5,7 @@ using DOTSNET;
 [ServerWorld]
 public class DramaController : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
+    [AutoAssign] protected EndSimulationEntityCommandBufferSystem ESECBS;
 
     protected override void OnUpdate()
     {
@@ -15,9 +15,9 @@ public class DramaController : SystemBase
         Entities
         .WithAll<NeedsPlay>()
         .ForEach((
-            Entity entity,
-            Exhausted exhausted,
-            StageId stageId) =>
+            ref Entity entity,
+            in Exhausted exhausted,
+            in StageId stageId) =>
         {
             if (exhausted.lastAction == timeSlot) return;
             var s = new Exhausted { lastAction = timeSlot };

@@ -11,7 +11,7 @@
 // => 100% safe from allocation attacks because WE DO NOT ALLOCATE ANYTHING.
 //    if WriteBytesAndSize receives a uint.max header, we don't allocate giga-
 //    bytes of RAM because we just return a segment of a segment.
-// => only DOTS supported blittable types like float3, NativeString, etc.
+// => only DOTS supported blittable types like float3, FixedString, etc.
 //
 // Endianness:
 //   DOTSNET automatically serializes full structs.
@@ -284,92 +284,24 @@ namespace DOTSNET
         // read Bytes4094 struct
         public bool ReadBytes4094(out Bytes4094 value) => ReadBlittable(out value);
 
-        // read NativeString32
+        // read FixedString32
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool ReadNativeString32(out NativeString32 value)
-        {
-            // enough data to read?
-            // => check total size before any reads to make it atomic!
-            if (segment.Array != null && Remaining >= 32)
-            {
-                // read length in bytes, and check max to avoid allocation attacks
-                if (ReadUShort(out value.LengthInBytes) &&
-                    value.LengthInBytes <= NativeString32.MaxLength)
-                {
-                    // read the Bytes30 struct
-                    return ReadBytes30(out value.buffer);
-                }
-            }
-            value = new NativeString32();
-            return false;
-        }
+        public bool ReadFixedString32(out FixedString32 value) => ReadBlittable(out value);
 
-        // read NativeString64
+        // read FixedString64
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool ReadNativeString64(out NativeString64 value)
-        {
-            // enough data to read?
-            // => check total size before any reads to make it atomic!
-            if (segment.Array != null && Remaining >= 64)
-            {
-                // read length in bytes, and check max to avoid allocation attacks
-                if (ReadUShort(out value.LengthInBytes) &&
-                    value.LengthInBytes <= NativeString64.MaxLength)
-                {
-                    // read the Bytes62 struct
-                    return ReadBytes62(out value.buffer);
-                }
-            }
-            value = new NativeString64();
-            return false;
-        }
+        public bool ReadFixedString64(out FixedString64 value) => ReadBlittable(out value);
 
-        // read NativeString128
+        // read FixedString128
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool ReadNativeString128(out NativeString128 value)
-        {
-            // enough data to read?
-            // => check total size before any reads to make it atomic!
-            if (segment.Array != null && Remaining >= 128)
-            {
-                // read length in bytes, and check max to avoid allocation attacks
-                if (ReadUShort(out value.LengthInBytes) &&
-                    value.LengthInBytes <= NativeString128.MaxLength)
-                {
-                    // read the Bytes126 struct
-                    return ReadBytes126(out value.buffer);
-                }
-            }
-            value = new NativeString128();
-            return false;
-        }
+        public bool ReadFixedString128(out FixedString128 value) => ReadBlittable(out value);
 
-        // read NativeString512
+        // read FixedString512
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool ReadNativeString512(out NativeString512 value)
-        {
-            // enough data to read?
-            // => check total size before any reads to make it atomic!
-            if (segment.Array != null && Remaining >= 512)
-            {
-                // read length in bytes, and check max to avoid allocation attacks
-                if (ReadUShort(out value.LengthInBytes) &&
-                    value.LengthInBytes <= NativeString512.MaxLength)
-                {
-                    // read the Bytes510 struct
-                    return ReadBytes510(out value.buffer);
-                }
-            }
-            value = new NativeString512();
-            return false;
-        }
+        public bool ReadFixedString512(out FixedString512 value) => ReadBlittable(out value);
     }
 }

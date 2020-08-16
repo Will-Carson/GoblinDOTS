@@ -111,7 +111,7 @@ namespace NetUV.Core.Requests
         internal unsafe uv_buf_t* Bufs
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => bufsArray == null ? (uv_buf_t*)bufs : (uv_buf_t*)Unsafe.AsPointer(ref bufsArray[0]);
+            get => bufsArray == null ? (uv_buf_t*)bufs : (uv_buf_t*)PlatformDependent.AsPointer(ref bufsArray[0]);
         }
 
         internal ref int Size

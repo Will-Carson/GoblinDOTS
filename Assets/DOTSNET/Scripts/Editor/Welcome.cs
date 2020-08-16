@@ -15,10 +15,10 @@ namespace DOTSNET.Editor
             {
                 SessionState.SetBool("DOTSNET_WELCOME", true);
 
-#if UNITY_2019_4
+#if UNITY_2020_1
                 Debug.Log("DOTSNET | u3d.as/YUi | https://discord.gg/2gNKN78");
 #else
-                Debug.LogWarning("DOTSNET works best with Unity 2019.4 LTS: https://unity3d.com/unity/qa/lts-releases?version=2019.4");
+                Debug.LogWarning("DOTSNET works best with Unity 2020.1: https://unity3d.com/get-unity/download/archive");
 #endif
             }
         }

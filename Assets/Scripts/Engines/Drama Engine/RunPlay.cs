@@ -19,7 +19,7 @@ public class RunPlay : SystemBase
 
     protected override void OnUpdate()
     {
-        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var playLibrary = PlayLibrary;
         var time = Time.ElapsedTime;
 
@@ -28,9 +28,9 @@ public class RunPlay : SystemBase
         .WithNone<NeedsPlay>()
         .WithAll<Line>()
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            PlayRunner playRunner) =>
+            in Entity entity,
+            in PlayRunner playRunner) =>
         {
             // generate step request if time is up for running line
             if (playRunner.lineTime > playRunner.lineTimeMax)
@@ -57,12 +57,12 @@ public class RunPlay : SystemBase
         // Process step requests, release stages for new plays, create dialogue requests
         Entities
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            PlayRunner playRunner,
-            Line playingLine,
-            DynamicBuffer<PlayLineRequest> newLines,
-            PlayActorIds actors) =>
+            in Entity entity,
+            in PlayRunner playRunner,
+            in Line playingLine,
+            in DynamicBuffer<PlayLineRequest> newLines,
+            in PlayActorIds actors) =>
         {
             for (int j = 0; j < newLines.Length; j++)
             {

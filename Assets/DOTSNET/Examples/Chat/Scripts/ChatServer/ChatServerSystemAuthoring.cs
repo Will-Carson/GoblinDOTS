@@ -19,6 +19,6 @@ namespace DOTSNET.Examples.Chat
         [AutoAssign] protected NetworkServerSystem server;
 
         // nicknames per connection
-        public Dictionary<int, NativeString32> names = new Dictionary<int, NativeString32>();
+        public Dictionary<int, FixedString32> names = new Dictionary<int, FixedString32>();
     }
 }

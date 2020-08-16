@@ -10,14 +10,14 @@ public class FindDeedWitnesses : SystemBase
     
     protected override void OnUpdate()
     {
-        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
 
         Entities
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            DynamicBuffer<FindDeedWitnessesRequest> requests,
-            DynamicBuffer<Occupant> occupants) =>
+            in Entity entity,
+            in DynamicBuffer<FindDeedWitnessesRequest> requests,
+            in DynamicBuffer<Occupant> occupants) =>
         {
             for (int i = 0; i < requests.Length; i++)
             {
@@ -25,13 +25,13 @@ public class FindDeedWitnesses : SystemBase
                 {
                     var witnessedEvent = new WitnessedEvent
                     {
-                        deedDoerFactionMemberId = requests[i].deedDoerFactionMemberId,
-                        deedTargetFactionMemberId = requests[i].deedTargetFactionMemberId,
+                        deedDoerFMId = requests[i].deedDoerFactionMemberId,
+                        deedTargetFMId = requests[i].deedTargetFactionMemberId,
                         deedWitnessFactionMemberId = occupants[j].id,
                         isRumor = false,
                         needsEvaluation = true,
                         reliability = 1,
-                        rumorSpreaderFactionMemberId = 0,
+                        rumorSpreaderFMId = 0,
                         type = requests[i].type
                     };
                     ecb.AppendToBuffer(entityInQueryIndex, occupants[j].occupant, witnessedEvent);

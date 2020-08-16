@@ -15,8 +15,6 @@ public class ProcessDeedOrRumorEvent : SystemBase
         = new NativeArray<DataDeed>(G.numberOfDeeds, Allocator.Persistent);
     public NativeHashMap<int, FactionMember> FactionMembers 
         = new NativeHashMap<int, FactionMember>();
-    public NativeHashMap<int, Faction> Factions 
-        = new NativeHashMap<int, Faction>();
 
     protected override void OnCreate()
     {
@@ -28,7 +26,6 @@ public class ProcessDeedOrRumorEvent : SystemBase
     {
         DeedLibrary.Dispose();
         FactionMembers.Dispose();
-        Factions.Dispose();
     }
 
     protected override void OnUpdate()
@@ -37,16 +34,14 @@ public class ProcessDeedOrRumorEvent : SystemBase
         var deedLibrary = DeedLibrary;
 
         var factionMembers = FactionMembers;
-        var factions = Factions;
 
         Entities
             .ForEach((
-                Entity entity, 
-                FactionMember factionMember, 
-                Faction faction, 
-                DynamicBuffer<Relationship> relationships, 
-                DynamicBuffer<Memory> memories, 
-                DynamicBuffer<WitnessedEvent> witnessedEvents) =>
+                ref DynamicBuffer<Relationship> relationships,
+                ref DynamicBuffer<Memory> memories,
+                ref DynamicBuffer<WitnessedEvent> witnessedEvents,
+                in Entity entity, 
+                in FactionMember factionMember) =>
             {
                 for (int i = 0; i < witnessedEvents.Length; i++)
                 {
@@ -56,10 +51,10 @@ public class ProcessDeedOrRumorEvent : SystemBase
                     if (!witnessedEvent.needsEvaluation) return;
 
                     var newMemory = new Memory();
-                    newMemory.rumorSpreaderFactionMemberId = witnessedEvent.rumorSpreaderFactionMemberId;
-                    newMemory.deedDoerFactionMemberId = witnessedEvent.deedDoerFactionMemberId;
+                    newMemory.rumorSpreaderFactionMemberId = witnessedEvent.rumorSpreaderFMId;
+                    newMemory.deedDoerFactionMemberId = witnessedEvent.deedDoerFMId;
                     newMemory.type = witnessedEvent.type;
-                    newMemory.deedTargetFactionMemberId = witnessedEvent.deedTargetFactionMemberId;
+                    newMemory.deedTargetFactionMemberId = witnessedEvent.deedTargetFMId;
                     newMemory.timesCommitted = 1;
                     newMemory.reliability = witnessedEvent.reliability;
 
@@ -67,13 +62,21 @@ public class ProcessDeedOrRumorEvent : SystemBase
                     int deedTargetAffinity = 0;
                     int deedDoerAffinity = 0;
 
+                    var spreader = new FactionMember();
+                    var target = new FactionMember();
+                    var doer = new FactionMember();
+
+                    factionMembers.TryGetValue(witnessedEvents[i].rumorSpreaderFMId, out spreader);
+                    factionMembers.TryGetValue(witnessedEvents[i].deedTargetFMId, out target);
+                    factionMembers.TryGetValue(witnessedEvents[i].deedDoerFMId, out doer);
+
                     for (int j = 0; j < relationships.Length; j++)
                     {
-                        if (relationships[j].targetFaction.id == factions[witnessedEvent.rumorSpreaderFactionMemberId].id)
+                        if (relationships[j].targetFaction.id == spreader.faction.id)
                             gossipAffinity = relationships[j].affinity;
-                        if (relationships[j].targetFaction.id == factions[witnessedEvent.deedTargetFactionMemberId].id)
+                        if (relationships[j].targetFaction.id == target.faction.id)
                             deedTargetAffinity = relationships[j].affinity;
-                        if (relationships[j].targetFaction.id == factions[witnessedEvent.deedDoerFactionMemberId].id)
+                        if (relationships[j].targetFaction.id == doer.faction.id)
                             deedDoerAffinity = relationships[j].affinity;
                     }
 
@@ -83,6 +86,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
 
                     // Get the difference between the character and the deeds traits. Will produce a number between 0 and 1.
                     // 0 being the least possible alignment and 1 being the most possible alignment.
+                    var faction = factionMember.faction;
                     var traits = DataValues.GetValues(Allocator.TempJob, faction.values);
                     for (int j = 0; j < traits.Length; j++)
                     {
@@ -94,7 +98,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
                     deedValues.Dispose();
                     traits.Dispose();
 
-                    if (witnessedEvent.rumorSpreaderFactionMemberId != factionMember.id)
+                    if (witnessedEvent.rumorSpreaderFMId != factionMember.id)
                     {
                         newMemory.reliability = gossipAffinity * witnessedEvent.reliability;
                     }
@@ -151,7 +155,7 @@ public class ProcessDeedOrRumorEvent : SystemBase
                     {
                         var relationship = new Relationship()
                         {
-                            targetFaction = factions[factionMembers[newMemory.deedDoerFactionMemberId].faction.id],
+                            targetFaction = doer.faction,
                             affinity = affinityDelta
                         };
 
@@ -201,15 +205,15 @@ public class ProcessDeedOrRumorEvent : SystemBase
                         * GetPowerCurve(factionMember.power
                         - factionMembers[newMemory.deedDoerFactionMemberId].power);
 
-                    var tempFactionMember = factionMember;
-                    tempFactionMember.mood = new Mood()
+                    var newFactionMember = factionMember;
+                    newFactionMember.mood = new Mood()
                     {
-                        pleasure = tempFactionMember.mood.pleasure + (int)(pleasureDelta * 100),
-                        arousal = tempFactionMember.mood.arousal + (int)(arousalDelta * 100),
-                        dominance = tempFactionMember.mood.dominance + (int)(dominanceDelta * 100)
+                        pleasure = newFactionMember.mood.pleasure + (int)(pleasureDelta * 100),
+                        arousal = newFactionMember.mood.arousal + (int)(arousalDelta * 100),
+                        dominance = newFactionMember.mood.dominance + (int)(dominanceDelta * 100)
                     };
-
-                    factionMember = tempFactionMember;
+                    
+                    ecb.SetComponent(entity, newFactionMember);
 
                     #endregion
 
@@ -219,6 +223,8 @@ public class ProcessDeedOrRumorEvent : SystemBase
             })
             .WithBurst()
             .Run();
+
+        ESECBS.AddJobHandleForProducer(Dependency);
     }
     
     private static float GetPowerCurve(float x)
@@ -255,10 +261,10 @@ public struct RelationshipValues
 
 public struct WitnessedEvent : IBufferElementData
 {
-    public int rumorSpreaderFactionMemberId;
-    public int deedDoerFactionMemberId;
+    public int rumorSpreaderFMId;
+    public int deedDoerFMId;
     public DeedType type;
-    public int deedTargetFactionMemberId;
+    public int deedTargetFMId;
     public int deedWitnessFactionMemberId;
     public int reliability;
     public bool isRumor;
@@ -297,7 +303,7 @@ public struct FactionMember : IComponentData
     public int power;
 }
 
-public struct Faction : IComponentData
+public struct Faction
 {
     public int id;
     public DataValues values;

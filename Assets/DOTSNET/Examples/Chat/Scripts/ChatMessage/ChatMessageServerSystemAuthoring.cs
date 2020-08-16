@@ -21,7 +21,7 @@ namespace DOTSNET.Examples.Chat
         {
             // get name from manager
             ChatServerSystem chatServer = (ChatServerSystem)server;
-            if (chatServer.names.TryGetValue(connectionId, out NativeString32 name))
+            if (chatServer.names.TryGetValue(connectionId, out FixedString32 name))
             {
                 Debug.Log("Server message: " + name + ": " + message.text);
 

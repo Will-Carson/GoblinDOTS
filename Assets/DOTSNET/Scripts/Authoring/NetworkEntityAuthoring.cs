@@ -132,7 +132,7 @@ namespace DOTSNET
                 {
                     // then assign asset Guid
                     PrefabStage stage = PrefabStageUtility.GetCurrentPrefabStage();
-                    AssignPrefabIdForPrefab(stage.prefabAssetPath);
+                    AssignPrefabIdForPrefab(stage.assetPath);
                 }
             }
             // otherwise it's either a scene object that is based on a prefab:

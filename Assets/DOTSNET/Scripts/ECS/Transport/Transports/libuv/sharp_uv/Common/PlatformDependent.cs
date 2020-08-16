@@ -5,25 +5,14 @@
 namespace NetUV.Core.Common
 {
     using System;
-    using System.Runtime.CompilerServices;
-    using NetUV.Core.Native;
 
     static class PlatformDependent
     {
-        static readonly bool IsLinux = Platform.IsLinux;
-
         public static unsafe void CopyMemory(byte* src, byte* dst, int length)
         {
             if (length > 0)
             {
-                if (IsLinux)
-                {
-                    Buffer.MemoryCopy(src, dst, length, length);
-                }
-                else
-                {
-                    Unsafe.CopyBlockUnaligned(dst, src, unchecked((uint)length));
-                }
+                Buffer.MemoryCopy(src, dst, length, length);
             }
         }
 
@@ -32,14 +21,7 @@ namespace NetUV.Core.Common
             if (length > 0)
             {
                 fixed (byte* destination = &dst[dstIndex])
-                    if (IsLinux)
-                    {
-                        Buffer.MemoryCopy(src, destination, length, length);
-                    }
-                    else
-                    {
-                        Unsafe.CopyBlockUnaligned(destination, src, unchecked((uint)length));
-                    }
+                    Buffer.MemoryCopy(src, destination, length, length);
             }
         }
 
@@ -48,15 +30,20 @@ namespace NetUV.Core.Common
             if (length > 0)
             {
                 fixed (byte* source = &src[srcIndex])
-                    if (IsLinux)
-                    {
-                        Buffer.MemoryCopy(source, dst, length, length);
-                    }
-                    else
-                    {
-                        Unsafe.CopyBlockUnaligned(dst, source, unchecked((uint)length));
-                    }
+                    Buffer.MemoryCopy(source, dst, length, length);
             }
+        }
+
+        public static unsafe void* AsPointer<T>(ref T value)
+            where T : struct
+        {
+            // Unsafe.* is not available in Unity with hybrid renderer 0.7
+            // because they made it internal.
+#if UNITY_5_6_OR_NEWER
+            return Unity.Collections.LowLevel.Unsafe.UnsafeUtility.AddressOf(ref value);
+#else
+            return Unsafe.AsPointer(ref value);
+#endif
         }
     }
 }

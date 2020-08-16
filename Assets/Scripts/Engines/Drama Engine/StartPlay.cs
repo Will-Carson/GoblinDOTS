@@ -20,7 +20,7 @@ public class StartPlay : SystemBase
 
     protected override void OnUpdate()
     {
-        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var playLibrary = PlayLibrary;
 
         var bestPlays = new NativeHashMap<int, PotentialPlay>(G.numberOfStages, Allocator.TempJob);
@@ -29,11 +29,11 @@ public class StartPlay : SystemBase
         // Build list of best plays per stage
         Entities
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            Situation situation,
-            DynamicBuffer<PotentialPlay> validPlays,
-            PlayActorIds actors) =>
+            in Entity entity,
+            in Situation situation,
+            in DynamicBuffer<PotentialPlay> validPlays,
+            in PlayActorIds actors) =>
         {
             for (int i = 0; i < validPlays.Length; i++)
             {
@@ -55,10 +55,10 @@ public class StartPlay : SystemBase
         Entities
         .WithNone<Line>()
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            PlayRunner playRunner,
-            NeedsPlay needsPlay) =>
+            in Entity entity,
+            in PlayRunner playRunner,
+            in NeedsPlay needsPlay) =>
         {
             var wtf = new NativeMultiHashMapIterator<int>();
             var line = new Line();

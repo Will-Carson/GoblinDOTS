@@ -13,15 +13,15 @@ public class FinishPlay : SystemBase
     
     protected override void OnUpdate()
     {
-        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var playEndings = PlayEndings;
 
         Entities
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            PlayRunner playRunner,
-            Line playingLine) =>
+            in Entity entity,
+            in PlayRunner playRunner,
+            in Line playingLine) =>
         {
             // Release stages for new plays
             if (playingLine.isEnd)
@@ -43,10 +43,10 @@ public class FinishPlay : SystemBase
 
         Entities
         .ForEach((
-            Entity entity,
             int entityInQueryIndex,
-            PlayActorIds actors,
-            DynamicBuffer<PlayConsiquence> consiquences) =>
+            in Entity entity,
+            in PlayActorIds actors,
+            in DynamicBuffer<PlayConsiquence> consiquences) =>
         {
             for (int i = 0; i < consiquences.Length; i++)
             {

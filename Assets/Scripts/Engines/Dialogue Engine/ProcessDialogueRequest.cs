@@ -11,7 +11,6 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
 
     // NativeMultiMap so we can run most of it with Burst enabled
     NativeMultiHashMap<int, DialogueMessage> messages;
-    NativeList<DialogueMessage> messagesList;
 
     protected override void OnCreate()
     {
@@ -36,10 +35,11 @@ public class ProcessDialogueRequest : NetworkBroadcastSystem
         var ecb = ESECBS.CreateCommandBuffer();
         // run with Burst
         var _messages = messages;
-        Entities.ForEach((Entity entity,
-                          ref DynamicBuffer<DialogueRequest> dialogueRequests,
-                          in DynamicBuffer<NetworkObserver> observers,
-                          in NetworkEntity networkEntity) =>
+        Entities.ForEach((
+            ref DynamicBuffer<DialogueRequest> dialogueRequests, 
+            in Entity entity,
+            in DynamicBuffer<NetworkObserver> observers,
+            in NetworkEntity networkEntity) =>
         {
             // TransformMessage is the same one for each observer.
             // let's create it only once, which is faster.

@@ -8,21 +8,17 @@ using UnityEngine;
 public class SituationRelationshipTypeHandler : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
-
-    protected override void OnDestroy()
-    {
-        
-    }
-
-    private EntityCommandBuffer.Concurrent Buffer;
-
+    
     protected override void OnUpdate()
     {
-        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var stageIds = new NativeList<int>(Allocator.TempJob);
 
         // Get stage ids
-        Entities.ForEach((Entity entity, PartialSituation situation, NeedsRelationshipType need) =>
+        Entities.ForEach((
+            in Entity entity,
+            in PartialSituation situation,
+            in NeedsRelationshipType need) =>
         {
             if (!stageIds.Contains(situation.stageId))
             {
@@ -35,7 +31,10 @@ public class SituationRelationshipTypeHandler : SystemBase
         var occupantsByStage = new NativeMultiHashMap<int, int>(G.maxNPCPopulation / 10, Allocator.TempJob);
 
         // Get actors from stage
-        Entities.ForEach((Entity entity, StageId stageId, DynamicBuffer<Occupant> occupants) => 
+        Entities.ForEach((
+            in Entity entity,
+            in StageId stageId,
+            in DynamicBuffer<Occupant> occupants) => 
         {
             if (stageIds.Contains(stageId.value))
             {
@@ -48,10 +47,14 @@ public class SituationRelationshipTypeHandler : SystemBase
         .WithBurst()
         .Schedule();
 
-        var relationshipsPerStage = new NativeMultiHashMap<int, ActorRelationship>(G.maxRelationships / 10, Allocator.TempJob);
+        var relationshipsPerStage = new NativeMultiHashMap<int, ActorRelationship>(G.maxRelationships * 10, Allocator.TempJob);
 
         // Get relationships from actors
-        Entities.ForEach((Entity entity, int entityInQueryIndex, StageOccupant stageOccupant, DynamicBuffer<ActorRelationship> relationships) =>
+        Entities.ForEach((
+            int entityInQueryIndex,
+            in Entity entity,
+            in StageOccupant stageOccupant,
+            in DynamicBuffer<ActorRelationship> relationships) =>
         {
             if (occupantsByStage.ContainsKey(stageOccupant.stageId))
             {
@@ -67,7 +70,12 @@ public class SituationRelationshipTypeHandler : SystemBase
         var occupantsList = new NativeList<int>(Allocator.Persistent);
 
         // Generate various child entities from initial situation. Success!
-        Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsRelationshipType need, DynamicBuffer<SituationParameters> parameters) =>
+        Entities.ForEach((
+            int entityInQueryIndex,
+            in Entity entity,
+            in PartialSituation situation,
+            in NeedsRelationshipType need,
+            in DynamicBuffer<SituationParameters> parameters) =>
         {
             var occupants = occupantsByStage.GetValuesForKey(situation.stageId);
             var relationships = relationshipsPerStage.GetValuesForKey(situation.stageId);

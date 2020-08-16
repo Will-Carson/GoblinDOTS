@@ -914,7 +914,7 @@ namespace DOTSNET
                         // see it again, and never send any unspawn messages
                         // for this entity to all of the observers.
                         // we need to do it manually here.
-                        DynamicBuffer<NetworkObserver> observers = EntityManager.GetBuffer<NetworkObserver>(entity);
+                        DynamicBuffer<NetworkObserver> observers = GetBuffer<NetworkObserver>(entity);
                         for (int i = 0; i < observers.Length; ++i)
                         {
                             int observerConnectionId = observers[i];

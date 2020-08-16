@@ -18,7 +18,7 @@
 // => all the functions return a bool to indicate if writing succeeded or not.
 //    (it will fail if the .Array is too small)
 // => 100% allocation free for MMO scale networking.
-// => only DOTS supported blittable types like float3, NativeString, etc.
+// => only DOTS supported blittable types like float3, FixedString, etc.
 //
 // Endianness:
 //   DOTSNET automatically serializes full structs.
@@ -300,77 +300,25 @@ namespace DOTSNET
         // write Bytes4094 struct
         public bool WriteBytes4094(Bytes4094 value) => WriteBlittable(value);
 
-        // write NativeString32 struct
+        // write FixedString32 struct
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool WriteNativeString32(NativeString32 value)
-        {
-            // enough space in buffer?
-            // => check total size before any writes to make it atomic!
-            if (buffer != null && Space >= 32)
-            {
-                // write LengthInBytes, Bytes
-                return WriteUShort(value.LengthInBytes) &&
-                       WriteBytes30(value.buffer);
-            }
-            // not enough space to write
-            return false;
-        }
+        public bool WriteFixedString32(FixedString32 value) => WriteBlittable(value);
 
-        // write NativeString64 struct
+        // write FixedString64 struct
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool WriteNativeString64(NativeString64 value)
-        {
-            // enough space in buffer?
-            // => check total size before any writes to make it atomic!
-            if (buffer != null && Space >= 64)
-            {
-                // write LengthInBytes, Bytes
-                return WriteUShort(value.LengthInBytes) &&
-                       WriteBytes62(value.buffer);
-            }
-            // not enough space to write
-            return false;
-        }
+        public bool WriteFixedString64(FixedString64 value) => WriteBlittable(value);
 
-        // write NativeString128 struct
+        // write FixedString128 struct
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool WriteNativeString128(NativeString128 value)
-        {
-            // enough space in buffer?
-            // => check total size before any writes to make it atomic!
-            if (buffer != null && Space >= 128)
-            {
-                // write LengthInBytes, Bytes
-                return WriteUShort(value.LengthInBytes) &&
-                       WriteBytes126(value.buffer);
-            }
-            // not enough space to write
-            return false;
-        }
+        public bool WriteFixedString128(FixedString128 value) => WriteBlittable(value);
 
-        // write NativeString512 struct
+        // write FixedString512 struct
         // -> fixed size means not worrying about max size / allocation attacks
         // -> fixed size saves size header
-        // -> no need to worry about encoding, we can use .Bytes directly!
-        public bool WriteNativeString512(NativeString512 value)
-        {
-            // enough space in buffer?
-            // => check total size before any writes to make it atomic!
-            if (buffer != null && Space >= 512)
-            {
-                // write LengthInBytes, Bytes
-                return WriteUShort(value.LengthInBytes) &&
-                       WriteBytes510(value.buffer);
-            }
-            // not enough space to write
-            return false;
-        }
+        public bool WriteFixedString512(FixedString512 value) => WriteBlittable(value);
 
         // write NativeArray struct
         // note: if your NativeArray is of another type, use:

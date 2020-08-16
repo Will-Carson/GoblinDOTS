@@ -5,7 +5,7 @@ using Unity.Entities;
 
 namespace DOTSNET
 {
-    [GenerateAuthoringComponent]
+    //[GenerateAuthoringComponent] not auto generated. see authoring component.
     public struct NetworkTransform : IComponentData
     {
         // DOTSNET is server authoritative by default, but we can use client

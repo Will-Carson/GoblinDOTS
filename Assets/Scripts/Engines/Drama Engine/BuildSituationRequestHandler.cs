@@ -8,7 +8,7 @@ using UnityEngine;
 [ServerWorld]
 public class BuildSituationRequestHandler : SystemBase
 {
-    [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
+    [AutoAssign] protected EndSimulationEntityCommandBufferSystem ESECBS;
     private EntityArchetype SituationBuilder;
 
     protected override void OnCreate()
@@ -21,89 +21,6 @@ public class BuildSituationRequestHandler : SystemBase
             typeof(NeedsNumberOfActors),
             typeof(NeedsRelationshipType)
         });
-
-        // TODO TEST
-
-        var e = pecb.CreateEntity();
-        var r = new BuildSituationRequest { stageId = 0 };
-        pecb.AddComponent(e, r);
-
-        var actor1 = pecb.CreateEntity();
-        var actorId = new ActorId { value = 0 };
-        var stageOccupant = new StageOccupant { stageId = 0 };
-        var relationships = pecb.AddBuffer<ActorRelationship>(actor1);
-        var relationship = new ActorRelationship { owner = 0, target = 1, type = 0 };
-        pecb.AddComponent(actor1, actorId);
-        pecb.AddComponent(actor1, stageOccupant);
-        pecb.AppendToBuffer(actor1, relationship);
-        pecb.AddComponent<NetworkEntity>(actor1);
-        pecb.AddBuffer<DialogueRequest>(actor1);
-        pecb.AddBuffer<NetworkObserver>(actor1);
-        pecb.AddBuffer<RebuildNetworkObserver>(actor1);
-        pecb.AddBuffer<Relationship>(actor1);
-        pecb.AddBuffer<Memory>(actor1);
-        pecb.AddBuffer<WitnessedEvent>(actor1);
-        pecb.AddComponent<Translation>(actor1);
-        pecb.AddComponent<Rotation>(actor1);
-        pecb.AddComponent<FactionMember>(actor1);
-        pecb.AddComponent<Faction>(actor1);
-
-        var actor2 = pecb.CreateEntity();
-        actorId = new ActorId { value = 1 };
-        relationships = pecb.AddBuffer<ActorRelationship>(actor2);
-        relationship = new ActorRelationship { owner = 1, target = 0, type = 0 };
-        pecb.AddComponent(actor2, actorId);
-        pecb.AddComponent(actor2, stageOccupant);
-        pecb.AppendToBuffer(actor2, relationship);
-        pecb.AddComponent<NetworkEntity>(actor2);
-        pecb.AddBuffer<DialogueRequest>(actor2);
-        pecb.AddBuffer<NetworkObserver>(actor2);
-        pecb.AddBuffer<RebuildNetworkObserver>(actor2);
-        pecb.AddBuffer<Relationship>(actor2);
-        pecb.AddBuffer<Memory>(actor2);
-        pecb.AddBuffer<WitnessedEvent>(actor2);
-        pecb.AddComponent<Translation>(actor2);
-        pecb.AddComponent<Rotation>(actor2);
-        pecb.AddComponent<FactionMember>(actor2);
-        pecb.AddComponent<Faction>(actor2);
-
-        var actor3 = pecb.CreateEntity();
-        actorId = new ActorId { value = 2 };
-        relationships = pecb.AddBuffer<ActorRelationship>(actor3);
-        //relationship = new ActorRelationship { owner = 1, target = 0, type = 0 };
-        pecb.AddComponent(actor3, actorId);
-        pecb.AddComponent(actor3, stageOccupant);
-        //plainBuffer.AppendToBuffer(actor3, relationship);
-        pecb.AddComponent<NetworkEntity>(actor3);
-        pecb.AddBuffer<DialogueRequest>(actor3);
-        pecb.AddBuffer<NetworkObserver>(actor3);
-        pecb.AddBuffer<RebuildNetworkObserver>(actor3);
-        pecb.AddBuffer<Relationship>(actor3);
-        pecb.AddBuffer<Memory>(actor3);
-        pecb.AddBuffer<WitnessedEvent>(actor3);
-        pecb.AddComponent<Translation>(actor3);
-        pecb.AddComponent<Rotation>(actor3);
-        pecb.AddComponent<FactionMember>(actor3);
-        pecb.AddComponent<Faction>(actor3);
-
-        e = pecb.CreateEntity();
-        var stageId = new StageId { value = 0 };
-        pecb.AddComponent(e, stageId);
-        var b = pecb.AddBuffer<Occupant>(e);
-        var occupant = new Occupant { id = 0, occupant = actor1 };
-        pecb.AppendToBuffer(e, occupant);
-        occupant = new Occupant { id = 1, occupant = actor2 };
-        pecb.AppendToBuffer(e, occupant);
-        occupant = new Occupant { id = 2, occupant = actor3 };
-        pecb.AppendToBuffer(e, occupant);
-        var playRunner = new PlayRunner { stageId = 0 };
-        pecb.AddComponent(e, playRunner);
-        var needsPlay = new NeedsPlay();
-        pecb.AddComponent(e, needsPlay);
-        pecb.AddBuffer<DialogueRequest>(e);
-        pecb.AddBuffer<PlayLineRequest>(e);
-        pecb.AddBuffer<FindDeedWitnessesRequest>(e);
-        pecb.AddBuffer<PlayConsiquence>(e);
     }
 
     protected override void OnDestroy()
@@ -113,11 +30,14 @@ public class BuildSituationRequestHandler : SystemBase
 
     protected override void OnUpdate()
     {
-        var buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var buffer = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var situationBuilder = SituationBuilder;
 
         // Not sure if entityInQueryIndex will work for jobchunk id.
-        Entities.ForEach((Entity entity, int entityInQueryIndex, BuildSituationRequest request) =>
+        Entities.ForEach((
+            int entityInQueryIndex,
+            in Entity entity,
+            in BuildSituationRequest request) =>
         {
             var e = buffer.CreateEntity(entityInQueryIndex, situationBuilder);
             var s = new PartialSituation();

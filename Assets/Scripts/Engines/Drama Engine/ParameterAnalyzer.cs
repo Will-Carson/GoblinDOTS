@@ -20,13 +20,18 @@ public class ParameterAnalyzer : SystemBase
 
     protected override void OnUpdate()
     {
-        var ecb = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var playRequirments = PlaysRequirements;
         var playDramaValues = PlayDramaValues;
         var ps = new NativeList<SituationParameters>(Allocator.TempJob);
 
         Entities
-        .ForEach((Entity entity, int entityInQueryIndex, Situation situation, DynamicBuffer<SituationParameters> situationParameters, DynamicBuffer<PotentialPlay> validPlays) =>
+        .ForEach((
+            int entityInQueryIndex,
+            in Entity entity,
+            in Situation situation,
+            in DynamicBuffer<SituationParameters> situationParameters,
+            in DynamicBuffer<PotentialPlay> validPlays) =>
         {
             for (int j = 0; j < situationParameters.Length; j++)
             {

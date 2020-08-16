@@ -11,16 +11,24 @@ public class SituationNumberOfActorsHandler : SystemBase
 
     protected override void OnUpdate()
     {
-        var buffer = ESECBS.CreateCommandBuffer().ToConcurrent();
+        var buffer = ESECBS.CreateCommandBuffer().AsParallelWriter();
         var stageData = new NativeHashMap<int, int>(G.maxNPCPopulation, Allocator.Persistent);
 
-        Entities.ForEach((Entity entity, StageId stageId, DynamicBuffer<Occupant> occupants) => {
+        Entities.ForEach((
+            in Entity entity,
+            in StageId stageId,
+            in DynamicBuffer<Occupant> occupants) => {
             stageData.TryAdd(stageId.value, occupants.Length);
         })
         .WithBurst()
         .Run();
 
-        Entities.ForEach((Entity entity, int entityInQueryIndex, PartialSituation situation, NeedsNumberOfActors need, DynamicBuffer<SituationParameters> parameters) =>
+        Entities.ForEach((
+            int entityInQueryIndex,
+            in Entity entity,
+            in PartialSituation situation,
+            in NeedsNumberOfActors need,
+            in DynamicBuffer<SituationParameters> parameters) =>
         {
             buffer.RemoveComponent<NeedsNumberOfActors>(entityInQueryIndex, entity);
             int v;
