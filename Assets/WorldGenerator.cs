@@ -8,9 +8,17 @@ public class WorldGenerator : MonoBehaviour
     public Vector3Int WorldBounds = new Vector3Int(30, 10, 30);
     public int MaxNumberOfTiles = 2000;
     public float SizeMultiplier = .4f;
-    public float RerollThreshold = .01f;
-    public bool generateWorld = false;
-    public int CaveThreshold = 5;
+    public float RerollThreshold = .0001f;
+    public float ResetThreshold = .8333f;
+    public int CaveThreshold = 6;
+    public int MaxRegionSize = 6;
+
+    public bool RandomSeed = false;
+    public int Seed = 1;
+    public int StepTileNumbers = 100;
+    public bool StepTiles = false;
+    public bool ResetStep = false;
+    public bool GenerateWorld = false;
 
     // Helpers
     private Dictionary<Direction, Vector3Int> Directions = new Dictionary<Direction, Vector3Int>()
@@ -25,24 +33,59 @@ public class WorldGenerator : MonoBehaviour
     private MazeTile[,,] Maze;
     private int CurrentTiles;
     private GameObject Parent;
-    private List<Vector3Int> RoomCoords;
-
-    // Output
+    private List<Vector3Int> RoomCoords = new List<Vector3Int>();
     private Vector3Int WorldCenter;
     private Vector3Int SnakeHead;
+    private int CurrentTileStep;
+    private int CurrentZoneId = 0;
+    private Dictionary<int, Color> ZoneColors = new Dictionary<int, Color>();
 
     private void Update()
     {
-        if (generateWorld)
+        if (GenerateWorld && !StepTiles)
         {
-            generateWorld = false;
+            GenerateWorld = false;
             Destroy(Parent);
             Parent = new GameObject();
             CurrentTiles = 0;
-            RoomCoords = new List<Vector3Int>();
+            RoomCoords.Clear();
+            CurrentZoneId = 0;
+            ZoneColors.Clear();
+            if (RandomSeed)
+            {
+                var r = Random.Range(0, 99999);
+                Random.InitState(r);
+                Seed = r;
+            }
+            else
+            {
+                Random.InitState(Seed);
+            }
 
             GenerateMaze();
             VisualizeMaze();
+        }
+        if (GenerateWorld && StepTiles)
+        {
+            GenerateWorld = false;
+            Destroy(Parent);
+            Parent = new GameObject();
+            CurrentTiles = 0;
+            RoomCoords.Clear();
+            ZoneColors.Clear();
+            Random.InitState(Seed);
+            CurrentTileStep++;
+            MaxNumberOfTiles = StepTileNumbers * CurrentTileStep;
+
+            GenerateMaze();
+            VisualizeMaze();
+        }
+        if (ResetStep)
+        {
+            ResetStep = false;
+            CurrentTileStep = 0;
+            CurrentZoneId = 0;
+            ZoneColors.Clear();
         }
     }
 
@@ -57,13 +100,29 @@ public class WorldGenerator : MonoBehaviour
         SnakeHead = WorldCenter;
         while (CurrentTiles <= MaxNumberOfTiles) IterateMaze();
 
+        // Set tile coordinates
+        for (int x = 0; x < WorldBounds.x; x++)
+        {
+            for (int y = 0; y < WorldBounds.y; y++)
+            {
+                for (int z = 0; z < WorldBounds.z; z++)
+                {
+                    if (Maze[x, y, z].isRoom)
+                    {
+                        Maze[x, y, z].coordinate = new Vector3Int(x, y, z);
+                    }
+                }
+            }
+        }
+
+        // Set surface tiles
         for (int x = 0; x < WorldBounds.x; x++)
         {
             for (int z = 0; z < WorldBounds.z; z++)
             {
                 for (int y = WorldBounds.y - 1; y >= 0; y--)
                 {
-                    if (Maze[x, y, z].isRoom && y > CaveThreshold) // TODO Magic number
+                    if (Maze[x, y, z].isRoom && y > CaveThreshold)
                     {
                         Maze[x, y, z].isSurface = true;
                         break;
@@ -71,12 +130,110 @@ public class WorldGenerator : MonoBehaviour
                 }
             }
         }
+
+        // Create zones
+        var TempRoomCoords = RoomCoords;
+        for (int i = 0; i < RoomCoords.Count; i++)
+        {
+            var r = Random.Range(0, TempRoomCoords.Count);
+            var v = TempRoomCoords[r];
+            TempRoomCoords.RemoveAt(r);
+            var x = v.x;
+            var y = v.y;
+            var z = v.z;
+            if (Maze[x, y, z].isRoom && Maze[x, y, z].zoneId == 0)
+            {
+                CurrentZoneId++;
+                var tile = Maze[x, y, z];
+                var roomsInZone = new List<MazeTile>();
+                var neighbors = new Dictionary<Vector3Int, MazeTile>();
+                var neighborsList = new List<MazeTile>();
+
+                roomsInZone.Add(Maze[x, y, z]);
+
+                while (roomsInZone.Count < MaxRegionSize)
+                {
+                    foreach (var room in roomsInZone)
+                    {
+                        neighborsList.AddRange(FindLikeNeighbors(tile.isSurface, room.coordinate));
+                    }
+                    foreach (var neighbor in neighborsList)
+                    {
+                        if (neighbors.ContainsKey(neighbor.coordinate)) continue;
+                        neighbors.Add(neighbor.coordinate, neighbor);
+                    }
+
+                    var neighborArray = new Vector3Int[neighbors.Count];
+                    neighbors.Keys.CopyTo(neighborArray, 0);
+                    if (neighborArray.Length == 0) break;
+                    var c = neighborArray[Random.Range(0, neighborArray.Length)];
+                    var newTileInZone = Maze[c.x, c.y, c.z];
+                    roomsInZone.Add(newTileInZone);
+                }
+
+                for (int j = 0; j < roomsInZone.Count; j++)
+                {
+                    var c = roomsInZone[j].coordinate;
+                    Maze[c.x, c.y, c.z].zoneId = CurrentZoneId;
+                }
+            }
+        }
+    }
+
+    private List<MazeTile> FindLikeNeighbors(bool isSurface, Vector3Int coordinate)
+    {
+        var validNeighbors = new List<MazeTile>();
+        var validTile = new MazeTile();
+        if (ValidNeighborTile(Direction.North, coordinate, isSurface, out validTile))
+        {
+            validNeighbors.Add(validTile);
+        }
+        if (ValidNeighborTile(Direction.South, coordinate, isSurface, out validTile))
+        {
+            validNeighbors.Add(validTile);
+        }
+        if (ValidNeighborTile(Direction.East, coordinate, isSurface, out validTile))
+        {
+            validNeighbors.Add(validTile);
+        }
+        if (ValidNeighborTile(Direction.West, coordinate, isSurface, out validTile))
+        {
+            validNeighbors.Add(validTile);
+        }
+        if (ValidNeighborTile(Direction.Up, coordinate, isSurface, out validTile))
+        {
+            validNeighbors.Add(validTile);
+        }
+        if (ValidNeighborTile(Direction.Down, coordinate, isSurface, out validTile))
+        {
+            validNeighbors.Add(validTile);
+        }
+        return validNeighbors;
+    }
+
+    private bool ValidNeighborTile(Direction d, Vector3Int coordinate, bool isSurface, out MazeTile tile)
+    {
+        tile = new MazeTile();
+        var direction = coordinate + Directions[d];
+        var oldTile = Maze[coordinate.x, coordinate.y, coordinate.z];
+        if (IsInBounds(WorldBounds, direction))
+        {
+            tile = Maze[direction.x, direction.y, direction.z];
+            if (tile.isSurface == isSurface &&
+                tile.isRoom &&
+                tile.zoneId == 0 &&
+                oldTile.connections.Contains(d))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void IterateMaze()
     {
         var validDirections = FindValidDirections(WorldBounds, SnakeHead);
-        if (validDirections.Count < 6)
+        if (validDirections.Count < 6 && Random.Range(0f, 1f) > ResetThreshold)
         {
             SnakeHead = RoomCoords[Random.Range(0, RoomCoords.Count)];
             return;
@@ -92,26 +249,29 @@ public class WorldGenerator : MonoBehaviour
             }
         }
         var newSnakeHead = SnakeHead + Directions[d];
-        Maze[newSnakeHead.x, newSnakeHead.y, newSnakeHead.z].connections = new HashSet<Direction>();
+        if (Maze[newSnakeHead.x, newSnakeHead.y, newSnakeHead.z].connections == null)
+        {
+            Maze[newSnakeHead.x, newSnakeHead.y, newSnakeHead.z].connections = new HashSet<Direction>();
+        }
 
         MakeNewRoom(SnakeHead, d);
         SnakeHead = newSnakeHead;
     }
 
-    private void MakeNewRoom(Vector3Int oldSnakeHead, Direction snakeHead)
+    private void MakeNewRoom(Vector3Int oldSnakeHead, Direction direction)
     {
         var x = oldSnakeHead.x;
         var y = oldSnakeHead.y;
         var z = oldSnakeHead.z;
-        Maze[x, y, z].connections.Add(snakeHead);
+        Maze[x, y, z].connections.Add(direction);
 
-        var newSnakeHead = oldSnakeHead + Directions[snakeHead];
+        var newSnakeHead = oldSnakeHead + Directions[direction];
         x = newSnakeHead.x;
         y = newSnakeHead.y;
         z = newSnakeHead.z;
         if (Maze[x, y, z].isRoom == false) CurrentTiles++;
         Maze[x, y, z].isRoom = true;
-        Maze[x, y, z].connections.Add(ReverseDirection(snakeHead));
+        Maze[x, y, z].connections.Add(ReverseDirection(direction));
         RoomCoords.Add(newSnakeHead);
     }
 
@@ -164,10 +324,11 @@ public class WorldGenerator : MonoBehaviour
             {
                 for (int z = 0; z < WorldBounds.z; z++)
                 {
-                    if (Maze[x,y,z].isRoom)
+                    var tile = Maze[x, y, z];
+                    if (tile.isRoom)
                     {
                         var color = new Color();
-                        if (Maze[x, y, z].isSurface)
+                        if (tile.isSurface)
                         {
                             color = Color.green;
                         }
@@ -182,7 +343,7 @@ public class WorldGenerator : MonoBehaviour
                         c.transform.parent = Parent.transform;
                         c.GetComponent<Renderer>().material.color = color;
                         
-                        foreach (var mazeTile in Maze[x, y, z].connections)
+                        foreach (var mazeTile in tile.connections)
                         {
                             var s = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                             s.transform.position = new Vector3(x, y, z) + ((Vector3)Directions[mazeTile] * SizeMultiplier);
@@ -190,6 +351,22 @@ public class WorldGenerator : MonoBehaviour
                             s.transform.parent = Parent.transform;
                             s.GetComponent<Renderer>().material.color = color;
                         }
+
+                        if (!ZoneColors.ContainsKey(tile.zoneId))
+                        {
+                            var newColor = new Color(
+                                Random.Range(0f, 1f),
+                                Random.Range(0f, 1f),
+                                Random.Range(0f, 1f)
+                            );
+                            ZoneColors.Add(tile.zoneId, newColor);
+                        }
+
+                        var zoneColor = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                        zoneColor.transform.position = new Vector3(x, y + (.5f * SizeMultiplier), z);
+                        zoneColor.transform.localScale = new Vector3(SizeMultiplier, SizeMultiplier, SizeMultiplier) * .5f;
+                        zoneColor.transform.parent = Parent.transform;
+                        zoneColor.GetComponent<Renderer>().material.color = ZoneColors[tile.zoneId];
                     }
                 }
             }
@@ -202,6 +379,8 @@ public struct MazeTile
     public bool isRoom;
     public bool isSurface;
     public HashSet<Direction> connections;
+    public int zoneId;
+    public Vector3Int coordinate;
 }
 
 public enum Direction

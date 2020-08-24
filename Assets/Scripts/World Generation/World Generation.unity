@@ -238,9 +238,15 @@ MonoBehaviour:
   WorldBounds: {x: 30, y: 10, z: 30}
   MaxNumberOfTiles: 2000
   SizeMultiplier: 0.4
-  RerollThreshold: 0.01
-  generateWorld: 0
-  CaveThreshold: 5
+  RerollThreshold: 0.0001
+  ResetThreshold: 0.8333
+  CaveThreshold: 6
+  RandomSeed: 1
+  Seed: 1
+  StepTileNumbers: 100
+  StepTiles: 0
+  ResetStep: 0
+  GenerateWorld: 0
 --- !u!4 &1721523152
 Transform:
   m_ObjectHideFlags: 0
