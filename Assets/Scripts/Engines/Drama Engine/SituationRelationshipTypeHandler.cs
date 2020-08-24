@@ -67,8 +67,6 @@ public class SituationRelationshipTypeHandler : SystemBase
         .WithBurst()
         .Schedule();
 
-        var occupantsList = new NativeList<int>(Allocator.Persistent);
-
         // Generate various child entities from initial situation. Success!
         Entities.ForEach((
             int entityInQueryIndex,
@@ -77,23 +75,27 @@ public class SituationRelationshipTypeHandler : SystemBase
             in NeedsRelationshipType need,
             in DynamicBuffer<SituationParameters> parameters) =>
         {
-            var occupants = occupantsByStage.GetValuesForKey(situation.stageId);
+            var occupantsA = occupantsByStage.GetValuesForKey(situation.stageId);
+            var occupantsB = occupantsA;
+            var occupantsC = occupantsA;
             var relationships = relationshipsPerStage.GetValuesForKey(situation.stageId);
 
-            while (occupants.MoveNext()) occupantsList.Add(occupants.Current);
-            for (int i = 0; i < occupantsList.Length; i++)
+            while (occupantsA.MoveNext())
             {
-                for (int j = 0; j < occupantsList.Length; j++)
+                var a = occupantsA.Current;
+                while (occupantsA.MoveNext())
                 {
-                    if (j == i) continue;
-                    for (int k = 0; k < occupantsList.Length; k++)
+                    var b = occupantsA.Current;
+                    if (a == b) continue;
+                    while (occupantsA.MoveNext())
                     {
-                        if (k == i || k == j) continue;
+                        var c = occupantsA.Current;
+                        if (c == a || c == b) continue;
                         var roles = new PlayActorIds
                         {
-                            alpha = occupantsList[i],
-                            beta = occupantsList[j],
-                            gamma = occupantsList[k]
+                            alpha = a,
+                            beta = b,
+                            gamma = c
                         };
 
                         var e = ecb.Instantiate(entityInQueryIndex, entity);
@@ -208,7 +210,6 @@ public class SituationRelationshipTypeHandler : SystemBase
 
         Dependency.Complete();
         stageIds.Dispose();
-        occupantsList.Dispose();
         occupantsByStage.Dispose();
         relationshipsPerStage.Dispose();
     }

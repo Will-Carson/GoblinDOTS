@@ -37,6 +37,6 @@ public static class InGameDateTime
 public enum TimeSlot
 {
     morning,
-    afternoon,
+    afternoon = default,
     night
 }

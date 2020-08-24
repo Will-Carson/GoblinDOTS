@@ -15,8 +15,8 @@ public class FindDeedWitnesses : SystemBase
         Entities
         .ForEach((
             int entityInQueryIndex,
+            ref DynamicBuffer<FindDeedWitnessesRequest> requests,
             in Entity entity,
-            in DynamicBuffer<FindDeedWitnessesRequest> requests,
             in DynamicBuffer<Occupant> occupants) =>
         {
             for (int i = 0; i < requests.Length; i++)

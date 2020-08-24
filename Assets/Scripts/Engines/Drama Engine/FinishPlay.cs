@@ -44,9 +44,9 @@ public class FinishPlay : SystemBase
         Entities
         .ForEach((
             int entityInQueryIndex,
+            ref DynamicBuffer<PlayConsiquence> consiquences,
             in Entity entity,
-            in PlayActorIds actors,
-            in DynamicBuffer<PlayConsiquence> consiquences) =>
+            in PlayActorIds actors) =>
         {
             for (int i = 0; i < consiquences.Length; i++)
             {

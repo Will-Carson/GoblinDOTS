@@ -3,6 +3,7 @@ using Unity.Transforms;
 using Unity.Collections;
 using UnityEngine;
 using DOTSNET;
+using System.Collections.Generic;
 
 [ServerWorld]
 public class WorldBuilder : MonoBehaviour
@@ -69,37 +70,45 @@ public class WorldBuilder : MonoBehaviour
         });
 
         // TODO TEST
+        
         var e = em.CreateEntity();
         var r = new BuildSituationRequest { stageId = 0 };
         em.AddComponent<BuildSituationRequest>(e);
         em.SetComponentData(e, r);
 
-        var actor1 = CreateActor(0);
-        var b = em.GetBuffer<ActorRelationship>(actor1);
-        b.Add(new ActorRelationship { owner = 0, target = 1, type = 0 });
+        var numOfStages = 3;
+        var numOfActors = 10;
 
-        var actor2 = CreateActor(0);
-        b = em.GetBuffer<ActorRelationship>(actor2);
-        b.Add(new ActorRelationship { owner = 1, target = 0, type = 0 });
+        var stages = new Dictionary<int, Entity>();
 
-        var actor3 = CreateActor(0);
+        for (int i = 0; i < numOfStages; i++)
+        {
+            var s = CreateStage();
+            var bo = em.GetBuffer<Occupant>(s);
+            stages.Add(i, s);
+        }
 
-        e = em.CreateEntity(stage);
-        var bo = em.GetBuffer<Occupant>(e);
-        bo.Add(new Occupant { id = 0, occupant = actor1 });
-        bo.Add(new Occupant { id = 1, occupant = actor2 });
-        bo.Add(new Occupant { id = 2, occupant = actor3 });
+        for (int i = 0; i < numOfActors; i++)
+        {
+            var s = Random.Range(0, numOfStages);
+            var a = CreateActor(s);
+            var relationshipBuffer = em.GetBuffer<ActorRelationship>(a);
+            relationshipBuffer.Add(new ActorRelationship { owner = 0, target = 1, type = 0 });
+
+            var occupantBuffer = em.GetBuffer<Occupant>(stages[s]);
+            occupantBuffer.Add(new Occupant { id = i, occupant = a });
+        }
     }
 
     public Entity CreateActor(int stageId)
     {
         var a = em.CreateEntity(actor);
-        var fm = new FactionMember
+        var fmd = new FactionMemberData
         {
             id = nextFactionMemberId,
             faction = new Faction { id = nextFactionId }
         };
-        processDeedOrRumorEvent.FactionMembers.TryAdd(nextFactionMemberId, fm);
+        processDeedOrRumorEvent.FactionMembers.TryAdd(nextFactionMemberId, fmd);
 
         em.SetComponentData(a, new ActorId { value = nextActorId });
         em.SetComponentData(a, new StageOccupant { stageId = stageId });
@@ -115,6 +124,7 @@ public class WorldBuilder : MonoBehaviour
     {
         var a = em.CreateEntity(stage);
         em.SetComponentData(a, new StageId { value = nextStageId });
+        em.SetComponentData(a, new PlayRunner { stageId = nextStageId });
         nextStageId++;
         return a;
     }

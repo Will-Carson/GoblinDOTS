@@ -23,11 +23,6 @@ public class BuildSituationRequestHandler : SystemBase
         });
     }
 
-    protected override void OnDestroy()
-    {
-
-    }
-
     protected override void OnUpdate()
     {
         var buffer = ESECBS.CreateCommandBuffer().AsParallelWriter();

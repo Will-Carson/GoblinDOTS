@@ -48,9 +48,6 @@ public class StartPlay : SystemBase
         .WithBurst()
         .Schedule();
 
-        // TODO Might not be needed
-        Dependency.Complete();
-
         // Start a play on a stage 
         Entities
         .WithNone<Line>()

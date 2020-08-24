@@ -264,7 +264,7 @@ public class ServerClientDataSplitter : MonoBehaviour
                 for (int j = 0; j < p.requirements.Count; j++)
                 {
                     // Add requirements to SystemParameterAnalyzer
-                    parameterAnalyzer.PlaysRequirements.Add(i, p.requirements[j]);
+                    parameterAnalyzer.PlayRequirements.Add(i, p.requirements[j]);
                 }
 
                 parameterAnalyzer.PlayDramaValues.Add(i, fullPlays[i].drama);

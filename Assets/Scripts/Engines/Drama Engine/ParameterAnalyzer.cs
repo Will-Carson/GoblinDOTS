@@ -9,21 +9,20 @@ public class ParameterAnalyzer : SystemBase
 {
     [AutoAssign] EndSimulationEntityCommandBufferSystem ESECBS = null;
 
-    public NativeMultiHashMap<int, Parameter> PlaysRequirements = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
-    public NativeHashMap<int, int> PlayDramaValues = new NativeHashMap<int, int>(G.numberOfPlays, Allocator.Persistent);
+    [ReadOnly] public NativeMultiHashMap<int, Parameter> PlayRequirements = new NativeMultiHashMap<int, Parameter>(G.numberOfPlays, Allocator.Persistent);
+    [ReadOnly] public NativeHashMap<int, int> PlayDramaValues = new NativeHashMap<int, int>(G.numberOfPlays, Allocator.Persistent);
 
     protected override void OnDestroy()
     {
-        PlaysRequirements.Dispose();
+        PlayRequirements.Dispose();
         PlayDramaValues.Dispose();
     }
 
     protected override void OnUpdate()
     {
         var ecb = ESECBS.CreateCommandBuffer().AsParallelWriter();
-        var playRequirments = PlaysRequirements;
+        var playRequirements = PlayRequirements;
         var playDramaValues = PlayDramaValues;
-        var ps = new NativeList<SituationParameters>(Allocator.TempJob);
 
         Entities
         .ForEach((
@@ -33,14 +32,9 @@ public class ParameterAnalyzer : SystemBase
             in DynamicBuffer<SituationParameters> situationParameters,
             in DynamicBuffer<PotentialPlay> validPlays) =>
         {
-            for (int j = 0; j < situationParameters.Length; j++)
+            for (int j = 0; j < playRequirements.Count(); j++)
             {
-                ps.Add(situationParameters[j]);
-            }
-
-            for (int j = 0; j < playRequirments.Count(); j++)
-            {
-                var playParameters = playRequirments.GetValuesForKey(j);
+                var playParameters = playRequirements.GetValuesForKey(j);
                 var playIsValid = true;
 
                 while (playParameters.MoveNext())
@@ -151,7 +145,6 @@ public class ParameterAnalyzer : SystemBase
 
         Dependency.Complete();
         ESECBS.AddJobHandleForProducer(Dependency);
-        ps.Dispose();
     }
     
     public static bool Same(Parameter s1, Parameter s2)

@@ -37,9 +37,9 @@ public class DialogueRequestApplier : SystemBase
         Entities
         .ForEach((
             int entityInQueryIndex,
+            ref DynamicBuffer<DialogueRequest> requests,
             in Entity entity,
-            in StageId stageId,
-            in DynamicBuffer<DialogueRequest> requests) =>
+            in StageId stageId) =>
         {
             for (int i = 0; i < requests.Length; i++)
             {
