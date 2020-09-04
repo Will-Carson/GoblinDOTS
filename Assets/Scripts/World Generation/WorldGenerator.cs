@@ -38,6 +38,7 @@ public class WorldGenerator : MonoBehaviour
     private int CurrentTileStep;
     private int CurrentZoneId = 0;
     private Dictionary<int, Color> ZoneColors = new Dictionary<int, Color>();
+    public List<List<int>> ZoneTileIds = new List<List<int>>();
 
     // Output
     public MazeTile[,,] Maze;
