@@ -274,54 +274,6 @@ MonoBehaviour:
       bottomLeft: 0
       bottom: 0
       bottomRight: 0
-  - offset: {x: 1, y: 1, z: 0}
-    faceDir: 0
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
-  - offset: {x: 1, y: 1, z: 0}
-    faceDir: 1
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
-  - offset: {x: 1, y: 1, z: 1}
-    faceDir: 0
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
-  - offset: {x: 1, y: 1, z: 1}
-    faceDir: 1
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
   - offset: {x: 1, y: 1, z: 2}
     faceDir: 0
     faceDetails:
@@ -394,54 +346,6 @@ MonoBehaviour:
       bottomLeft: 0
       bottom: 0
       bottomRight: 0
-  - offset: {x: 1, y: 2, z: 1}
-    faceDir: 0
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
-  - offset: {x: 1, y: 2, z: 1}
-    faceDir: 1
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
-  - offset: {x: 1, y: 2, z: 0}
-    faceDir: 0
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
-  - offset: {x: 1, y: 2, z: 0}
-    faceDir: 1
-    faceDetails:
-      topLeft: 2
-      top: 2
-      topRight: 2
-      left: 2
-      center: 2
-      right: 2
-      bottomLeft: 2
-      bottom: 2
-      bottomRight: 2
   - offset: {x: 1, y: 2, z: -1}
     faceDir: 0
     faceDetails:
@@ -694,6 +598,294 @@ MonoBehaviour:
       bottomLeft: 13
       bottom: 13
       bottomRight: 13
+  - offset: {x: 2, y: 1, z: 1}
+    faceDir: 1
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 1, z: 1}
+    faceDir: 3
+    faceDetails:
+      topLeft: 13
+      top: 13
+      topRight: 13
+      left: 13
+      center: 13
+      right: 13
+      bottomLeft: 13
+      bottom: 13
+      bottomRight: 13
+  - offset: {x: 2, y: 1, z: 1}
+    faceDir: 4
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 1, z: 0}
+    faceDir: 1
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 1, z: 0}
+    faceDir: 3
+    faceDetails:
+      topLeft: 13
+      top: 13
+      topRight: 13
+      left: 13
+      center: 13
+      right: 13
+      bottomLeft: 13
+      bottom: 13
+      bottomRight: 13
+  - offset: {x: 2, y: 1, z: 0}
+    faceDir: 5
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 2, z: 1}
+    faceDir: 1
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 2, z: 1}
+    faceDir: 2
+    faceDetails:
+      topLeft: 15
+      top: 15
+      topRight: 15
+      left: 15
+      center: 15
+      right: 15
+      bottomLeft: 15
+      bottom: 15
+      bottomRight: 15
+  - offset: {x: 2, y: 2, z: 1}
+    faceDir: 4
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 2, z: 0}
+    faceDir: 1
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 2, y: 2, z: 0}
+    faceDir: 2
+    faceDetails:
+      topLeft: 15
+      top: 15
+      topRight: 15
+      left: 15
+      center: 15
+      right: 15
+      bottomLeft: 15
+      bottom: 15
+      bottomRight: 15
+  - offset: {x: 2, y: 2, z: 0}
+    faceDir: 5
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 1, z: 1}
+    faceDir: 0
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 1, z: 1}
+    faceDir: 3
+    faceDetails:
+      topLeft: 13
+      top: 13
+      topRight: 13
+      left: 13
+      center: 13
+      right: 13
+      bottomLeft: 13
+      bottom: 13
+      bottomRight: 13
+  - offset: {x: 0, y: 1, z: 1}
+    faceDir: 4
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 1, z: 0}
+    faceDir: 0
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 1, z: 0}
+    faceDir: 3
+    faceDetails:
+      topLeft: 13
+      top: 13
+      topRight: 13
+      left: 13
+      center: 13
+      right: 13
+      bottomLeft: 13
+      bottom: 13
+      bottomRight: 13
+  - offset: {x: 0, y: 1, z: 0}
+    faceDir: 5
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 2, z: 1}
+    faceDir: 0
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 2, z: 1}
+    faceDir: 2
+    faceDetails:
+      topLeft: 15
+      top: 15
+      topRight: 15
+      left: 15
+      center: 15
+      right: 15
+      bottomLeft: 15
+      bottom: 15
+      bottomRight: 15
+  - offset: {x: 0, y: 2, z: 1}
+    faceDir: 4
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 2, z: 0}
+    faceDir: 0
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
+  - offset: {x: 0, y: 2, z: 0}
+    faceDir: 2
+    faceDetails:
+      topLeft: 15
+      top: 15
+      topRight: 15
+      left: 15
+      center: 15
+      right: 15
+      bottomLeft: 15
+      bottom: 15
+      bottomRight: 15
+  - offset: {x: 0, y: 2, z: 0}
+    faceDir: 5
+    faceDetails:
+      topLeft: 2
+      top: 2
+      topRight: 2
+      left: 2
+      center: 2
+      right: 2
+      bottomLeft: 2
+      bottom: 2
+      bottomRight: 2
   offsets:
   - {x: 1, y: 1, z: -1}
   - {x: 1, y: 1, z: 0}
@@ -707,6 +899,14 @@ MonoBehaviour:
   - {x: 1, y: 3, z: 0}
   - {x: 1, y: 3, z: 2}
   - {x: 1, y: 3, z: 1}
+  - {x: 2, y: 1, z: 1}
+  - {x: 2, y: 1, z: 0}
+  - {x: 2, y: 2, z: 1}
+  - {x: 2, y: 2, z: 0}
+  - {x: 0, y: 1, z: 1}
+  - {x: 0, y: 1, z: 0}
+  - {x: 0, y: 2, z: 1}
+  - {x: 0, y: 2, z: 0}
   center: {x: 0, y: 0, z: 0.5}
   tileSize: {x: 1, y: 1, z: 1}
   rotatable: 1

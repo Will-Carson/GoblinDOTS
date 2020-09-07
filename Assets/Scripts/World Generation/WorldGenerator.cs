@@ -6,6 +6,7 @@ public class WorldGenerator : MonoBehaviour
 {
     // Parameters
     public Vector3Int WorldBounds = new Vector3Int(30, 10, 30);
+    public Vector3Int ChunkSize = new Vector3Int(10, 5, 10);
     public int MaxNumberOfTiles = 2000;
     public float SizeMultiplier = .4f;
     public float RerollThreshold = .0001f;
@@ -19,6 +20,7 @@ public class WorldGenerator : MonoBehaviour
     public bool StepTiles = false;
     public bool ResetStep = false;
     public bool GenerateWorld = false;
+    public bool InstantiateMazeObjects = false;
 
     // Helpers
     private Dictionary<Direction, Vector3Int> Directions = new Dictionary<Direction, Vector3Int>()
@@ -38,15 +40,27 @@ public class WorldGenerator : MonoBehaviour
     private int CurrentTileStep;
     private int CurrentZoneId = 0;
     private Dictionary<int, Color> ZoneColors = new Dictionary<int, Color>();
-    public List<List<int>> ZoneTileIds = new List<List<int>>();
+    private List<GeneratorController> StandardGenerators = new List<GeneratorController>();
+    private List<GeneratorController> CrossroadGenerators = new List<GeneratorController>();
+    public GeneratorController StandardGenerator;
+    public GeneratorController CrossroadsGenerator;
 
     // Output
     public MazeTile[,,] Maze;
+    public Dictionary<int, Dictionary<int, Vector3Int>> ZoneTileIds = new Dictionary<int, Dictionary<int, Vector3Int>>();
+    public GeneratorController[,,] Chunks;
 
     private void Update()
     {
-        if (GenerateWorld && !StepTiles)
+        if (GenerateWorld)
         {
+            foreach (Transform child in transform)
+            {
+                Destroy(child);
+            }
+
+            Maze = new MazeTile[WorldBounds.x, WorldBounds.y, WorldBounds.z];
+            Chunks = new GeneratorController[WorldBounds.x, WorldBounds.y, WorldBounds.z];
             GenerateWorld = false;
             Destroy(Parent);
             Parent = new GameObject();
@@ -54,34 +68,39 @@ public class WorldGenerator : MonoBehaviour
             RoomCoords.Clear();
             CurrentZoneId = 0;
             ZoneColors.Clear();
-            if (RandomSeed)
+            ZoneTileIds.Clear();
+            StandardGenerators.Clear();
+            CrossroadGenerators.Clear();
+
+            if (StepTiles)
             {
-                var r = Random.Range(0, 99999);
-                Random.InitState(r);
-                Seed = r;
+                Random.InitState(Seed);
+                CurrentTileStep++;
+                MaxNumberOfTiles = StepTileNumbers * CurrentTileStep;
             }
             else
             {
-                Random.InitState(Seed);
+                CurrentZoneId = 0;
+                if (RandomSeed)
+                {
+                    var r = Random.Range(0, 99999);
+                    Random.InitState(r);
+                    Seed = r;
+                }
+                else
+                {
+                    Random.InitState(Seed);
+                }
             }
 
             GenerateMaze();
-            VisualizeMaze();
-        }
-        if (GenerateWorld && StepTiles)
-        {
-            GenerateWorld = false;
-            Destroy(Parent);
-            Parent = new GameObject();
-            CurrentTiles = 0;
-            RoomCoords.Clear();
-            ZoneColors.Clear();
-            Random.InitState(Seed);
-            CurrentTileStep++;
-            MaxNumberOfTiles = StepTileNumbers * CurrentTileStep;
 
-            GenerateMaze();
-            VisualizeMaze();
+            if (InstantiateMazeObjects)
+            {
+                VisualizeMaze();
+            }
+
+            GenerateChunks();
         }
         if (ResetStep)
         {
@@ -89,6 +108,7 @@ public class WorldGenerator : MonoBehaviour
             CurrentTileStep = 0;
             CurrentZoneId = 0;
             ZoneColors.Clear();
+            ZoneTileIds.Clear();
         }
     }
 
@@ -178,6 +198,12 @@ public class WorldGenerator : MonoBehaviour
                 {
                     var c = roomsInZone[j].coordinate;
                     Maze[c.x, c.y, c.z].zoneId = CurrentZoneId;
+
+                    if (!ZoneTileIds.ContainsKey(CurrentZoneId))
+                    {
+                        ZoneTileIds.Add(CurrentZoneId, new Dictionary<int, Vector3Int>());
+                    }
+                    ZoneTileIds[CurrentZoneId].Add(j, c);
                 }
             }
         }
@@ -318,6 +344,103 @@ public class WorldGenerator : MonoBehaviour
         return test;
     }
     #endregion
+
+    #region GenerateChunks
+    public void GenerateChunks()
+    {
+        for (int x = 0; x < WorldBounds.x; x++)
+        {
+            for (int y = 0; y < WorldBounds.y; y++)
+            {
+                for (int z = 0; z < WorldBounds.z; z++)
+                {
+                    if (Maze[x, y, z].isRoom)
+                    {
+                        var j = Maze[x, y, z];
+                        var k = GetChunkOffset(ChunkSize, new Vector3Int(x, y, z));
+                        var i = Instantiate(StandardGenerator, k, new Quaternion());
+                        i.transform.parent = transform;
+                        StandardGenerators.Add(i);
+
+                        TryGenerateTiles(Direction.North, new Vector3Int(x, y, z), ChunkSize);
+                        TryGenerateTiles(Direction.Up, new Vector3Int(x, y, z), ChunkSize);
+                        TryGenerateTiles(Direction.East, new Vector3Int(x, y, z), ChunkSize);
+                    }
+                }
+            }
+        }
+
+        StopAllCoroutines();
+        StartCoroutine(WFCTiles());
+    }
+
+    private void TryGenerateTiles(Direction d, Vector3Int coordinate, Vector3Int chunkSize)
+    {
+        var x = coordinate.x;
+        var y = coordinate.y;
+        var z = coordinate.z;
+
+        var j = Maze[x, y, z];
+        var k = GetChunkOffset(ChunkSize, new Vector3Int(x, y, z));
+        var i = new GeneratorController();
+
+        var c = coordinate;
+
+        if (j.connections.Contains(d))
+        {
+            c = k + new Vector3Int(ChunkSize.x * Directions[d].x, ChunkSize.y * Directions[d].y, ChunkSize.z * Directions[d].z);
+            if (j.zoneId == Maze[x + Directions[d].x, y + Directions[d].y, z + Directions[d].z].zoneId)
+            {
+                i = Instantiate(StandardGenerator, c, new Quaternion());
+                StandardGenerators.Add(i);
+                i.transform.parent = transform;
+            }
+            else
+            {
+                var g = Instantiate(CrossroadsGenerator, c, new Quaternion());
+                g.transform.parent = transform;
+                if (d == Direction.North)
+                {
+                    Destroy(g.eastGate);
+                    Destroy(g.westGate);
+                    CrossroadGenerators.Add(g);
+                }
+                if (d == Direction.East)
+                {
+                    Destroy(g.northGate);
+                    Destroy(g.southGate);
+                    CrossroadGenerators.Add(g);
+                }
+            }
+        }
+    }
+
+    public Vector3Int GetChunkOffset(Vector3Int offset, Vector3Int coordinate)
+    {
+        coordinate = new Vector3Int(coordinate.x * offset.x, coordinate.y * offset.y, coordinate.z * offset.z);
+        return coordinate * 2;
+    }
+    #endregion
+
+    IEnumerator WFCTiles()
+    {
+        for (int x = 0; x < CrossroadGenerators.Count; x++)
+        {
+            CrossroadGenerators[x].GenerateWorld();
+            while (!CrossroadGenerators[x].isDone)
+            {
+                yield return null;
+            }
+        }
+        for (int x = 0; x < StandardGenerators.Count; x++)
+        {
+            StandardGenerators[x].GenerateWorld();
+            while (!StandardGenerators[x].isDone)
+            {
+                yield return null;
+            }
+        }
+    }
 
     private void VisualizeMaze()
     {

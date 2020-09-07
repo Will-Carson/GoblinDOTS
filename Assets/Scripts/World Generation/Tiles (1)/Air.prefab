@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6015243120626175956
+--- !u!1 &2037121215295075084
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,36 +8,36 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6015243120626175946}
-  - component: {fileID: 6015243120626175957}
+  - component: {fileID: 2037121215295075086}
+  - component: {fileID: 2037121215295075085}
   m_Layer: 0
-  m_Name: Skybox
+  m_Name: Air
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6015243120626175946
+--- !u!4 &2037121215295075086
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6015243120626175956}
+  m_GameObject: {fileID: 2037121215295075084}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6015243120626175957
+--- !u!114 &2037121215295075085
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6015243120626175956}
+  m_GameObject: {fileID: 2037121215295075084}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8a3f7e4cbfb5a184b8e397a0175d7112, type: 3}
@@ -84,15 +84,15 @@ MonoBehaviour:
   - offset: {x: 0, y: 0, z: 0}
     faceDir: 3
     faceDetails:
-      topLeft: 1
-      top: 1
-      topRight: 1
-      left: 1
-      center: 1
-      right: 1
-      bottomLeft: 1
-      bottom: 1
-      bottomRight: 1
+      topLeft: 15
+      top: 15
+      topRight: 15
+      left: 15
+      center: 15
+      right: 15
+      bottomLeft: 15
+      bottom: 15
+      bottomRight: 15
   - offset: {x: 0, y: 0, z: 0}
     faceDir: 4
     faceDetails:
@@ -123,4 +123,4 @@ MonoBehaviour:
   tileSize: {x: 1, y: 1, z: 1}
   rotatable: 1
   reflectable: 1
-  instantiateChildrenOnly: 0
+  instantiateChildrenOnly: 1

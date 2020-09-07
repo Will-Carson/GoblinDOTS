@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 333e56fb2e5d1ff4bb53c10611586ded, type: 3}
-  m_Name: Air Palette
+  m_Name: Ladder Palette (1)
   m_EditorClassIdentifier: 
   entries:
   - color: {r: 0, g: 0, b: 0, a: 0}
@@ -52,27 +52,12 @@ MonoBehaviour:
   - color: {r: 0.78431374, g: 0.6313726, b: 0.90588236, a: 1}
     name: Light Purple
   matchOverridesList:
-  - color1: 5
+  - color1: 6
+    color2: 6
+    isMatch: 0
+  - color1: 6
     color2: 2
     isMatch: 1
   - color1: 2
-    color2: 5
+    color2: 6
     isMatch: 1
-  - color1: 15
-    color2: 2
-    isMatch: 1
-  - color1: 2
-    color2: 15
-    isMatch: 1
-  - color1: 5
-    color2: 0
-    isMatch: 0
-  - color1: 0
-    color2: 5
-    isMatch: 0
-  - color1: 2
-    color2: 0
-    isMatch: 0
-  - color1: 0
-    color2: 2
-    isMatch: 0

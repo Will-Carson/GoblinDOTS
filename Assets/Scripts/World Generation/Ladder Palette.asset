@@ -53,5 +53,17 @@ MonoBehaviour:
     name: Light Purple
   matchOverridesList:
   - color1: 6
+    color2: 2
+    isMatch: 1
+  - color1: 2
+    color2: 6
+    isMatch: 1
+  - color1: 6
+    color2: 6
+    isMatch: 0
+  - color1: 6
+    color2: 0
+    isMatch: 0
+  - color1: 0
     color2: 6
     isMatch: 0
