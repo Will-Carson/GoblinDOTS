@@ -56,7 +56,7 @@ public class WorldGenerator : MonoBehaviour
         {
             foreach (Transform child in transform)
             {
-                Destroy(child);
+                Destroy(child.gameObject);
             }
 
             Maze = new MazeTile[WorldBounds.x, WorldBounds.y, WorldBounds.z];
@@ -382,35 +382,49 @@ public class WorldGenerator : MonoBehaviour
 
         var j = Maze[x, y, z];
         var k = GetChunkOffset(ChunkSize, new Vector3Int(x, y, z));
-        var i = new GeneratorController();
+        GeneratorController i = null;
 
         var c = coordinate;
 
         if (j.connections.Contains(d))
         {
             c = k + new Vector3Int(ChunkSize.x * Directions[d].x, ChunkSize.y * Directions[d].y, ChunkSize.z * Directions[d].z);
-            if (j.zoneId == Maze[x + Directions[d].x, y + Directions[d].y, z + Directions[d].z].zoneId)
+            if (d != Direction.Up && j.zoneId == Maze[x + Directions[d].x, y + Directions[d].y, z + Directions[d].z].zoneId)
             {
                 i = Instantiate(StandardGenerator, c, new Quaternion());
                 StandardGenerators.Add(i);
                 i.transform.parent = transform;
             }
-            else
+            else if (d == Direction.North || d == Direction.East)
             {
                 var g = Instantiate(CrossroadsGenerator, c, new Quaternion());
                 g.transform.parent = transform;
                 if (d == Direction.North)
                 {
-                    Destroy(g.eastGate);
-                    Destroy(g.westGate);
+                    g.eastGate.gameObject.SetActive(false);
+                    g.westGate.gameObject.SetActive(false);
+                    g.hatchUp.gameObject.SetActive(false);
+                    g.hatchDown.gameObject.SetActive(false);
                     CrossroadGenerators.Add(g);
                 }
                 if (d == Direction.East)
                 {
-                    Destroy(g.northGate);
-                    Destroy(g.southGate);
+                    g.northGate.gameObject.SetActive(false);
+                    g.southGate.gameObject.SetActive(false);
+                    g.hatchUp.gameObject.SetActive(false);
+                    g.hatchDown.gameObject.SetActive(false);
                     CrossroadGenerators.Add(g);
                 }
+            }
+            else if (d == Direction.Up)
+            {
+                var g = Instantiate(CrossroadsGenerator, c, new Quaternion());
+                g.transform.parent = transform;
+                g.northGate.gameObject.SetActive(false);
+                g.southGate.gameObject.SetActive(false);
+                g.eastGate.gameObject.SetActive(false);
+                g.westGate.gameObject.SetActive(false);
+                CrossroadGenerators.Add(g);
             }
         }
     }
@@ -426,20 +440,37 @@ public class WorldGenerator : MonoBehaviour
     {
         for (int x = 0; x < CrossroadGenerators.Count; x++)
         {
-            CrossroadGenerators[x].GenerateWorld();
-            while (!CrossroadGenerators[x].isDone)
+            CrossroadGenerators[x].GenerateWorld(0);
+            while (!CrossroadGenerators[x].generatorDone[0])
+            {
+                yield return null;
+            }
+        }
+        for (int x = 0; x < CrossroadGenerators.Count; x++)
+        {
+            CrossroadGenerators[x].GenerateWorld(1);
+            while (!CrossroadGenerators[x].generatorDone[1])
             {
                 yield return null;
             }
         }
         for (int x = 0; x < StandardGenerators.Count; x++)
         {
-            StandardGenerators[x].GenerateWorld();
-            while (!StandardGenerators[x].isDone)
+            StandardGenerators[x].GenerateWorld(0);
+            while (!StandardGenerators[x].generatorDone[0])
             {
                 yield return null;
             }
         }
+        for (int x = 0; x < StandardGenerators.Count; x++)
+        {
+            StandardGenerators[x].GenerateWorld(1);
+            while (!StandardGenerators[x].generatorDone[1])
+            {
+                yield return null;
+            }
+        }
+        Debug.Log("Done");
     }
 
     private void VisualizeMaze()

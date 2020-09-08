@@ -123,4 +123,4 @@ MonoBehaviour:
   tileSize: {x: 1, y: 1, z: 1}
   rotatable: 1
   reflectable: 1
-  instantiateChildrenOnly: 1
+  instantiateChildrenOnly: 0

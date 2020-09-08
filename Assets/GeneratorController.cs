@@ -9,24 +9,32 @@ public class GeneratorController : MonoBehaviour
     public TesseraTile southGate;
     public TesseraTile eastGate;
     public TesseraTile westGate;
+    public TesseraTile hatchUp;
+    public TesseraTile hatchDown;
 
     public List<TesseraGenerator> generators = new List<TesseraGenerator>();
+    public List<bool> generatorDone = new List<bool>();
 
-    public bool isDone = false;
-
-    public void GenerateWorld()
+    public void GenerateWorld(int generatorId)
     {
-        var t = new Task(GenerateWorldEnum());
+        var t = new Task(GenerateWorldEnum(generatorId));
     }
 
-    public IEnumerator GenerateWorldEnum()
+    public IEnumerator GenerateWorldEnum(int generatorId)
     {
-        foreach (var g in generators)
+        while (!generatorDone[generatorId])
         {
-            var t = new Task(g.StartGenerate());
-            while (t.Running) yield return null;
+            var timer = Time.time + 5;
+            generators[generatorId].Clear();
+            Task t = new Task(generators[generatorId].StartGenerate());
+            while (t.Running && timer > Time.time)
+            {
+                yield return null;
+            }
+            if (!t.Running)
+            {
+                generatorDone[generatorId] = true;
+            }
         }
-
-        isDone = true;
     }
 }

@@ -235,9 +235,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d466cd8c87a64434ab26e928035a731c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WorldBounds: {x: 5, y: 3, z: 5}
+  WorldBounds: {x: 3, y: 2, z: 3}
   ChunkSize: {x: 10, y: 5, z: 10}
-  MaxNumberOfTiles: 20
+  MaxNumberOfTiles: 10
   SizeMultiplier: 0.4
   RerollThreshold: 0.0001
   ResetThreshold: 0.8333
